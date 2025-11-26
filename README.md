@@ -137,7 +137,7 @@ An honest disclamer on the development process: I have no formal background in s
 
 ## License
 
-GPL-3.0-or-later  - see [COPYING](COPYING) file for details.
+GPL-3.0-or-later  - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
