@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <rect width="180" height="180" fill="#2A2A2A"/>
+  <g fill="rgba(255, 255, 255, 0.6)">
+    <circle cx="90" cy="90" r="40" fill="none" stroke="rgba(255, 255, 255, 0.3)" stroke-width="2"/>
+    <circle cx="90" cy="90" r="15" fill="rgba(255, 255, 255, 0.3)"/>
+    <circle cx="90" cy="90" r="2" fill="#fff"/>
+  </g>
+  <text x="90" y="140" fill="rgba(255, 255, 255, 0.5)" font-family="Arial" font-size="12" text-anchor="middle">No Cover</text>
+</svg>
