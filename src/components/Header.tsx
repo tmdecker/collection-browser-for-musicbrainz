@@ -1,7 +1,7 @@
 /**
  * @ai-file component
- * @ai-description Application header with menu, collection name, search, sort, filter, and cache status
- * @ai-dependencies React, SearchBar, SortDropdown, FilterButton, CacheStatusIndicator, useAuth
+ * @ai-description Application header with menu, collection name, search, sort, and filter
+ * @ai-dependencies React, SearchBar, SortDropdown, FilterButton, useAuth
  * @ai-features
  * - Responsive layout: desktop single-row, mobile two-row stacked
  * - Hamburger menu with auth status, settings, and navigation

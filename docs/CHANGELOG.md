@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.9] - 2025-11-27
+
+### Removed
+
+- **Dead Code Cleanup**: Removed unused `CacheStatusIndicator` component
+  - Deleted [CacheStatusIndicator.tsx](../src/components/CacheStatusIndicator.tsx) (147 lines)
+  - Fixed stale `@ai` annotation in [Header.tsx](../src/components/Header.tsx)
+
 ## [0.19.8] - 2025-11-27
 
 ### Removed
