@@ -44,10 +44,6 @@ export interface StreamingPreferences {
 
 export interface ApiConfiguration {
   collectionId: string;
-  userAgent: string;
-  useDirectApi: boolean;
-  enableCaching: boolean;
-  logErrors: boolean;
 }
 
 export interface CollectionMetadata {
@@ -107,10 +103,6 @@ export const DEFAULT_STREAMING_PREFERENCES: StreamingPreferences = {
 
 export const DEFAULT_API_CONFIGURATION: ApiConfiguration = {
   collectionId: '',
-  userAgent: 'MusicLibraryViewer/1.0.0 (mailto:your.email@example.com)',
-  useDirectApi: false,
-  enableCaching: true,
-  logErrors: true,
 };
 
 export const DEFAULT_COLLECTION_METADATA: CollectionMetadata = {

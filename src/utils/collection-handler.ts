@@ -11,9 +11,6 @@ import { fetchAllReleaseGroupsInCollection } from './release-groups-helper';
 // Configuration options
 interface CollectionConfig {
   collectionId: string;
-  userAgent: string;
-  enableCaching: boolean;
-  logErrors: boolean;
 }
 
 // Get collection ID from localStorage configuration
@@ -38,9 +35,6 @@ const getConfiguredCollectionId = (): string => {
 // Default configuration
 const defaultConfig: CollectionConfig = {
   collectionId: getConfiguredCollectionId(), // Require user configuration
-  userAgent: `${process.env.MUSICBRAINZ_APP_NAME} (mailto:${process.env.MUSICBRAINZ_CONTACT_EMAIL})`,
-  enableCaching: false, // Caching disabled to ensure we get all data
-  logErrors: true
 };
 
 /**
@@ -65,11 +59,9 @@ export const getCollection = async (
     // Always use API proxy to avoid CORS issues
     console.log('🔗 Using API proxy to avoid CORS issues...');
     console.log('🆔 Collection ID:', config.collectionId);
-    console.log('👤 User Agent:', config.userAgent);
 
     const { releaseGroups, collectionName } = await fetchAllReleaseGroupsInCollection(
-      config.collectionId,
-      config.userAgent
+      config.collectionId
     );
 
     console.log(`✅ Successfully fetched ${releaseGroups.length} release groups via API proxy`);

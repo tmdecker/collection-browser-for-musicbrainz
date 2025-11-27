@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,10 +12,7 @@ export default function ConfigPage() {
   // Get preferences from centralized hook
   const {
     preferences,
-    updateDisplay,
     updateStreaming,
-    updateApi,
-    updateMetadata,
     setUseGenresOnly,
     setEnableLabelFilter,
     setSpotifyUseDesktopApp,
@@ -29,38 +25,11 @@ export default function ConfigPage() {
   // Get auth state
   const { isAuthenticated } = useAuth();
 
-  // Local state for form inputs (for immediate feedback before saving)
-  const [formData, setFormData] = useState(preferences.api);
-
-  // Update form data when preferences change
-  useEffect(() => {
-    setFormData(preferences.api);
-  }, [preferences.api]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Update preferences through the hook
-    updateApi(formData);
-
-    // Redirect to home page
-    router.push('/');
-  };
-
   return (
     <main className="min-h-screen p-6 bg-background">
       <h1 className="text-2xl font-bold mb-6 text-text-primary">Configuration Settings</h1>
 
-      <form onSubmit={handleSubmit} className="max-w-2xl">
+      <div className="max-w-2xl">
         <div className="space-y-6">
           {/* Display Settings */}
           <div>
@@ -303,25 +272,19 @@ export default function ConfigPage() {
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-4 pt-4">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
-            >
-              Save Configuration
-            </button>
-            
+
+          {/* Navigation */}
+          <div className="mt-6 pt-4 border-t border-background-tertiary">
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="px-4 py-2 bg-background-tertiary text-text-primary rounded-md hover:bg-background-secondary"
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
             >
-              Cancel
+              Done
             </button>
           </div>
         </div>
-      </form>
+      </div>
 
 
       {/* Version Information */}
@@ -331,93 +294,6 @@ export default function ConfigPage() {
           <p>Music Library Viewer v{require('../../../package.json').version}</p>
         </div>
       </div>
-
-      {/* Admin & Diagnostic Section (Development Mode Only) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-8 pt-6 border-t border-background-tertiary">
-          <h2 className="text-xl font-bold mb-4 text-text-primary">Admin Section</h2>
-          <p className="text-sm text-text-tertiary mb-4">
-            Developer-only settings. This section is hidden in production.
-          </p>
-
-          <div className="space-y-6 max-w-2xl">
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
-                User Agent
-              </label>
-              <input
-                type="text"
-                name="userAgent"
-                value={formData.userAgent}
-                onChange={handleChange}
-                className="block w-full p-2 bg-background-secondary text-text-primary rounded-md"
-              />
-              <p className="mt-1 text-sm text-text-tertiary">
-                MusicBrainz requires a User-Agent with contact information
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="useDirectApi"
-                  checked={formData.useDirectApi}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-primary focus:ring-primary"
-                />
-                <label className="ml-2 block text-sm text-text-secondary">
-                  Try direct API access first (might help with CORS issues)
-                </label>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="enableCaching"
-                  checked={formData.enableCaching}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-primary focus:ring-primary"
-                />
-                <label className="ml-2 block text-sm text-text-secondary">
-                  Enable client-side caching (faster, but might show outdated data)
-                </label>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="logErrors"
-                  checked={formData.logErrors}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-primary focus:ring-primary"
-                />
-                <label className="ml-2 block text-sm text-text-secondary">
-                  Log detailed errors to console
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <h3 className="text-lg font-medium text-text-primary mb-3">Diagnostic Tools</h3>
-            <div className="flex flex-wrap gap-2">
-              <a
-                href="/debug"
-                className="px-4 py-2 bg-background-tertiary text-text-primary rounded-md hover:bg-background-secondary"
-              >
-                Basic Diagnostics
-              </a>
-              <a
-                href="/debug/advanced"
-                className="px-4 py-2 bg-background-tertiary text-text-primary rounded-md hover:bg-background-secondary"
-              >
-                Advanced API Testing
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

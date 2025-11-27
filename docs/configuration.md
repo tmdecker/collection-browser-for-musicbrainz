@@ -18,7 +18,6 @@ The main settings interface provides:
 - **Rating Display**: Toggle ratings and select between community average or personal ratings
 - **Preference Persistence**: Configuration managed by `usePreferences` hook with automatic migration
 - **Real-Time Application**: Changes take effect immediately after saving
-- **Advanced Options** (dev mode): User Agent configuration, caching, and error logging toggles
 
 ### Collection Management (Browse Collections Panel)
 
@@ -92,11 +91,7 @@ The application uses a centralized preference management system built on the `us
     }
   },
   "api": {
-    "collectionId": "",
-    "userAgent": "MusicLibraryViewer/1.0.0 (mailto:contact@example.com)",
-    "useDirectApi": false,
-    "enableCaching": true,
-    "logErrors": true
+    "collectionId": ""
   },
   "metadata": {
     "collectionName": "",
@@ -128,37 +123,6 @@ The application uses a centralized preference management system built on the `us
   - 🔵 Spinner: Validating collection
   - ✅ Green checkmark: Valid release-group collection
   - ❌ Red error icon: Invalid collection with helpful error message
-
-#### userAgent
-- **Type**: String
-- **Required**: Yes
-- **Path**: `preferences.api.userAgent`
-- **Description**: Custom User-Agent string respecting MusicBrainz API guidelines
-- **Example**: `"MyMusicApp/1.0 (contact@example.com)"`
-- **Guidelines**: Must include app name, version, and contact information
-
-### API Configuration
-
-#### useDirectApi
-- **Type**: Boolean
-- **Default**: `false`
-- **Path**: `preferences.api.useDirectApi`
-- **Description**: Direct API access toggle (disabled by default for CORS compatibility)
-- **Note**: Most users should keep this disabled
-
-#### enableCaching
-- **Type**: Boolean
-- **Default**: `true`
-- **Path**: `preferences.api.enableCaching`
-- **Description**: Toggle IndexedDB caching system
-- **Impact**: Disabling reduces performance and offline functionality
-
-#### logErrors
-- **Type**: Boolean
-- **Default**: `false`
-- **Path**: `preferences.api.logErrors`
-- **Description**: Enable detailed error logging for debugging
-- **Use Case**: Helpful for troubleshooting API issues
 
 ### Display Configuration
 
@@ -465,18 +429,13 @@ The configuration system integrates with various parts of the application:
 
 #### API Rate Limiting
 - **Symptom**: Slow loading, error messages about rate limits
-- **Solution**: Enable caching, reduce refresh frequency
-- **Configuration**: Set `enableCaching: true`
+- **Solution**: MusicBrainz API requests are rate-limited per their requirements (2 seconds between requests)
+- **Note**: The application automatically handles rate limiting
 
 #### Streaming Links Not Working
 - **Symptom**: No streaming links appear in album details
-- **Solution**: Check streaming platform preferences
-- **Configuration**: Verify `enableStreamingLinks: true` and platform list
-
-#### Performance Issues
-- **Symptom**: Slow app performance, high memory usage
-- **Solution**: Enable caching, optimize image loading
-- **Configuration**: Ensure `enableCaching: true`
+- **Solution**: Check streaming platform preferences in Settings
+- **Configuration**: Verify enabled services in streaming preferences
 
 ### Debug Mode
 

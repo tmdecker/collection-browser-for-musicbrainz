@@ -30,10 +30,6 @@ export const PREFERENCES_STORAGE_KEY = 'mb-user-preferences';
 
 interface LegacyConfig {
   collectionId?: string;
-  userAgent?: string;
-  useDirectApi?: boolean;
-  enableCaching?: boolean;
-  logErrors?: boolean;
 }
 
 /**
@@ -52,10 +48,6 @@ export const migratePreferences = (): UserPreferences => {
         preferences.api = {
           ...preferences.api,
           collectionId: config.collectionId || preferences.api.collectionId,
-          userAgent: config.userAgent || preferences.api.userAgent,
-          useDirectApi: config.useDirectApi ?? preferences.api.useDirectApi,
-          enableCaching: config.enableCaching ?? preferences.api.enableCaching,
-          logErrors: config.logErrors ?? preferences.api.logErrors,
         };
       } catch (e) {
         console.warn('Failed to migrate mbConfigOptions:', e);

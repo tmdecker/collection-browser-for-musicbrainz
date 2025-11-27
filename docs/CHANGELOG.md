@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.6] - 2025-11-27
+
+### Removed
+
+- **Dead Code Cleanup**: Removed unused admin section settings (development-only)
+  - Removed `userAgent` setting - API uses environment variables only
+  - Removed `useDirectApi` setting - always uses proxy
+  - Removed `enableCaching` setting - never used
+  - Removed `logErrors` setting - errors always logged
+  - Simplified [ApiConfiguration](../src/types/preferences.ts) interface to only `collectionId`
+  - Cleaned up [preference-migration.ts](../src/utils/preference-migration.ts) and [collection-handler.ts](../src/utils/collection-handler.ts)
+
 ## [0.19.5] - 2025-11-27
 
 ### Changed
