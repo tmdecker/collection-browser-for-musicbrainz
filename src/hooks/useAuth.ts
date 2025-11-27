@@ -5,7 +5,7 @@
  * @ai-features Auth state, auto-refresh, login/logout, profile fetching, httpOnly cookies
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePreferences } from './usePreferences';
 import { AuthState, AuthStatus, AuthError, MusicBrainzUser } from '@/types/auth';
 import { isTokenExpired } from '@/utils/oauth';
@@ -29,6 +29,9 @@ export const useAuth = (): UseAuthReturn => {
     expiresAt: null,
     error: null,
   });
+
+  // Prevent concurrent refresh attempts (e.g., from StrictMode or duplicate effects)
+  const refreshInProgressRef = useRef(false);
 
   // Get token expiry from cookies
   // Note: Access token is now httpOnly and cannot be read by JavaScript (security improvement)
@@ -69,6 +72,12 @@ export const useAuth = (): UseAuthReturn => {
 
   // Refresh access token
   const refreshToken = useCallback(async (): Promise<boolean> => {
+    // Prevent concurrent refresh attempts
+    if (refreshInProgressRef.current) {
+      return false;
+    }
+    refreshInProgressRef.current = true;
+
     try {
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
@@ -108,6 +117,8 @@ export const useAuth = (): UseAuthReturn => {
       });
 
       return false;
+    } finally {
+      refreshInProgressRef.current = false;
     }
   }, [updateAuth]);
 
