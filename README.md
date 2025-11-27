@@ -125,9 +125,9 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 
 ## Latest Release
 
-**v0.19.4** - Critical Bugfix in ratings.ts
+**v0.19.5** - Settings UI Consistency
 
-- Fixed ratings display issues to handle null/undefined values
+- Reduced text size and checkbox size in Rating Display section to match other settings elements
 
 ## Disclaimer OR Why this app was built
 

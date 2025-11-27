@@ -100,21 +100,23 @@ export default function ConfigPage() {
           </div>
 
           {/* Rating Display Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-text-primary">
+          <div>
+            <h3 className="text-lg font-medium text-text-primary mb-2">
               Rating Display
             </h3>
 
             {/* Master toggle */}
-            <label className="flex items-center space-x-3 cursor-pointer">
+            <div className="flex items-center">
               <input
                 type="checkbox"
                 checked={preferences.display.showRatings}
                 onChange={(e) => setShowRatings(e.target.checked)}
-                className="w-5 h-5 text-primary focus:ring-primary"
+                className="h-4 w-4 text-primary focus:ring-primary"
               />
-              <span className="text-text-primary">Show ratings on albums</span>
-            </label>
+              <label className="ml-2 block text-sm text-text-secondary">
+                Show ratings on albums
+              </label>
+            </div>
 
             {/* Display mode selection */}
             {preferences.display.showRatings && (

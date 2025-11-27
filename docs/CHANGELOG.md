@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.5] - 2025-11-27
+
+### Changed
+
+- **Settings UI Consistency**: Reduced text size and checkbox size in Rating Display section to match other settings elements
+  - Changed heading font weight from semibold to medium
+  - Reduced checkbox size from 20px to 16px
+  - Reduced label text from default to text-sm (14px)
+  - Changed label color from white to gray (text-secondary)
+
 ## [0.19.4] - 2025-11-24
 
 ### Fixed
