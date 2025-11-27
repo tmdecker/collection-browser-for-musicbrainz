@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.8] - 2025-11-27
+
+### Removed
+
+- **Dead Code Cleanup**: Removed unused `CollectionSelector` component
+  - Deleted [CollectionSelector.tsx](../src/components/CollectionSelector.tsx) (117 lines)
+  - Fixed stale `@ai` annotations in [Header.tsx](../src/components/Header.tsx)
+  - Component was previously removed from config page in v0.14.6, replaced by `CollectionBrowsePanel`
+
 ## [0.19.7] - 2025-11-27
 
 ### Changed

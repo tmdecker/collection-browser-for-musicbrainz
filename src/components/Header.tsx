@@ -1,10 +1,10 @@
 /**
  * @ai-file component
  * @ai-description Application header with menu, collection name, search, sort, filter, and cache status
- * @ai-dependencies React, SearchBar, SortDropdown, FilterButton, CacheStatusIndicator, CollectionSelector, useAuth
+ * @ai-dependencies React, SearchBar, SortDropdown, FilterButton, CacheStatusIndicator, useAuth
  * @ai-features
  * - Responsive layout: desktop single-row, mobile two-row stacked
- * - Hamburger menu with auth status, settings (CollectionSelector), and navigation
+ * - Hamburger menu with auth status, settings, and navigation
  * - Auto-fetched collection name display with truncation
  * - Glass morphism styling with sticky positioning
  * - Dynamic header heights via CSS variables (64px desktop, 96px mobile)
