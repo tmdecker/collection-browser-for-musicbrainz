@@ -123,12 +123,6 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 - [OAuth Setup Guide](docs/oauth_setup.md) - MusicBrainz OAuth2 authentication setup
 - [Changelog](docs/CHANGELOG.md) - Version history and release notes
 
-## Latest Release
-
-**v0.19.5** - Settings UI Consistency
-
-- Reduced text size and checkbox size in Rating Display section to match other settings elements
-
 ## Disclaimer OR Why this app was built
 
 I use MusicBrainz.org as a way to be independent of streaming services when it comes to managing my digital music library. However, unlike those streaming services, MusicBrainz doesn't come with a pretty, modern UI that allows me to browse my library ("collection") in a way I would enjoy. E.g. I would like to view all jazz albums in my collection, or all albums from the 80s. So, this app is tailored to my specific needs and aestetic preferences. Nevertheless, there is lots of room for additional features that are attractive for a larger audience including support of release collections, series or even expansion to the Discogs database.

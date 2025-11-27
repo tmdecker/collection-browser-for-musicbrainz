@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.7] - 2025-11-27
+
+### Changed
+
+- **Environment Variable Cleanup**: Removed redundant non-prefixed environment variables
+  - Removed `MUSICBRAINZ_APP_NAME` and `MUSICBRAINZ_CONTACT_EMAIL` (duplicates of `NEXT_PUBLIC_*` versions)
+  - Updated [userAgent.ts](../src/utils/config/userAgent.ts) to use only `NEXT_PUBLIC_*` variables
+  - Simplified [.env.example](../.env.example) configuration
+  - No breaking changes - only `NEXT_PUBLIC_*` versions needed
+
 ## [0.19.6] - 2025-11-27
 
 ### Removed

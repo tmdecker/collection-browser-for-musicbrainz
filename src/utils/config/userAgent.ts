@@ -19,7 +19,7 @@
  * Uses environment variables from .env.local
  */
 export const getUserAgent = (): string => {
-  const appName = process.env.NEXT_PUBLIC_MUSICBRAINZ_APP_NAME || process.env.MUSICBRAINZ_APP_NAME || 'MusicLibraryViewer/1.0.0';
-  const contactEmail = process.env.NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL || process.env.MUSICBRAINZ_CONTACT_EMAIL || 'your.email@example.com';
+  const appName = process.env.NEXT_PUBLIC_MUSICBRAINZ_APP_NAME || 'MusicLibraryViewer/1.0.0';
+  const contactEmail = process.env.NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL || 'your.email@example.com';
   return `${appName} (mailto:${contactEmail})`;
 };
