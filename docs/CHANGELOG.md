@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2025-11-28
+
+### Changed
+
+- **Release Selection Logic**: Album details now prioritize official releases sorted by date
+  - Filter to `status === 'Official'` releases first (fallback to all if none exist)
+  - Sort by release date ascending (oldest first = original release)
+  - Updated `selectPreferredRelease()` in [api.ts:41-56](../src/utils/api.ts#L41-L56)
+  - Note: Streaming link discovery remains independent and unchanged
+
 ## [0.19.10] - 2025-11-27
 
 ### Fixed

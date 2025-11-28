@@ -33,23 +33,26 @@ const CA_API_BASE = '/api/coverart';
 
 /**
  * Select the preferred release from a list of releases
- * Priority: Digital Media + XW (worldwide), fallback to first release
+ * @ai Priority: Official status first, then oldest release date
+ * @ai Ensures album details (tracks, labels) come from original official release
+ * @param releases - Array of releases from a release-group
+ * @returns The preferred release, or null if no releases exist
  */
 const selectPreferredRelease = (releases: Release[]): Release | null => {
   if (!releases || releases.length === 0) return null;
 
-  // Priority 1: Digital Media format + Worldwide (XW) country
-  const digitalWorldwide = releases.find(release =>
-    release.media?.some(media => media.format === 'Digital Media') &&
-    release.country === 'XW'
-  );
+  // Priority 1: Official releases only (if available)
+  const officialReleases = releases.filter(r => r.status === 'Official');
+  const candidates = officialReleases.length > 0 ? officialReleases : releases;
 
-  if (digitalWorldwide) {
-    return digitalWorldwide;
-  }
+  // Priority 2: Sort by date (oldest first = original release)
+  const sorted = [...candidates].sort((a, b) => {
+    const dateA = a.date || '9999-99-99';
+    const dateB = b.date || '9999-99-99';
+    return dateA.localeCompare(dateB);
+  });
 
-  // Priority 2: Fallback to first release
-  return releases[0];
+  return sorted[0];
 };
 
 /**
