@@ -169,13 +169,10 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   const artistName = getArtistName();
 
-  // Get release date with fallback options
+  // Get release date from release-group first_release_date
+  // Handle both normalized (first_release_date) and API format (first-release-date)
   const getReleaseDate = () => {
-    if (displayAlbum.first_release_date) return displayAlbum.first_release_date;
-    if (displayAlbum.releases && displayAlbum.releases.length > 0 && displayAlbum.releases[0].date) {
-      return displayAlbum.releases[0].date;
-    }
-    return '';
+    return displayAlbum.first_release_date || (displayAlbum as any)['first-release-date'] || '';
   };
 
   const releaseDate = getReleaseDate();
