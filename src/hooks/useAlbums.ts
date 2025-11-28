@@ -107,9 +107,39 @@ export const useAlbums = (externalCollectionId?: string) => {
           const hasDetailedData = cachedAlbum.releases && cachedAlbum.releases.length > 0;
 
           if (hasDetailedData) {
-            return;
+            // Check if cache is stale (older than 24 hours)
+            const cacheAge = Date.now() - (cachedAlbum._cachedAt || 0);
+            const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+            const isStale = cacheAge > TWENTY_FOUR_HOURS;
+
+            if (isStale) {
+              console.log(`🕐 Cache stale for ${albumId} (${Math.round(cacheAge / 3600000)}h old), background refresh`);
+
+              // Background refresh (non-blocking, silent)
+              fetchReleaseGroup(albumId)
+                .then(async (freshDetails) => {
+                  // Only update if data changed (compare release count)
+                  if (freshDetails.releases?.length !== cachedAlbum.releases?.length) {
+                    console.log(`🔄 Background refresh found updated data for ${albumId}`);
+                    setSelectedAlbumDetails(freshDetails);
+                  }
+                  // Always update cache with fresh data
+                  const existingAlbum = albums.find(a => a.id === albumId);
+                  await storeReleaseGroup({
+                    ...freshDetails,
+                    cover: existingAlbum?.cover || cachedAlbum.cover || freshDetails.cover
+                  });
+                })
+                .catch(() => {
+                  // Silent fail - cached data is still shown
+                });
+            } else {
+              console.log(`✅ Fresh cache for ${albumId} (${Math.round(cacheAge / 3600000)}h old), no refresh`);
+            }
+
+            return; // Always return early with cached data
           }
-          // User can see basic info immediately, detailed info loads in background
+          // Has basic data only - continue to fetch details (with loading=false)
         }
       } catch (err) {
         // Silently continue to fetch from API
@@ -127,7 +157,6 @@ export const useAlbums = (externalCollectionId?: string) => {
 
       // No cached data or only basic data - fetch detailed information
       try {
-        // ALWAYS refetch from API to ensure we have up to 100 releases (not just cached 25)
         const details = await fetchReleaseGroup(albumId, signal);
 
         // Only update state if not aborted
@@ -265,6 +294,16 @@ export const useAlbums = (externalCollectionId?: string) => {
   // Fetch albums on initial load and when collection changes
   useEffect(() => {
     fetchAlbums();
+  }, [fetchAlbums]);
+
+  // Listen for background refresh completion and update UI
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchAlbums();
+    };
+
+    window.addEventListener('mb-data-updated', handleDataUpdated);
+    return () => window.removeEventListener('mb-data-updated', handleDataUpdated);
   }, [fetchAlbums]);
 
   return {

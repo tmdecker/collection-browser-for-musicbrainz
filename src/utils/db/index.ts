@@ -298,6 +298,53 @@ export const storeCollection = async (
 };
 
 /**
+ * Clear collection metadata to force re-fetch while preserving individual album data
+ */
+export const clearCollectionMetadata = async (collectionId: string): Promise<void> => {
+  // If using memory fallback, delete from memory
+  if (usingMemoryFallback) {
+    memoryCache.collections.delete(collectionId);
+    console.log(`📝 Cleared collection metadata for ${collectionId} from memory cache`);
+    return;
+  }
+
+  try {
+    const db = await openDatabase();
+
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction([COLLECTION_STORE], 'readwrite');
+        transaction.onerror = (event) => {
+          console.error('Transaction error:', transaction.error);
+          reject(transaction.error);
+        };
+
+        const store = transaction.objectStore(COLLECTION_STORE);
+        const request = store.delete(collectionId);
+
+        request.onsuccess = () => {
+          console.log(`🗃️ Cleared collection metadata for ${collectionId} from IndexedDB`);
+        };
+
+        transaction.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+      } catch (error) {
+        console.error('Error in transaction:', error);
+        db.close();
+        reject(error);
+      }
+    });
+  } catch (error) {
+    console.error('Failed to clear collection metadata from IndexedDB:', error);
+    // Fall back to memory cache
+    usingMemoryFallback = true;
+    return clearCollectionMetadata(collectionId);
+  }
+};
+
+/**
  * Retrieve collection metadata
  */
 export const getCollectionMetadata = async (collectionId: string): Promise<CollectionMetadata | null> => {

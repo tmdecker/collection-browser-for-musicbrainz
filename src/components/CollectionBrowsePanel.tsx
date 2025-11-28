@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MusicBrainzCollection } from '@/types/auth';
-import { BiLoaderAlt, BiError, BiCollection, BiLinkExternal, BiCheck, BiUserX, BiX } from 'react-icons/bi';
+import { BiLoaderAlt, BiError, BiCollection, BiLinkExternal, BiCheck, BiUserX, BiX, BiRefresh } from 'react-icons/bi';
 import { validateCollectionId } from '@/utils/mbid-validation';
 
 interface CollectionBrowsePanelProps {
@@ -26,6 +26,7 @@ interface CollectionBrowsePanelProps {
   isAuthenticated: boolean;
   hasActiveFilters?: boolean;
   onLogin?: () => void;
+  onRefreshCollection?: () => void;
 }
 
 export default function CollectionBrowsePanel({
@@ -37,6 +38,7 @@ export default function CollectionBrowsePanel({
   isAuthenticated,
   hasActiveFilters = false,
   onLogin,
+  onRefreshCollection,
 }: CollectionBrowsePanelProps) {
   const [collections, setCollections] = useState<MusicBrainzCollection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -231,9 +233,20 @@ export default function CollectionBrowsePanel({
           {/* Manual Collection Input - Available to all users */}
           <div className="mb-8">
             <div className="max-w-[1200px] mx-auto">
-              <h2 className="text-xl font-bold text-text-primary mb-4">
-                Browse Collection
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-text-primary">
+                  Browse Collection
+                </h2>
+                {currentCollectionId && onRefreshCollection && (
+                  <button
+                    onClick={onRefreshCollection}
+                    className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                    title="Refresh collection from MusicBrainz"
+                  >
+                    <BiRefresh size={20} />
+                  </button>
+                )}
+              </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="relative flex-1">
                   <input

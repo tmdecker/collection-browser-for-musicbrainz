@@ -163,6 +163,20 @@ async function fetchAndCacheCollection(collectionId: string): Promise<ReleaseGro
 }
 
 /**
+ * Force refresh collection data by clearing collection metadata and fetching fresh data
+ * Used by manual refresh button to bypass cache while preserving individual album data
+ */
+export async function forceRefreshCollection(collectionId: string): Promise<ReleaseGroup[]> {
+  console.log('🔄 Force refreshing collection:', collectionId);
+
+  // Clear only collection metadata to force re-fetch (preserves album details cache)
+  await db.clearCollectionMetadata(collectionId);
+
+  // Fetch fresh data and cache it
+  return await fetchAndCacheCollection(collectionId);
+}
+
+/**
  * Start a background refresh of the data without blocking UI
  */
 export function refreshDataInBackground(collectionId: string): void {

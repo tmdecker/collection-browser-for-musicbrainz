@@ -73,6 +73,7 @@ export async function GET(
         method: 'GET',
         headers,
         signal: controller.signal,
+        cache: 'no-store',
       });
 
       clearTimeout(timeoutId);

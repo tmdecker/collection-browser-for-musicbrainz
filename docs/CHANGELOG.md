@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2025-11-28
+
+### Added
+
+- **Manual Collection Refresh**: Refresh button in Browse Collection panel for instant cache bypass
+
+### Fixed
+
+- **Album Details Caching**: Instant display with smart 24h background refresh reduces API calls
+- **Collection Updates**: New release-groups now visible after reload (fixed Next.js fetch caching)
+
 ## [0.20.0] - 2025-11-28
 
 ### Changed

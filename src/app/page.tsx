@@ -277,6 +277,21 @@ export default function Home() {
     setActiveCollectionId(newCollectionId);
   };
 
+  // Handle manual refresh of current collection
+  const handleRefreshCollection = async () => {
+    if (!collectionId) return;
+
+    try {
+      const { forceRefreshCollection } = await import('@/utils/progressive-loader');
+      await forceRefreshCollection(collectionId);
+
+      // Trigger UI refresh
+      refreshAlbums();
+    } catch (error) {
+      console.error('Failed to refresh collection:', error);
+    }
+  };
+
   // Handle title click - close all panels and scroll to top
   const handleTitleClick = () => {
     // Close all panels
@@ -397,6 +412,7 @@ export default function Home() {
         isAuthenticated={isAuthenticated}
         hasActiveFilters={hasActiveFilters || isFilterPanelOpen}
         onLogin={login}
+        onRefreshCollection={handleRefreshCollection}
       />
 
       {/* Validation Toast Notification */}
