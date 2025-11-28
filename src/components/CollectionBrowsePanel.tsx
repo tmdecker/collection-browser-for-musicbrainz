@@ -233,20 +233,9 @@ export default function CollectionBrowsePanel({
           {/* Manual Collection Input - Available to all users */}
           <div className="mb-8">
             <div className="max-w-[1200px] mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-text-primary">
-                  Browse Collection
-                </h2>
-                {currentCollectionId && onRefreshCollection && (
-                  <button
-                    onClick={onRefreshCollection}
-                    className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                    title="Refresh collection from MusicBrainz"
-                  >
-                    <BiRefresh size={20} />
-                  </button>
-                )}
-              </div>
+              <h2 className="text-xl font-bold text-text-primary mb-4">
+                Browse Collection
+              </h2>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="relative flex-1">
                   <input
@@ -298,6 +287,19 @@ export default function CollectionBrowsePanel({
                     className="px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors flex-shrink-0"
                   >
                     Load
+                  </button>
+                )}
+
+                {/* Refresh Button - show when current collection is manual (not in user's collections) */}
+                {currentCollectionId &&
+                 onRefreshCollection &&
+                 !collections.some(c => c.id === currentCollectionId) && (
+                  <button
+                    onClick={onRefreshCollection}
+                    className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors flex-shrink-0"
+                    title="Refresh collection"
+                  >
+                    <BiRefresh size={20} />
                   </button>
                 )}
               </div>
@@ -409,10 +411,24 @@ export default function CollectionBrowsePanel({
                               {collection.name}
                             </h3>
                             {isCurrentCollection && (
-                              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium flex-shrink-0">
-                                <BiCheck size={14} />
-                                <span>Current</span>
-                              </div>
+                              <>
+                                <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium flex-shrink-0">
+                                  <BiCheck size={14} />
+                                  <span>Current</span>
+                                </div>
+                                {onRefreshCollection && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onRefreshCollection();
+                                    }}
+                                    className="p-1 rounded text-text-secondary hover:text-text-primary transition-colors"
+                                    title="Refresh collection"
+                                  >
+                                    <BiRefresh size={16} />
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                           <p className="text-sm text-text-tertiary">
@@ -451,17 +467,15 @@ export default function CollectionBrowsePanel({
                 {/* My Collections Section */}
                 {myCollections.length > 0 && (
                   <div>
-                    <div className="px-4 sm:px-6 mb-4">
-                      <div className="max-w-[1200px] mx-auto">
-                        <h2 className="text-xl font-bold text-text-primary">
-                          My Collections
-                        </h2>
-                      </div>
+                    <div className="mb-4">
+                      <h2 className="max-w-[1200px] mx-auto text-xl font-bold text-text-primary">
+                        My Collections
+                      </h2>
                     </div>
 
                     {/* Release Group Collections Subheading */}
                     <div>
-                      <div className="px-4 sm:px-6 mb-3">
+                      <div className="mb-3">
                         <h3 className="max-w-[1200px] mx-auto text-sm font-semibold text-text-secondary uppercase tracking-wide">
                           Release Group Collections
                         </h3>
@@ -478,17 +492,15 @@ export default function CollectionBrowsePanel({
                 {/* Collaborative Collections Section */}
                 {collaborativeCollections.length > 0 && (
                   <div>
-                    <div className="px-4 sm:px-6 mb-4">
-                      <div className="max-w-[1200px] mx-auto">
-                        <h2 className="text-xl font-bold text-text-primary">
-                          Collaborative Collections
-                        </h2>
-                      </div>
+                    <div className="mb-4">
+                      <h2 className="max-w-[1200px] mx-auto text-xl font-bold text-text-primary">
+                        Collaborative Collections
+                      </h2>
                     </div>
 
                     {/* Release Group Collections Subheading */}
                     <div>
-                      <div className="px-4 sm:px-6 mb-3">
+                      <div className="mb-3">
                         <h3 className="max-w-[1200px] mx-auto text-sm font-semibold text-text-secondary uppercase tracking-wide">
                           Release Group Collections
                         </h3>
