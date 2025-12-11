@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2025-12-11
+
+### Added
+
+- **Server-Side Cache Infrastructure (Phase 1)**: Foundation for release group and release caching
+  - Added `node-cache` dependency for in-memory server-side caching
+  - Created [cache/base-cache.ts](../src/lib/cache/base-cache.ts) - Abstract cache with persistence
+  - Created [cache/release-store.ts](../src/lib/cache/release-store.ts) - Shared release storage with reverse index
+  - Created [cache/release-group-cache.ts](../src/lib/cache/release-group-cache.ts) - RG cache with MBID references
+  - Created [cache/cache-manager.ts](../src/lib/cache/cache-manager.ts) - Coordinator for cache initialization/persistence
+  - Created [types/cache.ts](../src/lib/types/cache.ts) - Cache-specific TypeScript interfaces
+  - Note: Infrastructure only, no API endpoints or prefetch yet (coming in future phases)
+
 ## [0.22.2] - 2025-12-11
 
 ### Fixed

@@ -21,6 +21,7 @@ Thumbs.db
 Desktop.ini
 *.pem
 .image-cache
+.cache
 
 # debug
 npm-debug.log*
