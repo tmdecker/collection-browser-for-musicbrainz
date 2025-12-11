@@ -5,6 +5,40 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { useAuth } from '@/hooks/useAuth';
 import { StreamingServicePreferences } from '@/types/preferences';
 import { BiInfoCircle } from 'react-icons/bi';
+import { useEffect, useState } from 'react';
+
+interface CacheStatsResponse {
+  timestamp: string;
+  releaseGroups: {
+    cached: number;
+    hits: number;
+    misses: number;
+    hitRate: number;
+    memoryMB: number;
+  };
+  releases: {
+    cached: number;
+    hits: number;
+    misses: number;
+    hitRate: number;
+    memoryMB: number;
+  };
+  overall: {
+    totalMemoryMB: number;
+    combinedHitRate: number;
+  };
+  prefetch: {
+    status: 'running' | 'idle';
+    completed: number;
+    total: number;
+    percentage: number;
+  };
+  queue: {
+    highPriority: number;
+    lowPriority: number;
+    processing: number;
+  };
+}
 
 export default function ConfigPage() {
   const router = useRouter();
@@ -24,6 +58,36 @@ export default function ConfigPage() {
 
   // Get auth state
   const { isAuthenticated } = useAuth();
+
+  // Cache stats state
+  const [cacheStats, setCacheStats] = useState<CacheStatsResponse | null>(null);
+
+  // Fetch cache stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/cache/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setCacheStats(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch cache stats:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchStats();
+
+    // Poll every 10 seconds only if prefetch is running
+    const interval = setInterval(() => {
+      if (cacheStats?.prefetch.status === 'running') {
+        fetchStats();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [cacheStats?.prefetch.status]);
 
   return (
     <main className="min-h-screen p-6 bg-background">
@@ -286,6 +350,29 @@ export default function ConfigPage() {
         </div>
       </div>
 
+      {/* Cache Status */}
+      {cacheStats && (
+        <div className="mt-8 pt-6 border-t border-background-tertiary">
+          <h2 className="text-lg font-medium text-text-primary mb-2">Cache Status</h2>
+          <div className="text-sm text-text-secondary space-y-1">
+            <p>
+              Release Groups: {cacheStats.releaseGroups.cached} cached (
+              {Math.round(cacheStats.releaseGroups.hitRate * 100)}% hit rate)
+            </p>
+            <p>Releases: {cacheStats.releases.cached} cached</p>
+            <p>Memory: {Math.round(cacheStats.overall.totalMemoryMB)} MB</p>
+            {cacheStats.prefetch.total > 0 && (
+              <p>
+                Prefetch: {cacheStats.prefetch.percentage}% complete (
+                {cacheStats.prefetch.completed}/{cacheStats.prefetch.total})
+                {cacheStats.prefetch.status === 'running' && (
+                  <span className="text-primary ml-1">• Running</span>
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Version Information */}
       <div className="mt-8 pt-6 border-t border-background-tertiary">
