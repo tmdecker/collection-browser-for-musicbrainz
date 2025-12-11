@@ -114,7 +114,9 @@ export async function GET(request: NextRequest) {
     // Fetch the original image
     let imageResponse;
     try {
-      imageResponse = await fetch(fullImageUrl);
+      imageResponse = await fetch(fullImageUrl, {
+        cache: 'no-store' // Disable Next.js fetch cache (we use disk cache instead)
+      });
 
       if (!imageResponse.ok) {
         // 404s are expected for albums without cover art - use info level
