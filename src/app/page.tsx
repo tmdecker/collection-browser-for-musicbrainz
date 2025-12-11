@@ -149,6 +149,7 @@ export default function Home() {
 
   const [detailsPanelOpen, setDetailsPanelOpen] = useState(false);
   const [collectionsPanelOpen, setCollectionsPanelOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const headerRef = useRef<HeaderRef>(null);
 
   // Get auth state for collections panel
@@ -279,8 +280,9 @@ export default function Home() {
 
   // Handle manual refresh of current collection
   const handleRefreshCollection = async () => {
-    if (!collectionId) return;
+    if (!collectionId || isRefreshing) return;
 
+    setIsRefreshing(true);
     try {
       const { forceRefreshCollection } = await import('@/utils/progressive-loader');
       await forceRefreshCollection(collectionId);
@@ -289,6 +291,8 @@ export default function Home() {
       refreshAlbums();
     } catch (error) {
       console.error('Failed to refresh collection:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -413,6 +417,7 @@ export default function Home() {
         hasActiveFilters={hasActiveFilters || isFilterPanelOpen}
         onLogin={login}
         onRefreshCollection={handleRefreshCollection}
+        isRefreshing={isRefreshing}
       />
 
       {/* Validation Toast Notification */}

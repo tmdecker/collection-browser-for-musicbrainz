@@ -27,6 +27,7 @@ interface CollectionBrowsePanelProps {
   hasActiveFilters?: boolean;
   onLogin?: () => void;
   onRefreshCollection?: () => void;
+  isRefreshing?: boolean;
 }
 
 export default function CollectionBrowsePanel({
@@ -39,6 +40,7 @@ export default function CollectionBrowsePanel({
   hasActiveFilters = false,
   onLogin,
   onRefreshCollection,
+  isRefreshing = false,
 }: CollectionBrowsePanelProps) {
   const [collections, setCollections] = useState<MusicBrainzCollection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -296,10 +298,15 @@ export default function CollectionBrowsePanel({
                  !collections.some(c => c.id === currentCollectionId) && (
                   <button
                     onClick={onRefreshCollection}
-                    className="p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors flex-shrink-0"
+                    disabled={isRefreshing}
+                    className={`p-2 rounded-lg text-text-secondary transition-colors flex-shrink-0 ${
+                      isRefreshing
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:text-text-primary hover:bg-white/5'
+                    }`}
                     title="Refresh collection"
                   >
-                    <BiRefresh size={20} />
+                    <BiRefresh size={20} className={isRefreshing ? 'animate-spin' : ''} />
                   </button>
                 )}
               </div>
@@ -422,10 +429,15 @@ export default function CollectionBrowsePanel({
                                       e.stopPropagation();
                                       onRefreshCollection();
                                     }}
-                                    className="p-1 rounded text-text-secondary hover:text-text-primary transition-colors"
+                                    disabled={isRefreshing}
+                                    className={`p-1 rounded transition-colors ${
+                                      isRefreshing
+                                        ? 'cursor-not-allowed opacity-50 text-text-secondary'
+                                        : 'text-text-secondary hover:text-text-primary'
+                                    }`}
                                     title="Refresh collection"
                                   >
-                                    <BiRefresh size={16} />
+                                    <BiRefresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
                                   </button>
                                 )}
                               </>
