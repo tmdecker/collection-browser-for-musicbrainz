@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2025-12-11
+
+### Added
+
+- **Server-Side Cache API Endpoint (Phase 2)**: Release group data served from in-memory cache
+  - Created [/api/release-groups/[mbid]/route.ts](../src/app/api/release-groups/[mbid]/route.ts) - Cached endpoint for release group details
+  - Returns cached data instantly (~50ms) when available
+  - Fetches from MusicBrainz API and caches when not cached (~10-15s)
+  - Respects 2-second MusicBrainz rate limiting
+  - Stores releases in shared release store with 30-day TTL
+  - Note: Client integration not yet implemented (Phase 5)
+
 ## [0.23.0] - 2025-12-11
 
 ### Added
