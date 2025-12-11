@@ -1,35 +1,21 @@
 /**
  * @ai-file api
- * @ai-description API proxy for Odesli (song.link) API with rate limiting
- * @ai-dependencies Next.js server components, Odesli API
+ * @ai-description API proxy for Odesli (song.link) API with server-side caching and rate limiting
+ * @ai-dependencies Next.js server components, Odesli API, streamingLinksCache, odesli-rate-limiter
  * @ai-features
  * - Proxies requests to Odesli API to avoid CORS issues
- * - Rate limiting (10 requests per minute without API key, 6-second minimum delay)
- * - Client-side IndexedDB caching with 7-day TTL (managed by streaming-links.ts utility)
+ * - Server-side memory cache with 7-day TTL and disk persistence
+ * - Shared rate limiter (6-second delay for Odesli ToS compliance)
+ * - Cache key includes userCountry for region-specific links
  * - Returns streaming links for multiple platforms
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { streamingLinksCache } from '@/lib/cache/streaming-links-cache';
+import { waitForOdesliRateLimit } from '@/lib/odesli-rate-limiter';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
-
-// Rate limiting
-let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 6000; // 6 seconds (10 requests per minute)
-
-// Helper function to wait if needed for rate limiting
-const enforceRateLimit = async (): Promise<void> => {
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
-
-  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-    const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-
-  lastRequestTime = Date.now();
-};
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,8 +30,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check server-side cache first
+    const cached = streamingLinksCache.getByUrl(url, userCountry);
+    if (cached) {
+      console.log(`✅ Server cache hit for streaming links: ${url}`);
+      // Return cached Odesli response with cache headers
+      return NextResponse.json(
+        {
+          linksByPlatform: cached.streamingLinks,
+          entitiesByUniqueId: {},
+          userCountry: cached.userCountry,
+        },
+        {
+          headers: {
+            'Cache-Control': 'public, max-age=604800',
+            'X-Cache-Hit': 'true',
+            'X-Cache-Timestamp': cached._cachedAt.toString(),
+          }
+        }
+      );
+    }
+
+    console.log(`🌐 Server cache miss, fetching from Odesli API: ${url}`);
+
     // Enforce rate limiting (critical for ToS compliance)
-    await enforceRateLimit();
+    await waitForOdesliRateLimit();
 
     // Build Odesli API URL
     const odesliUrl = new URL('https://api.song.link/v1-alpha.1/links');
@@ -76,11 +85,24 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
+    // Store in server cache
+    const now = Date.now();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    streamingLinksCache.setByUrl(url, userCountry, {
+      streamingLinks: data.linksByPlatform || {},
+      sourceUrl: url,
+      userCountry,
+      _cachedAt: now,
+      _expiresAt: now + sevenDays,
+    });
+    console.log(`💾 Stored in server cache: ${url}`);
+
     // Add response headers for client-side caching (1 week)
     return NextResponse.json(data, {
       headers: {
         'Cache-Control': 'public, max-age=604800', // 1 week
-        'X-Cache-Timestamp': Date.now().toString(),
+        'X-Cache-Hit': 'false',
+        'X-Cache-Timestamp': now.toString(),
       }
     });
 

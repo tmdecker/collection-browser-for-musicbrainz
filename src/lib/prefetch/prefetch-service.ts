@@ -1,9 +1,10 @@
 /**
  * @ai-file prefetch
- * @ai-description Prefetch service for background release group fetching
- * @ai-dependencies cache-manager, release-group-cache, release-store, prefetch-queue, rate-limiter
+ * @ai-description Prefetch service for release groups and streaming links
+ * @ai-dependencies cache-manager, release-group-cache, release-store, streaming-links-cache, prefetch-queue, rate-limiter, odesli-rate-limiter
  * @ai-features
  * - Background prefetching of release groups after collection loads
+ * - Streaming links prefetch via Odesli API
  * - Filters already-cached RGs before queueing
  * - Retry logic with exponential backoff for network errors
  * - Progress logging every 60 seconds
@@ -12,9 +13,12 @@
 import { cacheManager } from '../cache/cache-manager';
 import { releaseGroupCache } from '../cache/release-group-cache';
 import { releaseStore } from '../cache/release-store';
+import { streamingLinksCache } from '../cache/streaming-links-cache';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { waitForRateLimit } from '../rate-limiter';
+import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
+import { findStreamingUrl } from '@/utils/streaming-links';
 import { Release, Track, Media } from '@/types/music';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
@@ -185,7 +189,56 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
       ? await detailedReleaseResponse.json()
       : preferredRelease;
 
-    // Step 5: Store in caches
+    // Step 5: Fetch streaming links (if available)
+    let streamingLinks = undefined;
+    try {
+      const streamingUrl = findStreamingUrl([detailedRelease]);
+      if (streamingUrl) {
+        // Check if already cached
+        const cached = streamingLinksCache.getByUrl(streamingUrl, 'DE');
+        if (cached) {
+          console.log(`✅ Streaming links cached for ${mbid}: ${streamingUrl}`);
+          streamingLinks = cached.streamingLinks;
+        } else {
+          // Fetch from Odesli API with rate limiting
+          await waitForOdesliRateLimit();
+          const odesliUrl = new URL('https://api.song.link/v1-alpha.1/links');
+          odesliUrl.searchParams.set('url', streamingUrl);
+          odesliUrl.searchParams.set('userCountry', 'DE');
+          odesliUrl.searchParams.set('songIfSingle', 'true');
+
+          const odesliResponse = await fetch(odesliUrl.toString(), {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': getUserAgent(),
+            },
+            signal: AbortSignal.timeout(30000),
+          });
+
+          if (odesliResponse.ok) {
+            const odesliData = await odesliResponse.json();
+            streamingLinks = odesliData.linksByPlatform || {};
+
+            // Cache the result
+            const now = Date.now();
+            const sevenDays = 7 * 24 * 60 * 60 * 1000;
+            streamingLinksCache.setByUrl(streamingUrl, 'DE', {
+              streamingLinks,
+              sourceUrl: streamingUrl,
+              userCountry: 'DE',
+              _cachedAt: now,
+              _expiresAt: now + sevenDays,
+            });
+            console.log(`💾 Prefetched streaming links for ${mbid}: ${streamingUrl}`);
+          }
+        }
+      }
+    } catch (error) {
+      // Non-critical: log and continue if streaming links fail
+      console.warn(`⚠️  Failed to fetch streaming links for ${mbid}:`, error);
+    }
+
+    // Step 6: Store in caches
     const now = Date.now();
     const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -207,12 +260,13 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
       _expiresAt: expiresAt,
     });
 
-    // Store release group with MBID references
+    // Store release group with MBID references and streaming links
     releaseGroupCache.set(mbid, {
       ...releaseGroup,
       releaseMbids: releases.map((r: Release) => r.id),
       bestReleaseMbid: preferredRelease.id,
       cover: `/api/coverart/release-group/${mbid}/front`,
+      streamingLinks, // Add streaming links if fetched
       _cachedAt: now,
       _expiresAt: expiresAt,
     });

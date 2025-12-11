@@ -75,11 +75,23 @@ export interface CacheStats {
 }
 
 /**
- * Aggregate statistics across both caches
+ * Cached streaming links from Odesli API with metadata
+ */
+export interface CachedStreamingLinks {
+  streamingLinks: StreamingLinks;  // Platform links (spotify, appleMusic, etc.)
+  sourceUrl: string;                // Original streaming URL that worked
+  userCountry: string;              // User country for region-specific links
+  _cachedAt: number;                // Unix timestamp in milliseconds
+  _expiresAt: number;               // Unix timestamp in milliseconds (7-day TTL)
+}
+
+/**
+ * Aggregate statistics across all caches
  */
 export interface AggregateStats {
   releaseGroups: CacheStats;
   releases: CacheStats;
+  streamingLinks: CacheStats;
   overall: {
     totalMemoryMB: number;
     combinedHitRate: number;

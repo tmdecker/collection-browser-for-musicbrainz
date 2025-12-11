@@ -1,9 +1,9 @@
 /**
  * @ai-file cache
- * @ai-description Coordinator for both release and release group caches
- * @ai-dependencies release-store, release-group-cache
+ * @ai-description Coordinator for release, release group, and streaming links caches
+ * @ai-dependencies release-store, release-group-cache, streaming-links-cache
  * @ai-features
- * - Initializes both caches from disk
+ * - Initializes all caches from disk
  * - Coordinates persistence operations
  * - Periodic persistence every 5 minutes
  * - Graceful shutdown on process exit
@@ -15,6 +15,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { releaseStore } from './release-store';
 import { releaseGroupCache } from './release-group-cache';
+import { streamingLinksCache } from './streaming-links-cache';
 import { AggregateStats } from '../types/cache';
 
 const PERSIST_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -41,10 +42,11 @@ class CacheManager {
     // Ensure cache directory exists
     await this.ensureCacheDir();
 
-    // Restore both caches from disk
+    // Restore all caches from disk
     await Promise.all([
       releaseStore.restore(),
       releaseGroupCache.restore(),
+      streamingLinksCache.restore(),
     ]);
 
     this.initialized = true;
@@ -78,27 +80,29 @@ class CacheManager {
   }
 
   /**
-   * Persist both caches to disk
+   * Persist all caches to disk
    */
   async persistAll(): Promise<void> {
     console.log('💾 Persisting all caches...');
     await Promise.all([
       releaseStore.persist(),
       releaseGroupCache.persist(),
+      streamingLinksCache.persist(),
     ]);
     console.log('✅ All caches persisted');
   }
 
   /**
-   * Get aggregate statistics across both caches
+   * Get aggregate statistics across all caches
    */
   getAggregateStats(): AggregateStats {
     const releaseStats = releaseStore.getStats();
     const rgStats = releaseGroupCache.getStats();
+    const streamingStats = streamingLinksCache.getStats();
 
-    const totalMemoryMB = releaseStats.memoryMB + rgStats.memoryMB;
-    const totalHits = releaseStats.hits + rgStats.hits;
-    const totalMisses = releaseStats.misses + rgStats.misses;
+    const totalMemoryMB = releaseStats.memoryMB + rgStats.memoryMB + streamingStats.memoryMB;
+    const totalHits = releaseStats.hits + rgStats.hits + streamingStats.hits;
+    const totalMisses = releaseStats.misses + rgStats.misses + streamingStats.misses;
     const combinedHitRate = totalHits + totalMisses > 0
       ? totalHits / (totalHits + totalMisses)
       : 0;
@@ -106,6 +110,7 @@ class CacheManager {
     return {
       releaseGroups: rgStats,
       releases: releaseStats,
+      streamingLinks: streamingStats,
       overall: {
         totalMemoryMB,
         combinedHitRate,
