@@ -206,13 +206,6 @@ const tryUrlsWithOdesli = async (
         console.log(`✗ URL ${i + 1}/${urls.length} not recognized by Odesli: ${url}`);
       }
 
-      // Add delay between requests to respect rate limits (6 seconds for Odesli)
-      // Skip delay if result was from cache (no API call was made)
-      if (i < urls.length - 1 && !result.fromCache) {
-        console.log('Waiting 6 seconds before trying next URL...');
-        await new Promise(resolve => setTimeout(resolve, 6000));
-      }
-
     } catch (error) {
       console.warn(`Error testing URL ${i + 1}/${urls.length} (${url}):`, error);
       // Continue to next URL even if this one fails
