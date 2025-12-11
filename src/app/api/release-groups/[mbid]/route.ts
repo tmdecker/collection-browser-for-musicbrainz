@@ -14,6 +14,7 @@ import { cacheManager } from '@/lib/cache/cache-manager';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { releaseStore } from '@/lib/cache/release-store';
 import { getUserAgent } from '@/utils/config/userAgent';
+import { waitForRateLimit } from '@/lib/rate-limiter';
 import { Release, Track, Media } from '@/types/music';
 
 // Force dynamic runtime
@@ -21,25 +22,6 @@ export const dynamic = 'force-dynamic';
 
 // MusicBrainz API base URL
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
-
-// Rate limiting (2 seconds between requests)
-let lastRequestTime = 0;
-const RATE_LIMIT_MS = 2000;
-
-/**
- * Wait for rate limit before making MusicBrainz API request
- */
-async function waitForRateLimit(): Promise<void> {
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
-
-  if (timeSinceLastRequest < RATE_LIMIT_MS) {
-    const waitTime = RATE_LIMIT_MS - timeSinceLastRequest;
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-
-  lastRequestTime = Date.now();
-}
 
 /**
  * Select the preferred release from a list of releases

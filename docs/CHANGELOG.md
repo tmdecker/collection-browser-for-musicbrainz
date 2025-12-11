@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] - 2025-12-11
+
+### Added
+
+- **Server-Side Cache Queue System (Phase 3)**: Priority queue infrastructure for future prefetching
+  - Created [lib/rate-limiter.ts](../src/lib/rate-limiter.ts) - Shared rate limiting for all MusicBrainz API calls
+  - Created [lib/prefetch/prefetch-queue.ts](../src/lib/prefetch/prefetch-queue.ts) - Priority queue with high/low queues and deduplication
+  - Eliminated duplicate rate limiting code across API routes
+  - Queue ready for Phase 4 prefetch service integration
+
+### Changed
+
+- **Unified Rate Limiting**: API routes now use shared rate limiter instead of individual implementations
+  - Updated [api/release-groups/[mbid]/route.ts](../src/app/api/release-groups/[mbid]/route.ts)
+  - Updated [api/musicbrainz/[...path]/route.ts](../src/app/api/musicbrainz/[...path]/route.ts)
+
 ## [0.24.0] - 2025-12-11
 
 ### Added

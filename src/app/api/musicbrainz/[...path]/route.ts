@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAgent } from '@/utils/config/userAgent';
+import { waitForRateLimit } from '@/lib/rate-limiter';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -19,10 +20,6 @@ export const dynamic = 'force-dynamic';
 // This is a proxy API route that will handle MusicBrainz API requests
 // We implement it this way to avoid CORS issues when making client-side requests
 // Following MusicBrainz API guidelines: https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting
-
-// Add rate limiting to respect MusicBrainz guidelines
-let lastRequestTime = 0;
-const RATE_LIMIT_MS = 2000; // Allow 1 request per 2 seconds
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
@@ -33,14 +30,7 @@ export async function GET(
 ) {
   try {
     // Rate limiting
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-
-    if (timeSinceLastRequest < RATE_LIMIT_MS) {
-      const waitTime = RATE_LIMIT_MS - timeSinceLastRequest;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    lastRequestTime = Date.now();
+    await waitForRateLimit();
 
     // Get the path from route params
     const mbPath = params.path.join('/');
