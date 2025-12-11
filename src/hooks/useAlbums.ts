@@ -78,6 +78,15 @@ export const useAlbums = (externalCollectionId?: string) => {
       }
 
       setAlbums(data);
+
+      // Trigger background prefetch for all album details
+      if (data.length > 0) {
+        fetch('/api/prefetch/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rgMbids: data.map(a => a.id) })
+        }).catch(() => {}); // Fire and forget
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to load albums: ${errorMessage}`);

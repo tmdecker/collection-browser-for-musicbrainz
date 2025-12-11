@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] - 2025-12-11
+
+### Added
+
+- **Background Prefetch Service (Phase 4)**: Automatic background fetching of release group details
+  - Created [lib/prefetch/prefetch-service.ts](../src/lib/prefetch/prefetch-service.ts) - Core prefetch orchestration
+  - Created [api/prefetch/start/route.ts](../src/app/api/prefetch/start/route.ts) - API endpoint to trigger prefetch
+  - Modified [hooks/useAlbums.ts](../src/hooks/useAlbums.ts) - Triggers prefetch when collection loads
+  - Background prefetch starts automatically after loading a collection
+  - Filters already-cached release groups to avoid redundant fetches
+  - Uses low-priority queue (user clicks get high priority)
+  - Progress logging every 60 seconds during prefetch
+  - Integrates with Phase 1-3 cache infrastructure (base-cache, release-store, release-group-cache)
+
 ## [0.25.0] - 2025-12-11
 
 ### Added
