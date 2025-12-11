@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ReleaseGroup, SortOption } from '@/types/music';
-import { fetchReleaseGroup } from '@/utils/api';
 import { getBasicData } from '@/utils/progressive-loader';
 import { albumMatchesGenreFilters } from '@/utils/genre-processor';
 import { albumMatchesLabelFilters } from '@/utils/label-processor';
@@ -8,11 +7,11 @@ import { usePreferences } from './usePreferences';
 
 /**
  * @ai-file hook
- * @ai-description Central album data management with IndexedDB caching and AbortController support
- * @ai-dependencies fetchReleaseGroup, getBasicData, usePreferences
+ * @ai-description Central album data management with IndexedDB caching and server-side cache integration
+ * @ai-dependencies getBasicData, usePreferences, /api/release-groups/[mbid]
  * @ai-features
  * - Album fetching with IndexedDB caching
- * - Album details with request cancellation
+ * - Album details with server-side cache and request cancellation
  * - Sorting and search functionality
  */
 
@@ -125,8 +124,12 @@ export const useAlbums = (externalCollectionId?: string) => {
               console.log(`🕐 Cache stale for ${albumId} (${Math.round(cacheAge / 3600000)}h old), background refresh`);
 
               // Background refresh (non-blocking, silent)
-              fetchReleaseGroup(albumId)
-                .then(async (freshDetails) => {
+              fetch(`/api/release-groups/${albumId}`)
+                .then(res => res.json())
+                .then(async (json) => {
+                  if (!json.success) return;
+                  const freshDetails = json.data;
+
                   // Only update if data changed (compare release count)
                   if (freshDetails.releases?.length !== cachedAlbum.releases?.length) {
                     console.log(`🔄 Background refresh found updated data for ${albumId}`);
@@ -166,7 +169,11 @@ export const useAlbums = (externalCollectionId?: string) => {
 
       // No cached data or only basic data - fetch detailed information
       try {
-        const details = await fetchReleaseGroup(albumId, signal);
+        const response = await fetch(`/api/release-groups/${albumId}`, { signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const json = await response.json();
+        if (!json.success) throw new Error(json.error || 'Failed to fetch');
+        const details = json.data;
 
         // Only update state if not aborted
         if (!signal?.aborted) {

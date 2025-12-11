@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] - 2025-12-11
+
+### Changed
+
+- **Client Integration with Server-Side Cache (Phase 5)**: Album details now use cached endpoint for instant loading
+  - Modified [hooks/useAlbums.ts](../src/hooks/useAlbums.ts) - Switched from direct API calls to `/api/release-groups/[mbid]` endpoint
+  - ~50ms response time for cached release groups (vs 10-15s for uncached)
+  - IndexedDB caching remains as first layer for offline support
+  - Server-side cache implementation now complete (Phases 1-5)
+
 ## [0.26.0] - 2025-12-11
 
 ### Added
