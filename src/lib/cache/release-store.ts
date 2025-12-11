@@ -136,5 +136,6 @@ class ReleaseStore extends BaseCache<CachedRelease> {
   }
 }
 
-// Singleton instance
-export const releaseStore = new ReleaseStore();
+// Singleton instance - persisted across Next.js module re-evaluations
+const globalForReleaseStore = globalThis as unknown as { releaseStore: ReleaseStore };
+export const releaseStore = globalForReleaseStore.releaseStore ?? (globalForReleaseStore.releaseStore = new ReleaseStore());

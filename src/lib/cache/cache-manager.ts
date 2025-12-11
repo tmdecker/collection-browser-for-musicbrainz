@@ -134,5 +134,6 @@ class CacheManager {
   }
 }
 
-// Singleton instance
-export const cacheManager = new CacheManager();
+// Singleton instance - persisted across Next.js module re-evaluations
+const globalForCache = globalThis as unknown as { cacheManager: CacheManager };
+export const cacheManager = globalForCache.cacheManager ?? (globalForCache.cacheManager = new CacheManager());

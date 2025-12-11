@@ -150,5 +150,6 @@ class PrefetchQueue {
   }
 }
 
-// Singleton instance
-export const prefetchQueue = new PrefetchQueue();
+// Singleton instance - persisted across Next.js module re-evaluations
+const globalForPrefetch = globalThis as unknown as { prefetchQueue: PrefetchQueue };
+export const prefetchQueue = globalForPrefetch.prefetchQueue ?? (globalForPrefetch.prefetchQueue = new PrefetchQueue());

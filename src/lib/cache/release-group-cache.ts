@@ -82,5 +82,6 @@ class ReleaseGroupCache extends BaseCache<CachedReleaseGroup> {
   }
 }
 
-// Singleton instance
-export const releaseGroupCache = new ReleaseGroupCache();
+// Singleton instance - persisted across Next.js module re-evaluations
+const globalForRGCache = globalThis as unknown as { releaseGroupCache: ReleaseGroupCache };
+export const releaseGroupCache = globalForRGCache.releaseGroupCache ?? (globalForRGCache.releaseGroupCache = new ReleaseGroupCache());
