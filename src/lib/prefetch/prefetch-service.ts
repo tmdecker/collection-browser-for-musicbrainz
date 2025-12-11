@@ -225,8 +225,8 @@ export async function startPrefetchForCollection(rgMbids: string[]): Promise<{ q
     }
   }
 
-  // Start queue processing if not already running
-  if (!isPrefetching() && queued > 0) {
+  // Start queue processing if items were queued
+  if (queued > 0) {
     console.log(`🚀 Starting prefetch queue with ${queued} items`);
 
     // Start queue in background (non-blocking)
