@@ -1,11 +1,11 @@
 /**
  * @ai-file prefetch
  * @ai-description Prefetch service for background release group fetching
- * @ai-dependencies cache-manager, release-group-cache, release-store, prefetch-queue
+ * @ai-dependencies cache-manager, release-group-cache, release-store, prefetch-queue, rate-limiter
  * @ai-features
  * - Background prefetching of release groups after collection loads
  * - Filters already-cached RGs before queueing
- * - Reuses fetch logic from release-groups API route
+ * - Retry logic with exponential backoff for network errors
  * - Progress logging every 60 seconds
  */
 
@@ -22,6 +22,54 @@ const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 // Progress logging state
 let lastLogTime = 0;
 const LOG_INTERVAL_MS = 60000; // 60 seconds
+
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
+const MAX_RETRY_DELAY_MS = 4000;
+
+/**
+ * Check if error is retryable (network errors, not API errors)
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof TypeError && error.message === 'fetch failed') {
+    return true;
+  }
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return message.includes('econnreset') ||
+           message.includes('econnrefused') ||
+           message.includes('timeout');
+  }
+  return false;
+}
+
+/**
+ * Fetch with retry logic for transient network errors
+ * @ai-feature Exponential backoff with 3 retries for network failures
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retryCount = 0
+): Promise<Response> {
+  try {
+    await waitForRateLimit();
+    const response = await fetch(url, options);
+    return response;
+  } catch (error) {
+    if (isRetryableError(error) && retryCount < MAX_RETRIES) {
+      const delay = Math.min(
+        INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCount),
+        MAX_RETRY_DELAY_MS
+      );
+      console.warn(`⚠️  Network error, retrying in ${delay}ms (${retryCount + 1}/${MAX_RETRIES})...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchWithRetry(url, options, retryCount + 1);
+    }
+    throw error;
+  }
+}
 
 /**
  * Prefetch status interface
@@ -72,8 +120,7 @@ function extractTracksFromMedia(media: Media[]): Track[] {
 async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
   try {
     // Step 1: Fetch release group basic info
-    await waitForRateLimit();
-    const rgResponse = await fetch(
+    const rgResponse = await fetchWithRetry(
       `${MB_BASE_URL}/release-group/${mbid}?fmt=json&inc=artist-credits+genres+tags+ratings`,
       {
         headers: {
@@ -90,8 +137,7 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
     const releaseGroup = await rgResponse.json();
 
     // Step 2: Fetch up to 100 releases using browse endpoint
-    await waitForRateLimit();
-    const releasesResponse = await fetch(
+    const releasesResponse = await fetchWithRetry(
       `${MB_BASE_URL}/release?fmt=json&release-group=${mbid}&inc=media&limit=100`,
       {
         headers: {
@@ -125,8 +171,7 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
     }
 
     // Step 4: Fetch detailed release information with tracks and labels
-    await waitForRateLimit();
-    const detailedReleaseResponse = await fetch(
+    const detailedReleaseResponse = await fetchWithRetry(
       `${MB_BASE_URL}/release/${preferredRelease.id}?fmt=json&inc=recordings+labels+artist-credits+url-rels`,
       {
         headers: {
