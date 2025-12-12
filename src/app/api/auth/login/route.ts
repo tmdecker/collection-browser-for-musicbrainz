@@ -44,22 +44,17 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(authUrl);
 
     // Store code verifier in httpOnly cookie (5 min expiry)
-    response.cookies.set('mb_code_verifier', codeVerifier, {
+    // secure flag defaults to true (HTTPS). Set COOKIE_SECURE=false only for HTTP deployments
+    const cookieConfig = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.COOKIE_SECURE !== 'false',
+      sameSite: 'lax' as const,
       maxAge: 300, // 5 minutes
       path: '/',
-    });
+    };
 
-    // Store state in httpOnly cookie (5 min expiry)
-    response.cookies.set('mb_oauth_state', state, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 300, // 5 minutes
-      path: '/',
-    });
+    response.cookies.set('mb_code_verifier', codeVerifier, cookieConfig);
+    response.cookies.set('mb_oauth_state', state, cookieConfig);
 
     return response;
   } catch (error) {

@@ -12,10 +12,11 @@ export const SESSION_MAX_AGE = 90 * 24 * 60 * 60;
 /**
  * Base cookie configuration for all auth cookies
  * All auth cookies MUST use 90-day maxAge to ensure proper session persistence
+ * secure flag defaults to true (HTTPS). Set COOKIE_SECURE=false only for HTTP deployments
  */
 export const AUTH_COOKIE_CONFIG = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: process.env.COOKIE_SECURE !== 'false',
   sameSite: 'lax' as const,
   path: '/',
   maxAge: SESSION_MAX_AGE,

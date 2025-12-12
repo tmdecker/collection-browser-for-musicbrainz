@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - **OAuth IP Address Access**: Fixed OAuth callback redirects when accessing via IP address (workaround for Next.js localhost issue)
+- **Cookie Security Configuration**: Use `COOKIE_SECURE` env var instead of `NODE_ENV` for secure flag (allows HTTP deployments over Tailscale)
 
 ## [0.32.0] - 2025-12-12
 
