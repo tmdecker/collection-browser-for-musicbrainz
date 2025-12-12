@@ -20,8 +20,9 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 export async function GET(request: NextRequest) {
+  const baseUrl = getBaseUrl(request);
+
   try {
-    const baseUrl = getBaseUrl(request);
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
     const state = searchParams.get('state');
