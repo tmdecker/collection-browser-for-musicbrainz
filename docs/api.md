@@ -224,7 +224,7 @@ Content-Type: application/json
 
 **Endpoint:** `/api/streaming-links`
 **Method:** GET
-**Purpose:** Fetches streaming platform links via Odesli API with rate limiting (Phase 2: Caching moved to IndexedDB)
+**Purpose:** Fetches streaming platform links via Odesli API with server-side and client-side caching
 
 #### Parameters
 
@@ -236,17 +236,25 @@ Content-Type: application/json
 #### Features
 
 - **Rate Limiting**: 6-second minimum interval between requests (10 req/min) - server-side enforcement
-- **Caching**: Client-side IndexedDB cache with 1-week TTL (Phase 2 implementation)
+- **Server-Side Cache**: Memory cache with disk persistence, 7-day TTL (v0.31.0)
+- **Client-Side Cache**: IndexedDB cache with 7-day TTL
 - **Platform Support**: Returns links for all major streaming platforms
 - **Error Handling**: Graceful handling of API failures
 - **Attribution**: Response includes "Powered by Songlink/Odesli" attribution
 
-#### Caching Strategy (Phase 2)
+#### Caching Strategy (Two-Layer)
 
-- **Location**: Client-side IndexedDB (STREAMING_LINKS_STORE)
-- **TTL**: 1 week (604,800,000 ms)
+**Server-Side Cache (v0.31.0)**:
+- **Location**: Memory cache (`streaming-links-cache.ts`) with disk persistence
+- **TTL**: 7 days
 - **Cache Key**: URL + userCountry
-- **Expiration**: Automatic expiration check on cache read
+- **Persistence**: Auto-save to `.cache/streaming-links-cache.json` every 5 minutes
+- **Benefit**: Shared across all users, survives server restarts
+
+**Client-Side Cache**:
+- **Location**: IndexedDB (STREAMING_LINKS_STORE)
+- **TTL**: 7 days
+- **Cache Key**: URL + userCountry
 - **Benefits**:
   - Persistent across page reloads and sessions
   - Reduced API calls (better rate limit compliance)
@@ -384,6 +392,216 @@ interface GeoCacheEntry {
 - **Rate Limiting**: Respects CoverArt Archive rate limits
 - **Error Handling**: Handles missing cover art gracefully
 - **CORS Support**: Enables frontend access to cover art
+
+### Release Groups API (Cached)
+
+**Endpoint:** `/api/release-groups/[mbid]`
+**Method:** GET
+**Purpose:** Returns cached release group details with hydrated releases (v0.24.0)
+
+#### URL Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `mbid` | string | Yes | MusicBrainz release group ID |
+
+#### Features
+
+- **Server-Side Cache**: Memory cache with disk persistence, 30-day TTL
+- **Instant Response**: ~50ms for cached items vs 10-15s for uncached
+- **Hydrated Releases**: Returns full release data from shared release store
+- **Rate Limiting**: 2-second delay for MusicBrainz API calls (uncached only)
+- **Automatic Prefetch**: Integrates with background prefetch service
+
+#### Example Usage
+
+```
+GET /api/release-groups/cd76f76b-ff15-3784-a71d-4da3078a6851
+```
+
+#### Response Format
+
+```json
+{
+  "id": "cd76f76b-ff15-3784-a71d-4da3078a6851",
+  "title": "Pablo Honey",
+  "artist_credit": [...],
+  "first_release_date": "1993-02-22",
+  "primary_type": "Album",
+  "secondary_types": [],
+  "genres": [...],
+  "tags": [...],
+  "rating": {...},
+  "releases": [
+    {
+      "id": "release-mbid",
+      "title": "Pablo Honey",
+      "date": "1993-02-22",
+      "country": "XW",
+      "status": "Official",
+      "media": [...]
+    }
+  ],
+  "_cachedAt": 1702300000000,
+  "_expiresAt": 1704892000000
+}
+```
+
+#### Cache Headers
+
+```
+Cache-Control: public, max-age=2592000
+X-Cache-Hit: true
+```
+
+### Cache Statistics API
+
+**Endpoint:** `/api/cache/stats`
+**Method:** GET
+**Purpose:** Real-time cache statistics and monitoring (v0.28.0)
+
+#### Parameters
+
+None
+
+#### Features
+
+- **Real-Time Metrics**: Live cache hit rates, sizes, item counts
+- **Prefetch Progress**: Background prefetch status and progress
+- **Memory Usage**: Cache memory consumption
+- **Performance Monitoring**: Cache effectiveness tracking
+
+#### Example Usage
+
+```
+GET /api/cache/stats
+```
+
+#### Response Format
+
+```json
+{
+  "releaseGroups": {
+    "keys": 150,
+    "hits": 450,
+    "misses": 150,
+    "hitRate": 0.75,
+    "ksize": 245760
+  },
+  "releases": {
+    "keys": 500,
+    "hits": 1200,
+    "misses": 300,
+    "hitRate": 0.80,
+    "ksize": 819200
+  },
+  "streamingLinks": {
+    "keys": 120,
+    "hits": 360,
+    "misses": 120,
+    "hitRate": 0.75,
+    "ksize": 163840
+  },
+  "prefetch": {
+    "isRunning": true,
+    "processed": 45,
+    "total": 150,
+    "progress": 0.30
+  }
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `keys` | number | Number of cached items |
+| `hits` | number | Number of cache hits |
+| `misses` | number | Number of cache misses |
+| `hitRate` | number | Hit rate (0-1) |
+| `ksize` | number | Approximate cache size in bytes |
+| `prefetch.isRunning` | boolean | Whether background prefetch is active |
+| `prefetch.processed` | number | Items processed so far |
+| `prefetch.total` | number | Total items to prefetch |
+| `prefetch.progress` | number | Progress (0-1) |
+
+#### Use Cases
+
+- **Settings Page**: Display cache status section with real-time updates
+- **Monitoring**: Track cache effectiveness
+- **Debugging**: Identify cache issues or inefficiencies
+
+### Prefetch Trigger API
+
+**Endpoint:** `/api/prefetch/start`
+**Method:** POST
+**Purpose:** Triggers background prefetch for release groups (v0.26.0)
+
+#### Request Body
+
+```json
+{
+  "mbids": ["mbid1", "mbid2", "mbid3", ...]
+}
+```
+
+#### Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mbids` | string[] | Yes | Array of release group MBIDs to prefetch |
+
+#### Features
+
+- **Non-Blocking**: Returns immediately, prefetch runs in background
+- **Smart Filtering**: Automatically skips already-cached items
+- **Priority Queue**: User-requested items get high priority
+- **Rate Limiting**: Respects MusicBrainz (2s) and Odesli (6s) limits
+- **Progress Logging**: Logs progress every 60 seconds
+- **Error Retry**: Exponential backoff for network errors (1s → 2s → 4s)
+
+#### Example Usage
+
+```
+POST /api/prefetch/start
+Content-Type: application/json
+
+{
+  "mbids": ["cd76f76b-ff15-3784-a71d-4da3078a6851", "..."]
+}
+```
+
+#### Response Format
+
+```json
+{
+  "success": true,
+  "queued": 150,
+  "alreadyCached": 20,
+  "total": 170
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether prefetch was triggered |
+| `queued` | number | Items added to prefetch queue |
+| `alreadyCached` | number | Items already in cache (skipped) |
+| `total` | number | Total items provided |
+
+#### Client Integration
+
+Automatically triggered by `useAlbums` hook when collection loads:
+
+```typescript
+// Triggered after collection loads
+const response = await fetch('/api/prefetch/start', {
+  method: 'POST',
+  body: JSON.stringify({ mbids: albumIds })
+});
+```
 
 ### Debug APIs
 

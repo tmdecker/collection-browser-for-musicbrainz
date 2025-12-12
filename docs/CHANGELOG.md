@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0] - 2025-12-12
+
+### Documentation
+
+- **Complete Documentation Audit**: Updated all documentation to reflect features added since v0.20.0
+- **Server-Side Cache Documentation**: Added comprehensive documentation for cache infrastructure (v0.23.0-v0.31.0)
+  - Documented base cache, release store, release group cache, and streaming links cache
+  - Added prefetch system documentation (priority queue and background service)
+  - Documented rate limiters (MusicBrainz 2s, Odesli 6s)
+- **New API Endpoints**: Added documentation for 3 new endpoints
+  - `/api/release-groups/[mbid]` - Cached release group endpoint
+  - `/api/cache/stats` - Real-time cache statistics
+  - `/api/prefetch/start` - Background prefetch trigger
+- **Updated Files**:
+  - CLAUDE.md - Added missing files and hooks
+  - docs/architecture.md - Added server-side cache architecture section
+  - docs/api.md - Added 3 new endpoint documentations, updated streaming links cache info
+  - docs/components.md - Updated version to v0.32.0
+  - docs/configuration.md - Added cache status section note
+
 ## [0.31.1] - 2025-12-11
 
 ### Fixed

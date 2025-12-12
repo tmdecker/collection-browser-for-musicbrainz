@@ -16,6 +16,10 @@ The main settings interface provides:
 - **Streaming Services**: Individual toggles for streaming platforms with bulk actions
 - **Desktop App Integration**: Configure Spotify, Tidal, and Apple Music to open in desktop apps
 - **Rating Display**: Toggle ratings and select between community average or personal ratings
+- **Cache Status** (v0.28.0): Real-time server-side cache statistics with auto-refresh
+  - Shows cache hit rates, memory usage, and item counts
+  - Displays prefetch progress when background prefetch is running
+  - Auto-refreshes every 10 seconds when prefetch is active
 - **Preference Persistence**: Configuration managed by `usePreferences` hook with automatic migration
 - **Real-Time Application**: Changes take effect immediately after saving
 

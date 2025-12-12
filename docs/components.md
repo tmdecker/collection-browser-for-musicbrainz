@@ -2,7 +2,7 @@
 
 This document provides detailed information about the React components used in the Music Library Viewer application.
 
-**Last Updated:** v0.13.1 (2025-10-12)
+**Last Updated:** v0.32.0 (2025-12-12)
 
 ## Core Layout Components
 

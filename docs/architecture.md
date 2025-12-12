@@ -27,18 +27,23 @@ MusicBrainz_GUI
 ├── src/
 │   ├── app/
 │   │   ├── api/
+│   │   │   ├── auth/          # OAuth2 authentication endpoints
+│   │   │   ├── cache/
+│   │   │   │   └── stats/     # Cache statistics endpoint
 │   │   │   ├── coverart/      # Coverart API proxying
-│   │   │   ├── debug-collection/
-│   │   │   ├── debug-compare/
 │   │   │   ├── image/         # Custom image optimization API
 │   │   │   │   └── route.ts   # Handles image resizing and caching
-│   │   │   ├── streaming-links/ # Odesli API proxy with rate limiting
+│   │   │   ├── musicbrainz/   # MusicBrainz API proxying
+│   │   │   ├── prefetch/
+│   │   │   │   └── start/     # Background prefetch trigger
+│   │   │   ├── release-groups/
+│   │   │   │   └── [mbid]/    # Cached release group endpoint
+│   │   │   ├── resolve-apple-music/ # Apple Music geo link resolution
+│   │   │   ├── streaming-links/ # Odesli API proxy with server-side cache
 │   │   │   │   └── route.ts   # Handles streaming links fetching
-│   │   │   └── musicbrainz/   # MusicBrainz API proxying for public collections
-│   │   ├── compare/
+│   │   │   └── health/        # Health check endpoint
 │   │   ├── config/
 │   │   │   └── page.tsx       # Dynamic configuration UI for collection setup
-│   │   ├── debug/
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   └── page.tsx           # Main application page
@@ -58,9 +63,25 @@ MusicBrainz_GUI
 │   │   └── TrackList.tsx      # Track listing component with duration formatting and release information display
 │   ├── hooks/
 │   │   ├── useAlbums.ts       # Album data fetching & management
-│   │   ├── usePreferences.ts  # Centralized user preference management
-│   │   └── useFilters.ts      # Filter state management with persistence
+│   │   ├── useAuth.ts         # OAuth2 authentication state
+│   │   ├── useFilters.ts      # Filter state management with persistence
+│   │   └── usePreferences.ts  # Centralized user preference management
+│   ├── lib/
+│   │   ├── cache/
+│   │   │   ├── base-cache.ts         # Abstract cache with disk persistence
+│   │   │   ├── cache-manager.ts      # Coordinator + auto-save
+│   │   │   ├── release-group-cache.ts # RG cache with MBID refs
+│   │   │   ├── release-store.ts      # Shared release storage
+│   │   │   └── streaming-links-cache.ts # Odesli response cache (7-day TTL)
+│   │   ├── prefetch/
+│   │   │   ├── prefetch-queue.ts     # Priority queue system
+│   │   │   └── prefetch-service.ts   # Background prefetch orchestration
+│   │   ├── odesli-rate-limiter.ts    # Odesli API 6s rate limiting
+│   │   ├── rate-limiter.ts           # MusicBrainz API 2s rate limiting
+│   │   └── types/
+│   │       └── cache.ts              # Cache-specific interfaces
 │   ├── types/
+│   │   ├── auth.ts            # Authentication type definitions
 │   │   ├── music.ts           # Music-related TypeScript interfaces
 │   │   └── preferences.ts     # User preference type definitions
 │   └── utils/
@@ -71,8 +92,7 @@ MusicBrainz_GUI
 │       ├── normalize-mb-data.ts     # Data normalization utilities
 │       ├── streaming-links.ts       # Enhanced multi-URL streaming platform integration with Odesli API
 │       ├── preference-migration.ts  # Legacy preference migration utilities
-│       ├── ratings.ts               # Rating conversion utilities and display logic (0-100 ↔ 0-5 stars)
-│       └── performance-monitor.ts   # Image loading performance tracking
+│       └── ratings.ts               # Rating conversion utilities and display logic (0-100 ↔ 0-5 stars)
 ├── .env.local
 ├── .gitignore
 ├── next.config.js
@@ -546,6 +566,126 @@ Personal ratings can be implemented by enhancing the MusicBrainz proxy to forwar
 
 - **IndexedDB Cache**: Primary cache for offline functionality
 - **Memory Cache**: Secondary cache for session persistence
+
+## Server-Side Cache Architecture
+
+The application implements a sophisticated three-layer server-side caching system for release groups, releases, and streaming links. Added in v0.23.0-v0.31.0.
+
+### Cache Infrastructure
+
+**Base Cache (`lib/cache/base-cache.ts`)**:
+- Abstract cache class with disk persistence
+- Automatic save every 5 minutes
+- Graceful shutdown handlers (SIGTERM, SIGINT)
+- TTL-based expiration
+- Prevents cache loss on server restart
+
+**Release Store (`lib/cache/release-store.ts`)**:
+- Shared storage for individual releases
+- Reverse index: release MBID → parent release group MBIDs
+- Deduplicates releases across multiple RGs
+- 30-day TTL
+
+**Release Group Cache (`lib/cache/release-group-cache.ts`)**:
+- Stores RG metadata + references to releases (not full release data)
+- Uses shared release store for hydration
+- 30-day TTL
+- Includes embedded streaming links
+
+**Streaming Links Cache (`lib/cache/streaming-links-cache.ts`)**:
+- Caches Odesli API responses
+- Keyed by: streaming URL + user country code
+- 7-day TTL
+- Reduces Odesli API calls across all users
+
+**Cache Manager (`lib/cache/cache-manager.ts`)**:
+- Coordinates all caches
+- Handles persistence to `.cache/` directory
+- Auto-save every 5 minutes
+- Graceful shutdown save
+
+### Singleton Pattern
+
+All cache instances use `globalThis` to persist across Next.js module re-evaluations:
+
+```typescript
+if (!globalThis.releaseGroupCache) {
+  globalThis.releaseGroupCache = new ReleaseGroupCache();
+}
+export const releaseGroupCache = globalThis.releaseGroupCache;
+```
+
+This prevents cache resets during development and hot module replacement.
+
+### Prefetch System
+
+**Priority Queue (`lib/prefetch/prefetch-queue.ts`)**:
+- Two-tier queue: high priority (user clicks), low priority (background)
+- Automatic deduplication
+- FIFO ordering within each tier
+
+**Prefetch Service (`lib/prefetch/prefetch-service.ts`)**:
+- Background fetching of release group details + streaming links
+- Triggered automatically when collection loads
+- Filters already-cached items
+- Respects rate limiting (2s MusicBrainz, 6s Odesli)
+- Progress logging every 60 seconds
+- Retry logic with exponential backoff (1s → 2s → 4s) for network errors
+
+### Rate Limiting
+
+**MusicBrainz Rate Limiter (`lib/rate-limiter.ts`)**:
+- Shared 2-second delay for all MusicBrainz API calls
+- Used by: collection fetches, release group fetches, release detail fetches
+
+**Odesli Rate Limiter (`lib/odesli-rate-limiter.ts`)**:
+- Separate 6-second delay for Odesli API calls
+- Server-side enforcement only (client makes no additional delays)
+- Used by: streaming links fetches, prefetch service
+
+### Cache Workflow
+
+```
+User Opens Album Details
+    ↓
+Check Release Group Cache
+    ├─ If cached → Return instantly (~50ms)
+    │   └─ Includes: metadata + releases + streaming links
+    └─ If not cached → Fetch from MusicBrainz API (~10-15s)
+        ↓
+        Store in Release Group Cache + Release Store
+        ↓
+        Fetch streaming links (if not cached)
+        ↓
+        Store in Streaming Links Cache
+        ↓
+        Return to client
+```
+
+### API Endpoints
+
+**`/api/release-groups/[mbid]` (v0.24.0)**:
+- Cached endpoint for release group details
+- Returns full RG with hydrated releases
+- ~50ms for cached, ~10-15s for uncached
+
+**`/api/cache/stats` (v0.28.0)**:
+- Real-time cache statistics
+- Hit rates, memory usage, item counts
+- Prefetch progress monitoring
+
+**`/api/prefetch/start` (v0.26.0)**:
+- Triggers background prefetch
+- Returns immediately (non-blocking)
+- Used by `useAlbums` hook on collection load
+
+### Benefits
+
+- **Instant Loading**: Cached release groups load in ~50ms vs 10-15s
+- **Reduced API Calls**: 95%+ reduction for repeat views
+- **Multi-User Efficiency**: Server cache shared across all users
+- **Persistent**: Survives server restarts with auto-save
+- **Smart Prefetch**: Background loading of likely-to-be-viewed albums
 
 ## Performance Optimization
 
