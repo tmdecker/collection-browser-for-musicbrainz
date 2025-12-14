@@ -500,6 +500,23 @@ export const storeReleaseGroup = async (releaseGroup: ReleaseGroup): Promise<voi
 };
 
 /**
+ * Update metadata (genres, tags, rating) for an existing release group
+ * Preserves existing fields, only updates metadata fields
+ */
+export const updateReleaseGroupMetadata = async (
+  id: string,
+  metadata: { genres?: (string | Genre)[]; tags?: (string | Tag)[]; rating?: Rating }
+): Promise<void> => {
+  const existing = await getReleaseGroup(id);
+  if (!existing) return;
+
+  await storeReleaseGroup({
+    ...existing,
+    ...metadata
+  });
+};
+
+/**
  * Retrieve detailed information about a single release group
  * Returns null if not found or expired
  */

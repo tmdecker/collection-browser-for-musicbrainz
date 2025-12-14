@@ -158,6 +158,14 @@ async function fetchAndCacheCollection(collectionId: string, entityType?: 'colle
   // Store in cache (with cover URLs, normalized, collection name, and entity type)
   await db.storeCollection(normalizedApiData, collectionId, collectionName, entityType);
 
+  // After storing series data, trigger background metadata enhancement
+  if (entityType === 'series') {
+    // Non-blocking: don't await
+    setTimeout(() => {
+      enhanceSeriesMetadata(normalizedApiData);
+    }, 100);
+  }
+
   return normalizedApiData;
 }
 
@@ -173,6 +181,52 @@ export async function forceRefreshCollection(collectionId: string): Promise<Rele
 
   // Fetch fresh data and cache it
   return await fetchAndCacheCollection(collectionId);
+}
+
+/**
+ * Background enhancement: fetch genres/tags/ratings for series items
+ * Updates both server cache (via API) and client IndexedDB
+ */
+export async function enhanceSeriesMetadata(releaseGroups: ReleaseGroup[]): Promise<void> {
+  // Only enhance items missing metadata
+  const needsEnhancement = releaseGroups.filter(
+    rg => !rg.genres?.length && !rg.tags?.length && !rg.rating
+  );
+
+  if (needsEnhancement.length === 0) return;
+
+  console.log(`🔄 Enhancing metadata for ${needsEnhancement.length} series items...`);
+
+  let enhanced = 0;
+  for (const rg of needsEnhancement) {
+    try {
+      const response = await fetch('/api/enhance-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mbid: rg.id })
+      });
+
+      if (response.ok) {
+        const metadata = await response.json();
+        // Update client-side IndexedDB
+        await db.updateReleaseGroupMetadata(rg.id, {
+          genres: metadata.genres,
+          tags: metadata.tags,
+          rating: metadata.rating
+        });
+        enhanced++;
+      }
+    } catch (error) {
+      console.warn(`Failed to enhance ${rg.id}:`, error);
+    }
+  }
+
+  // Dispatch event to notify UI
+  window.dispatchEvent(new CustomEvent('mb-data-updated', {
+    detail: { timestamp: new Date(), type: 'metadata-enhanced', count: enhanced }
+  }));
+
+  console.log(`✅ Metadata enhancement complete (${enhanced}/${needsEnhancement.length})`);
 }
 
 /**

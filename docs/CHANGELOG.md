@@ -16,6 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - New `fetchAllReleaseGroupsInSeries()` function for fetching series data from MusicBrainz API
   - Series data routing in progressive loader with entity type detection
   - Cache storage now preserves entity type for collections and series
+- **Background Metadata Enhancement**: Automatic enrichment of series items with full metadata
+  - New `/api/enhance-metadata` endpoint for server-side metadata fetching
+  - Updates both server-side cache (in-memory + disk) and client-side IndexedDB
+  - Fetches genres, tags, and ratings for series release groups
+  - Non-blocking background enhancement triggers after series load
 
 ## [0.32.1] - 2025-12-12
 

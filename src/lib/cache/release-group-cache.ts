@@ -80,6 +80,25 @@ class ReleaseGroupCache extends BaseCache<CachedReleaseGroup> {
       missingReleases,
     };
   }
+
+  /**
+   * Update metadata fields for an existing cached release group
+   * Preserves all other fields, only updates genres/tags/rating
+   */
+  updateMetadata(rgMbid: string, metadata: {
+    genres?: import('@/types/music').Genre[];
+    tags?: import('@/types/music').Tag[];
+    rating?: import('@/types/music').Rating;
+  }): boolean {
+    const existing = this.get(rgMbid);
+    if (!existing) return false;
+
+    this.set(rgMbid, {
+      ...existing,
+      ...metadata,
+    });
+    return true;
+  }
 }
 
 // Singleton instance - persisted across Next.js module re-evaluations
