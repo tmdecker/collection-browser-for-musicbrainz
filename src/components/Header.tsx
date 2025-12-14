@@ -209,6 +209,11 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
           >
             {displayName}
           </h1>
+          {entityType && (
+            <span className="ml-2 bg-gray-700/50 text-gray-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
+              {entityType}
+            </span>
+          )}
         </div>
 
         {/* Center: Search Bar */}
@@ -287,6 +292,11 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
           >
             <BiCollection className="text-white/70 flex-shrink-0" size={20} />
             <span className="text-white font-medium truncate">{displayName}</span>
+            {entityType && (
+              <span className="bg-gray-700/50 text-gray-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
+                {entityType}
+              </span>
+            )}
           </button>
 
           {/* Authentication Section */}
@@ -334,7 +344,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             </button>
           )}
 
-          {/* Browse Collections (accessible to all users) */}
+          {/* Browse Collections/Series (accessible to all users) */}
           <button
             onClick={() => {
               if (toggleCollectionsPanel) {
@@ -345,7 +355,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-white/10 transition-colors border-b border-white/10 text-left"
           >
             <BiCollection className="text-white/70 flex-shrink-0" size={20} />
-            <span className="text-white font-medium">Browse Collections</span>
+            <span className="text-white font-medium">Browse</span>
           </button>
 
           {/* Settings */}

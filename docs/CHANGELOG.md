@@ -8,23 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- **MusicBrainz Series Support**: Complete series data fetching infrastructure
-  - Added `'series-order'` to `SortOption` type and `seriesOrder` field to `ReleaseGroup` interface
-  - Added `entityType` field to `CollectionMetadata` to distinguish between collections and series
-  - Series URL detection in `extractMbidFromUrl()` (supports `/series/` URLs)
-  - New `validateSeriesId()` and `validateEntityId()` functions for unified validation
-  - New `fetchAllReleaseGroupsInSeries()` function for fetching series data from MusicBrainz API
-  - Series data routing in progressive loader with entity type detection
-  - Cache storage now preserves entity type for collections and series
-- **Series Order Sorting**: New sort option for ranked series lists
-  - "Series Order" option appears in sort dropdown when viewing a series
-  - Automatically selected as default sort when loading a series
-  - Sorts albums by their position in the series (1-based ranking)
-- **Background Metadata Enhancement**: Automatic enrichment of series items with full metadata
-  - New `/api/enhance-metadata` endpoint for server-side metadata fetching
-  - Updates both server-side cache (in-memory + disk) and client-side IndexedDB
-  - Fetches genres, tags, and ratings for series release groups
-  - Non-blocking background enhancement triggers after series load
+- **MusicBrainz Series Support**: Browse series (e.g., "Rolling Stone 500") alongside collections
+  - Series URL/ID detection and validation in input fields
+  - Entity type chip ("Collection" / "Series") displayed in header
+  - Updated UI labels to mention both collections and series
+- **Series Order Sorting**: "Series Order" option for ranked lists (auto-selected for series)
+- **Background Metadata Enhancement**: Series items automatically enriched with genres/tags/ratings via `/api/enhance-metadata`
 
 ## [0.32.1] - 2025-12-12
 

@@ -22,7 +22,7 @@ interface CollectionBrowsePanelProps {
   onClose: () => void;
   username: string | null;
   currentCollectionId: string;
-  onLoadCollection: (collectionId: string, collectionName: string) => void;
+  onLoadCollection: (collectionId: string, collectionName: string, entityType?: 'collection' | 'series') => void;
   isAuthenticated: boolean;
   hasActiveFilters?: boolean;
   onLogin?: () => void;
@@ -53,6 +53,7 @@ export default function CollectionBrowsePanel({
     status: 'idle' | 'validating' | 'valid' | 'error';
     message: string;
   }>({ status: 'idle', message: '' });
+  const [validatedEntityType, setValidatedEntityType] = useState<'collection' | 'series' | null>(null);
   const skipValidationRef = useRef(false);
 
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function CollectionBrowsePanel({
 
     if (result.valid && result.mbid) {
       setValidationState({ status: 'valid', message: result.message });
+      setValidatedEntityType(result.entityType);
 
       // Auto-update the input field with the extracted MBID if user entered a URL
       if (result.mbid !== input.trim()) {
@@ -127,6 +129,7 @@ export default function CollectionBrowsePanel({
       }, 3000);
     } else {
       setValidationState({ status: 'error', message: result.message });
+      setValidatedEntityType(null);
 
       // Auto-clear error message after 5 seconds
       setTimeout(() => {
@@ -153,9 +156,10 @@ export default function CollectionBrowsePanel({
   // Handle loading manual collection
   const handleLoadManualCollection = () => {
     if (validationState.status === 'valid' && manualCollectionId.trim()) {
-      onLoadCollection(manualCollectionId.trim(), 'Manual Collection');
+      onLoadCollection(manualCollectionId.trim(), 'Manual Collection', validatedEntityType || undefined);
       setManualCollectionId('');
       setValidationState({ status: 'idle', message: '' });
+      setValidatedEntityType(null);
       // Delay close to ensure state updates propagate
       setTimeout(() => {
         onClose();
@@ -236,7 +240,7 @@ export default function CollectionBrowsePanel({
           <div className="mb-8">
             <div className="max-w-[1200px] mx-auto">
               <h2 className="text-xl font-bold text-text-primary mb-4">
-                Browse Collection
+                Browse Collection or Series
               </h2>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="relative flex-1">
@@ -249,7 +253,7 @@ export default function CollectionBrowsePanel({
                         handleLoadManualCollection();
                       }
                     }}
-                    placeholder="Enter collection ID or URL"
+                    placeholder="Enter collection or series ID/URL"
                     className="w-full px-3 py-2 pr-10 bg-[#2A2A2A] text-text-primary text-sm rounded-lg border border-white/10 focus:border-primary focus:outline-none placeholder:text-white/40"
                   />
 
@@ -311,7 +315,7 @@ export default function CollectionBrowsePanel({
                 )}
               </div>
               <p className="mt-2 text-xs text-text-tertiary">
-                Enter a MusicBrainz collection ID or URL to browse public collections
+                Enter a MusicBrainz collection or series ID/URL
                 {!isAuthenticated && ' (login to access your private collections)'}
               </p>
             </div>

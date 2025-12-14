@@ -9,7 +9,7 @@
  * - Memory fallback when IndexedDB fails
  */
 
-import { ReleaseGroup, StreamingLinks } from '@/types/music';
+import { ReleaseGroup, StreamingLinks, Genre, Tag, Rating } from '@/types/music';
 
 // Constants
 const DB_NAME = 'musicLibraryDb';
@@ -505,7 +505,7 @@ export const storeReleaseGroup = async (releaseGroup: ReleaseGroup): Promise<voi
  */
 export const updateReleaseGroupMetadata = async (
   id: string,
-  metadata: { genres?: (string | Genre)[]; tags?: (string | Tag)[]; rating?: Rating }
+  metadata: { genres?: string[] | Genre[]; tags?: string[] | Tag[]; rating?: Rating }
 ): Promise<void> => {
   const existing = await getReleaseGroup(id);
   if (!existing) return;

@@ -162,6 +162,7 @@ export default function Home() {
     status: 'idle' | 'validating' | 'valid' | 'error';
     message: string;
   }>({ status: 'idle', message: '' });
+  const [validatedEntityType, setValidatedEntityType] = useState<'collection' | 'series' | null>(null);
   const skipValidationRef = useRef(false);
 
   // Open details panel when an album is selected and close other panels
@@ -223,6 +224,7 @@ export default function Home() {
 
     if (result.valid && result.mbid) {
       setValidationState({ status: 'valid', message: result.message });
+      setValidatedEntityType(result.entityType);
 
       // Auto-update the input field with the extracted MBID if user entered a URL
       if (result.mbid !== input.trim()) {
@@ -236,6 +238,7 @@ export default function Home() {
       }, 3000);
     } else {
       setValidationState({ status: 'error', message: result.message });
+      setValidatedEntityType(null);
 
       // Auto-clear error message after 5 seconds
       setTimeout(() => {
@@ -262,17 +265,18 @@ export default function Home() {
   // Handle loading manual collection from welcome screen
   const handleLoadManualCollection = () => {
     if (validationState.status === 'valid' && manualCollectionId.trim()) {
-      handleLoadCollection(manualCollectionId.trim(), 'Manual Collection');
+      handleLoadCollection(manualCollectionId.trim(), 'Manual Collection', validatedEntityType || undefined);
       setManualCollectionId('');
       setValidationState({ status: 'idle', message: '' });
+      setValidatedEntityType(null);
     }
   };
 
-  // Handle loading a new collection
-  const handleLoadCollection = (newCollectionId: string, collectionName: string) => {
+  // Handle loading a new collection or series
+  const handleLoadCollection = (newCollectionId: string, collectionName: string, entityType?: 'collection' | 'series') => {
     // Update preferences (for persistence)
     updateApi({ collectionId: newCollectionId });
-    updateMetadata({ collectionName });
+    updateMetadata({ collectionName, entityType });
 
     // Update local state to trigger automatic reload via useAlbums
     setActiveCollectionId(newCollectionId);
@@ -460,7 +464,7 @@ export default function Home() {
               <div className="mt-4 space-y-6">
                 <div>
                   <p className="text-text-secondary mb-4">
-                    Enter a MusicBrainz collection ID or URL to get started. Works with any public collection!
+                    Enter a MusicBrainz collection or series ID/URL to get started. Works with any public collection or series!
                   </p>
 
                   {/* Collection Input Field */}
@@ -475,7 +479,7 @@ export default function Home() {
                             handleLoadManualCollection();
                           }
                         }}
-                        placeholder="Enter collection ID or URL"
+                        placeholder="Enter collection or series ID/URL"
                         className="w-full px-3 py-2 pr-10 bg-[#2A2A2A] text-text-primary text-sm rounded-lg border border-white/10 focus:border-primary focus:outline-none placeholder:text-white/40"
                       />
 
@@ -517,7 +521,7 @@ export default function Home() {
                   </div>
 
                   <p className="text-xs text-text-tertiary mt-2">
-                    Example: https://musicbrainz.org/collection/YOUR-COLLECTION-ID
+                    Example: https://musicbrainz.org/collection/YOUR-COLLECTION-ID or https://musicbrainz.org/series/YOUR-SERIES-ID
                   </p>
                 </div>
 
