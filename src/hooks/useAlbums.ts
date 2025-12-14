@@ -49,6 +49,7 @@ export const useAlbums = (externalCollectionId?: string) => {
   const useGenresOnly = preferences.display.useGenresOnly;
   const spotifyUseDesktopApp = preferences.streaming.spotifyUseDesktopApp;
   const collectionName = preferences.metadata.collectionName;
+  const entityType = preferences.metadata.entityType;
   // Use external collection ID if provided, otherwise use preference value
   const collectionId = externalCollectionId ?? preferences.api.collectionId;
 
@@ -69,7 +70,7 @@ export const useAlbums = (externalCollectionId?: string) => {
       setError(null);
 
       // Use the progressive loader for IndexedDB caching
-      const data = await getBasicData(collectionId);
+      const data = await getBasicData(collectionId, entityType);
 
       // Verify data integrity before setting state
       if (!Array.isArray(data)) {
@@ -93,7 +94,7 @@ export const useAlbums = (externalCollectionId?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [collectionId]);
+  }, [collectionId, entityType]);
 
   // Fetch detailed information for a specific album
   const fetchAlbumDetails = useCallback(async (albumId: string, signal?: AbortSignal) => {

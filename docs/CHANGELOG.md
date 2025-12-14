@@ -15,6 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Series Order Sorting**: "Series Order" option for ranked lists (auto-selected for series)
 - **Background Metadata Enhancement**: Series items automatically enriched with genres/tags/ratings via `/api/enhance-metadata`
 
+### Fixed
+
+- **Series Loading**: Fixed bugs where series were incorrectly fetched as collections
+  - `useAlbums.ts`: Pass `entityType` from preferences to `getBasicData()`
+  - `progressive-loader.ts`: Use correct endpoint when fetching cached series names
+
 ## [0.32.1] - 2025-12-12
 
 ### Fixed

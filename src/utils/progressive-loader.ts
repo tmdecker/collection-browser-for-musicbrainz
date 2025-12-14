@@ -57,7 +57,7 @@ export async function getBasicData(collectionId: string, entityType?: 'collectio
       } else {
         // Collection name not in cache (old format), fetch from API
         console.log('⚠️ Collection name not in cache metadata, fetching from API...');
-        await fetchAndUpdateCollectionName(collectionId);
+        await fetchAndUpdateCollectionName(collectionId, entityType);
       }
 
       // Normalize cached data to ensure consistent structure
@@ -86,34 +86,35 @@ export async function getBasicData(collectionId: string, entityType?: 'collectio
 }
 
 /**
- * Fetch collection name from API and update preferences
+ * Fetch collection or series name from API and update preferences
  */
-async function fetchAndUpdateCollectionName(collectionId: string): Promise<void> {
+async function fetchAndUpdateCollectionName(collectionId: string, entityType?: 'collection' | 'series'): Promise<void> {
   try {
     const axios = (await import('axios')).default;
     const baseUrl = '/api/musicbrainz';
+    const endpoint = entityType === 'series' ? 'series' : 'collection';
 
-    const collectionResponse = await axios.get(
-      `${baseUrl}/collection/${collectionId}`,
+    const response = await axios.get(
+      `${baseUrl}/${endpoint}/${collectionId}`,
       { params: { fmt: 'json' } }
     );
 
-    const collectionName = collectionResponse.data.name || '';
-    if (collectionName) {
-      console.log(`✨ Fetched collection name from API: "${collectionName}"`);
+    const name = response.data.name || '';
+    if (name) {
+      console.log(`✨ Fetched ${entityType || 'collection'} name from API: "${name}"`);
 
       const preferences = loadPreferences();
-      preferences.metadata.collectionName = collectionName;
+      preferences.metadata.collectionName = name;
       savePreferences(preferences);
 
       // Dispatch event to update UI
       window.dispatchEvent(new CustomEvent('mb-preferences-updated', {
-        detail: { collectionName }
+        detail: { collectionName: name }
       }));
-      console.log(`📢 Dispatched mb-preferences-updated event for fetched name: "${collectionName}"`);
+      console.log(`📢 Dispatched mb-preferences-updated event for fetched name: "${name}"`);
     }
   } catch (err) {
-    console.error('Failed to fetch collection name from API:', err);
+    console.error(`Failed to fetch ${entityType || 'collection'} name from API:`, err);
   }
 }
 
