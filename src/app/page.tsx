@@ -30,7 +30,7 @@ import { albumMatchesGenreFilters } from '@/utils/genre-processor';
 import { albumMatchesLabelFilters } from '@/utils/label-processor';
 import { albumMatchesTagFilters } from '@/utils/tag-processor';
 import { albumMatchesDateFilter } from '@/utils/date-processor';
-import { validateCollectionId } from '@/utils/mbid-validation';
+import { validateEntityId } from '@/utils/mbid-validation';
 import { BiCheck, BiError, BiX, BiLinkExternal } from 'react-icons/bi';
 
 export default function Home() {
@@ -219,7 +219,7 @@ export default function Home() {
 
     setValidationState({ status: 'validating', message: 'Validating...' });
 
-    const result = await validateCollectionId(input);
+    const result = await validateEntityId(input);
 
     if (result.valid && result.mbid) {
       setValidationState({ status: 'valid', message: result.message });

@@ -15,7 +15,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MusicBrainzCollection } from '@/types/auth';
 import { BiLoaderAlt, BiError, BiCollection, BiLinkExternal, BiCheck, BiUserX, BiX, BiRefresh } from 'react-icons/bi';
-import { validateCollectionId } from '@/utils/mbid-validation';
+import { validateEntityId } from '@/utils/mbid-validation';
 
 interface CollectionBrowsePanelProps {
   isOpen: boolean;
@@ -110,7 +110,7 @@ export default function CollectionBrowsePanel({
 
     setValidationState({ status: 'validating', message: 'Validating...' });
 
-    const result = await validateCollectionId(input);
+    const result = await validateEntityId(input);
 
     if (result.valid && result.mbid) {
       setValidationState({ status: 'valid', message: result.message });

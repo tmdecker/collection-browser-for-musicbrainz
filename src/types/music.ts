@@ -66,6 +66,7 @@ export interface ReleaseGroup {
   streamingLinks?: StreamingLinks;
   releaseDetails?: Release;
   rating?: Rating;
+  seriesOrder?: number;     // Position in series (1-based)
   _cachedAt?: number;       // Timestamp when cached (milliseconds since epoch)
   _expiresAt?: number;      // Timestamp when cache expires (30-day TTL)
 }
@@ -156,7 +157,8 @@ export type SortOption =
   | 'title-asc'
   | 'title-desc'
   | 'date-old-new'
-  | 'date-new-old';
+  | 'date-new-old'
+  | 'series-order';
 
 export interface UserCollection {
   id: string;

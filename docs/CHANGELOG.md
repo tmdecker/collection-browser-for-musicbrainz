@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0] - 2025-12-13
+
+### Added
+
+- **MusicBrainz Series Support (Phase 1)**: Infrastructure for series support
+  - Added `'series-order'` to `SortOption` type and `seriesOrder` field to `ReleaseGroup` interface
+  - Added `entityType` field to `CollectionMetadata` to distinguish between collections and series
+  - Series URL detection in `extractMbidFromUrl()` (supports `/series/` URLs)
+  - New `validateSeriesId()` and `validateEntityId()` functions for unified validation
+
 ## [0.32.1] - 2025-12-12
 
 ### Fixed
