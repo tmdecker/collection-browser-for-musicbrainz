@@ -189,9 +189,9 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
         }}
       >
       {/* Desktop Layout: Compact with Hover Details */}
-      <div className="hidden md:flex items-center justify-between h-8">
+      <div className="hidden md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:items-center md:gap-4 h-8">
         {/* Left: Menu Button + Collection Name + Switcher + Auth Status */}
-        <div className="flex items-center space-x-2 min-w-0 flex-shrink">
+        <div className="flex items-center space-x-2 min-w-0">
           {/* Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -216,8 +216,8 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
           )}
         </div>
 
-        {/* Center: Search Bar */}
-        <div className="flex-1 max-w-md mx-4">
+        {/* Center: Search Bar (grid centers this column) */}
+        <div className="w-full justify-self-center">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -225,7 +225,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
         </div>
 
         {/* Right: Sort + Filter */}
-        <div className="flex items-center space-x-3 flex-shrink-0">
+        <div className="flex items-center space-x-3 justify-self-end">
           {/* Sort Dropdown */}
           <SortDropdown
             ref={sortDropdownRef}
