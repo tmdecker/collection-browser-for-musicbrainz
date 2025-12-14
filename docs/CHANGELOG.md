@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.2] - 2025-12-14
+
+### Fixed
+
+- **Streaming Links Prefetching**: Fixed prefetch selecting wrong release type for streaming URLs
+  - Now prioritizes Digital Media + Worldwide releases (most likely to have streaming links)
+  - Previously selected oldest official release (often 1990s CDs without streaming URLs)
+
 ## [0.33.1] - 2025-12-14
 
 ### Fixed

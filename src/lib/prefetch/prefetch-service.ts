@@ -118,6 +118,33 @@ function extractTracksFromMedia(media: Media[]): Track[] {
 }
 
 /**
+ * Find the best release for streaming links
+ * @ai Priority: Digital Media + XW > Digital Media > XW > fallback to first
+ * @ai Enables finding streaming URLs on modern digital releases
+ */
+function findBestStreamingRelease(releases: Release[]): Release | null {
+  if (!releases || releases.length === 0) return null;
+
+  // Priority 1: Digital Media + Worldwide
+  const digitalXW = releases.find(r =>
+    r.media?.some(m => m.format === 'Digital Media') && r.country === 'XW'
+  );
+  if (digitalXW) return digitalXW;
+
+  // Priority 2: Any Digital Media
+  const digital = releases.find(r =>
+    r.media?.some(m => m.format === 'Digital Media')
+  );
+  if (digital) return digital;
+
+  // Priority 3: Any XW release
+  const xw = releases.find(r => r.country === 'XW');
+  if (xw) return xw;
+
+  return null;
+}
+
+/**
  * Fetch and cache a single release group
  * This is the core fetch function used by the prefetch queue
  */
@@ -192,7 +219,27 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
     // Step 5: Fetch streaming links (if available)
     let streamingLinks = undefined;
     try {
-      const streamingUrl = findStreamingUrl([detailedRelease]);
+      // Find best release for streaming (Digital Media + XW preferred)
+      const streamingRelease = findBestStreamingRelease(releases);
+      let releaseWithUrls = detailedRelease;
+
+      // If streaming release is different, fetch its URL relationships
+      if (streamingRelease && streamingRelease.id !== detailedRelease.id) {
+        const urlRelResponse = await fetchWithRetry(
+          `${MB_BASE_URL}/release/${streamingRelease.id}?fmt=json&inc=url-rels`,
+          {
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': getUserAgent(),
+            },
+          }
+        );
+        if (urlRelResponse.ok) {
+          releaseWithUrls = await urlRelResponse.json();
+        }
+      }
+
+      const streamingUrl = findStreamingUrl([releaseWithUrls]);
       if (streamingUrl) {
         // Check if already cached
         const cached = streamingLinksCache.getByUrl(streamingUrl, 'DE');
