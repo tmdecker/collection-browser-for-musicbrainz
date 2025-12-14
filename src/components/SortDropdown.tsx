@@ -15,25 +15,32 @@ import { BiSort } from 'react-icons/bi';
 interface SortDropdownProps {
   value: SortOption;
   onChange: (value: SortOption) => void;
+  entityType?: 'collection' | 'series';
 }
 
 export interface SortDropdownRef {
   closeDropdown: () => void;
 }
 
-const sortOptions: { value: SortOption; label: string }[] = [
+const allSortOptions: { value: SortOption; label: string }[] = [
   { value: 'artist-asc', label: 'Artist A-Z' },
   { value: 'artist-desc', label: 'Artist Z-A' },
   { value: 'title-asc', label: 'Title A-Z' },
   { value: 'title-desc', label: 'Title Z-A' },
   { value: 'date-old-new', label: 'Release: Oldest' },
   { value: 'date-new-old', label: 'Release: Newest' },
+  { value: 'series-order', label: 'Series Order' },
 ];
 
-const SortDropdown = forwardRef<SortDropdownRef, SortDropdownProps>(({ value, onChange }, ref) => {
+const SortDropdown = forwardRef<SortDropdownRef, SortDropdownProps>(({ value, onChange, entityType }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Filter sort options based on entity type
+  const sortOptions = entityType === 'series'
+    ? allSortOptions
+    : allSortOptions.filter(opt => opt.value !== 'series-order');
 
   // Expose the closeDropdown method via ref
   useImperativeHandle(ref, () => ({

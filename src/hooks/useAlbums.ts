@@ -273,6 +273,12 @@ export const useAlbums = (externalCollectionId?: string) => {
           const dateB = b.first_release_date || '0000';
           return dateB.localeCompare(dateA);
         });
+      case 'series-order':
+        return sorted.sort((a, b) => {
+          const orderA = a.seriesOrder ?? 999;
+          const orderB = b.seriesOrder ?? 999;
+          return orderA - orderB;
+        });
       default:
         return sorted;
     }

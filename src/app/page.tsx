@@ -296,6 +296,13 @@ export default function Home() {
     }
   };
 
+  // Auto-set sort to 'series-order' when loading a series
+  useEffect(() => {
+    if (prefs.metadata.entityType === 'series' && sortOption !== 'series-order') {
+      setSortOption('series-order');
+    }
+  }, [prefs.metadata.entityType, sortOption, setSortOption]);
+
   // Handle title click - close all panels and scroll to top
   const handleTitleClick = () => {
     // Close all panels
@@ -329,6 +336,7 @@ export default function Home() {
           collectionId={collectionId}
           sortOption={sortOption}
           setSortOption={setSortOption}
+          entityType={prefs.metadata.entityType}
           isFilterPanelOpen={isFilterPanelOpen}
           toggleFilterPanel={handleToggleFilterPanel}
           activeFilterCount={activeFilterCount}

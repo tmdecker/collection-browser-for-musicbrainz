@@ -29,6 +29,7 @@ interface HeaderProps {
   collectionId: string;
   sortOption: SortOption;
   setSortOption: (option: SortOption) => void;
+  entityType?: 'collection' | 'series';
 
   // Filter-related props
   isFilterPanelOpen: boolean;
@@ -58,6 +59,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   collectionId,
   sortOption,
   setSortOption,
+  entityType,
   isFilterPanelOpen,
   toggleFilterPanel,
   activeFilterCount,
@@ -224,6 +226,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             ref={sortDropdownRef}
             value={sortOption}
             onChange={setSortOption}
+            entityType={entityType}
           />
           {/* Filter Button */}
           <FilterButton
@@ -259,6 +262,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
           ref={sortDropdownRef}
           value={sortOption}
           onChange={setSortOption}
+          entityType={entityType}
         />
 
         {/* Filter Button */}
