@@ -300,12 +300,14 @@ export default function Home() {
     }
   };
 
-  // Auto-set sort to 'series-order' when loading a series
+  // Auto-set sort to 'series-order' when entity type changes to 'series'
+  const prevEntityTypeRef = useRef<'collection' | 'series' | undefined>(undefined);
   useEffect(() => {
-    if (prefs.metadata.entityType === 'series' && sortOption !== 'series-order') {
+    if (prefs.metadata.entityType === 'series' && prevEntityTypeRef.current !== 'series') {
       setSortOption('series-order');
     }
-  }, [prefs.metadata.entityType, sortOption, setSortOption]);
+    prevEntityTypeRef.current = prefs.metadata.entityType;
+  }, [prefs.metadata.entityType, setSortOption]);
 
   // Handle title click - close all panels and scroll to top
   const handleTitleClick = () => {

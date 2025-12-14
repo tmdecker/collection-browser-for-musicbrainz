@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.1] - 2025-12-14
+
+### Fixed
+
+- **Series Sort Dropdown**: Users can now change sort order when viewing a series (was locked to "Series Order")
+
 ## [0.33.0] - 2025-12-14
 
 ### Added
