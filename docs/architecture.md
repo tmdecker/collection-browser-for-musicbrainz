@@ -215,7 +215,29 @@ Albums reload automatically (no page refresh needed)
 
 - **Collection Endpoint**: `/ws/2/collection/{collection-id}` for collection metadata
 - **Release Groups**: `/ws/2/collection/{collection-id}/release-groups` for album data
+- **Series Endpoint**: `/ws/2/series/{series-id}?inc=release-group-rels` for series data
 - **Individual Albums**: Two-step fetch process to get up to 100 releases per album
+
+#### Series Support (v0.33.0)
+
+Series are official MusicBrainz lists (e.g., "Rolling Stone 500 Greatest Albums") with ordered rankings.
+
+**Key Differences from Collections:**
+- **Endpoint**: `/series/{id}?inc=release-group-rels` (vs `/collection/{id}`)
+- **Metadata**: Limited initial data (no genres/tags/ratings from series API)
+- **Ordering**: Includes `seriesOrder` field for rankings
+- **Enhancement**: Background fetch via `/api/enhance-metadata` enriches metadata
+
+**Entity Type Detection:**
+```typescript
+import { validateEntityId } from '@/utils/mbid-validation';
+const { entityType } = await validateEntityId(input); // 'collection' | 'series'
+```
+
+**Files:**
+- `src/utils/release-groups-helper.ts` - `fetchAllReleaseGroupsInSeries()`
+- `src/utils/mbid-validation.ts` - Entity type detection
+- `src/app/api/enhance-metadata/route.ts` - Background enrichment
 
 #### Release Group Fetching Architecture
 

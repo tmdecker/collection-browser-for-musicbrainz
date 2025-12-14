@@ -4,7 +4,7 @@ Next.js-powered collection browser with advanced filtering and streaming integra
 
 ## Features
 
-- Browse MusicBrainz release-group collections
+- Browse MusicBrainz release-group collections and series (e.g., "Rolling Stone 500")
 - Advanced filtering by genres, tags, labels, dates, and ratings with AND/OR logic
 - Streaming service links (Spotify, Apple Music, YouTube, and more)
 - Optional OAuth for personal collection access
@@ -76,7 +76,7 @@ Runs on <http://localhost:3000>
 ## Using the Application
 
 1. Open the application in your browser
-2. Enter a public MusicBrainz collection ID or URL directly on the welcome screen
+2. Enter a public MusicBrainz collection or series ID/URL directly on the welcome screen
 3. Or click "Login with MusicBrainz" to access your personal collections
 4. Use the Browse Collections panel (menu button) to switch between collections
 5. Apply filters to narrow down albums by genre, label, date, or rating

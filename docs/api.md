@@ -603,6 +603,61 @@ const response = await fetch('/api/prefetch/start', {
 });
 ```
 
+### Metadata Enhancement API
+
+**Endpoint:** `/api/enhance-metadata`
+**Method:** POST
+**Purpose:** Enriches series items with genres, tags, and ratings (v0.33.0)
+
+#### Request Body
+
+```json
+{
+  "mbids": ["mbid1", "mbid2", ...]
+}
+```
+
+#### Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mbids` | string[] | Yes | Release group MBIDs to enhance |
+
+#### Features
+
+- **Background Processing**: Processes items without blocking UI
+- **Rate Limiting**: Respects MusicBrainz 2-second rate limit
+- **Cache Integration**: Updates both server-side and client-side caches
+- **Selective Enhancement**: Only fetches metadata for items lacking it
+
+#### Response Format
+
+```json
+{
+  "success": true,
+  "enhanced": 45,
+  "skipped": 5,
+  "total": 50
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether enhancement completed successfully |
+| `enhanced` | number | Items that were enhanced with metadata |
+| `skipped` | number | Items already having metadata (skipped) |
+| `total` | number | Total items provided |
+
+#### Use Case
+
+Series items from MusicBrainz API lack genres/tags/ratings. This endpoint fetches full metadata for each item and updates caches:
+- Server: `releaseGroupCache.updateMetadata(mbid, metadata)`
+- Client: `db.updateReleaseGroupMetadata(mbid, metadata)`
+
+Automatically triggered after loading a series.
+
 ### Debug APIs
 
 The application includes several debug endpoints for development and troubleshooting:
