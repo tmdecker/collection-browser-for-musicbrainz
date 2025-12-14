@@ -37,7 +37,8 @@ const memoryCache = {
 // Collection metadata interface
 export interface CollectionMetadata {
   id: string;
-  name?: string;  // Collection name from MusicBrainz API
+  name?: string;  // Collection or series name from MusicBrainz API
+  entityType?: 'collection' | 'series';  // Type of entity (collection or series)
   albumIds: string[];
   lastUpdated: Date | null;
   itemCount: number;
@@ -192,7 +193,8 @@ export const initDatabase = async (): Promise<void> => {
 export const storeCollection = async (
   releaseGroups: ReleaseGroup[],
   collectionId: string,
-  collectionName?: string
+  collectionName?: string,
+  entityType?: 'collection' | 'series'
 ): Promise<void> => {
   // If using memory fallback, store in memory
   if (usingMemoryFallback) {
@@ -200,6 +202,7 @@ export const storeCollection = async (
     const collectionMetadata: CollectionMetadata = {
       id: collectionId,
       name: collectionName,
+      entityType,
       albumIds: releaseGroups.map(rg => rg.id),
       lastUpdated: new Date(),
       itemCount: releaseGroups.length,
@@ -244,6 +247,7 @@ export const storeCollection = async (
         const collectionMetadata = {
           id: collectionId,
           name: collectionName,
+          entityType,
           albumIds: releaseGroups.map(rg => rg.id),
           lastUpdated: new Date().toISOString(), // Store as string for IndexedDB compatibility
           itemCount: releaseGroups.length,

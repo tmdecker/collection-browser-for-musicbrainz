@@ -7,19 +7,19 @@
 
 import { ReleaseGroup } from '@/types/music';
 import * as db from './db';
-import { fetchAllReleaseGroupsInCollection } from './release-groups-helper';
+import { fetchAllReleaseGroupsInCollection, fetchAllReleaseGroupsInSeries } from './release-groups-helper';
 import { loadPreferences, savePreferences } from './preference-migration';
 
 // Track if background refresh is in progress
 let isRefreshing = false;
 
 /**
- * Load collection data with IndexedDB caching
+ * Load collection or series data with IndexedDB caching
  * Returns cached data if available or fetches from API
  * Automatically starts background refresh if cache is stale (>30 minutes)
  */
-export async function getBasicData(collectionId: string): Promise<ReleaseGroup[]> {
-  console.log('🚀 Progressive Loader: Loading basic collection data for collection ID:', collectionId);
+export async function getBasicData(collectionId: string, entityType?: 'collection' | 'series'): Promise<ReleaseGroup[]> {
+  console.log('🚀 Progressive Loader: Loading basic data for ID:', collectionId, 'type:', entityType || 'collection');
 
   try {
     // Initialize database
@@ -78,7 +78,7 @@ export async function getBasicData(collectionId: string): Promise<ReleaseGroup[]
 
     // No valid cache, fetch from API
     console.log('🌐 No valid cache found, fetching from API');
-    return await fetchAndCacheCollection(collectionId);
+    return await fetchAndCacheCollection(collectionId, entityType);
   } catch (error) {
     console.error('Failed to load basic data:', error);
     throw error;
@@ -118,31 +118,30 @@ async function fetchAndUpdateCollectionName(collectionId: string): Promise<void>
 }
 
 /**
- * Fetch collection from API and cache it
+ * Fetch collection or series from API and cache it
  */
-async function fetchAndCacheCollection(collectionId: string): Promise<ReleaseGroup[]> {
+async function fetchAndCacheCollection(collectionId: string, entityType?: 'collection' | 'series'): Promise<ReleaseGroup[]> {
   const userAgent = `${process.env.NEXT_PUBLIC_MUSICBRAINZ_APP_NAME} (mailto:${process.env.NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL})`;
 
-  // Callback to update collection name immediately when fetched
-  const handleCollectionNameFetched = (name: string) => {
+  // Callback to update collection/series name immediately when fetched
+  const handleNameFetched = (name: string) => {
     const preferences = loadPreferences();
     const oldName = preferences.metadata.collectionName;
     preferences.metadata.collectionName = name;
     savePreferences(preferences);
-    console.log(`💾 Immediately stored collection name: "${name}" (was: "${oldName}")`);
+    console.log(`💾 Immediately stored ${entityType || 'collection'} name: "${name}" (was: "${oldName}")`);
 
     // Dispatch event to notify React components of the update
     window.dispatchEvent(new CustomEvent('mb-preferences-updated', {
       detail: { collectionName: name }
     }));
-    console.log(`📢 Dispatched mb-preferences-updated event for collection: "${name}"`);
+    console.log(`📢 Dispatched mb-preferences-updated event for ${entityType || 'collection'}: "${name}"`);
   };
 
-  const { releaseGroups, collectionName } = await fetchAllReleaseGroupsInCollection(
-    collectionId,
-    userAgent,
-    handleCollectionNameFetched
-  );
+  // Route to correct fetcher based on entity type
+  const { releaseGroups, collectionName } = entityType === 'series'
+    ? await fetchAllReleaseGroupsInSeries(collectionId, userAgent, handleNameFetched)
+    : await fetchAllReleaseGroupsInCollection(collectionId, userAgent, handleNameFetched);
 
   // Add cover art URLs to each release group BEFORE storing
   const apiData = releaseGroups.map(rg => ({
@@ -156,8 +155,8 @@ async function fetchAndCacheCollection(collectionId: string): Promise<ReleaseGro
   const { normalizeReleaseGroups } = await import('./normalize-mb-data');
   const normalizedApiData = normalizeReleaseGroups(apiData);
 
-  // Store in cache (with cover URLs, normalized, and collection name)
-  await db.storeCollection(normalizedApiData, collectionId, collectionName);
+  // Store in cache (with cover URLs, normalized, collection name, and entity type)
+  await db.storeCollection(normalizedApiData, collectionId, collectionName, entityType);
 
   return normalizedApiData;
 }

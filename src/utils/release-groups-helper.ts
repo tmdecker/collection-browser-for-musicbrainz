@@ -1,11 +1,12 @@
 /**
  * @ai-file utility
- * @ai-description Fetches MusicBrainz collections with pagination and rate limiting
+ * @ai-description Fetches MusicBrainz collections and series with pagination and rate limiting
  * @ai-dependencies mbApi from api.ts, normalizeReleaseGroups from normalize-mb-data
  * @ai-features
  * - Paginated collection fetching with 100-item limit per page
+ * - Single-request series fetching with ordering support
  * - 2-second rate limiting between requests (MusicBrainz requirement)
- * - Collection name extraction with early callback support
+ * - Collection/series name extraction with early callback support
  */
 
 import { ReleaseGroup } from '@/types/music';
@@ -159,6 +160,72 @@ export const fetchAllReleaseGroupsInCollection = async (
     };
   } catch (error) {
     console.error(`Critical error fetching collection:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch all release groups in a MusicBrainz series
+ * Series API returns all items in one response (no pagination needed)
+ *
+ * @param seriesId - MusicBrainz series ID
+ * @param userAgent - User agent string for API requests (deprecated - handled by API proxy)
+ * @param onSeriesNameFetched - Optional callback called immediately when series name is fetched
+ * @returns Object containing release groups array and series name
+ */
+export const fetchAllReleaseGroupsInSeries = async (
+  seriesId: string,
+  userAgent: string = 'MusicLibraryViewer/1.0.0 (mailto:your.email@example.com)',
+  onSeriesNameFetched?: (name: string) => void
+): Promise<{ releaseGroups: ReleaseGroup[], collectionName: string }> => {
+  try {
+    // Fetch series info with all release-group relationships
+    const seriesResponse = await mbApi.get(
+      `/series/${seriesId}`,
+      {
+        params: {
+          fmt: 'json',
+          inc: 'release-group-rels+artist-credits'
+        },
+      }
+    );
+
+    const seriesData = seriesResponse.data;
+    const seriesName = seriesData.name || '';
+    console.log(`Series "${seriesName}" with ${seriesData.relations?.length || 0} relations`);
+
+    // Call the callback immediately with the series name
+    if (onSeriesNameFetched && seriesName) {
+      onSeriesNameFetched(seriesName);
+      console.log(`✨ Triggered early series name callback: "${seriesName}"`);
+    }
+
+    // Extract release groups from relations
+    const releaseGroups = [];
+    const relations = seriesData.relations || [];
+
+    for (const relation of relations) {
+      // Only process release-group relationships that are part of the series
+      if (relation.type === 'part of' && relation['target-type'] === 'release_group') {
+        const releaseGroup = relation['release-group'] || relation.release_group;
+
+        if (releaseGroup) {
+          // Add series ordering information
+          releaseGroup.seriesOrder = relation['ordering-key'] || relation.ordering_key;
+          releaseGroups.push(releaseGroup);
+        }
+      }
+    }
+
+    console.log(`Extracted ${releaseGroups.length} release groups from series`);
+
+    // Normalize the data and return with series name
+    return {
+      releaseGroups: normalizeReleaseGroups(releaseGroups),
+      collectionName: seriesName
+    };
+  } catch (error) {
+    console.error(`Critical error fetching series:`, error);
     throw error;
   }
 };
