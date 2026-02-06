@@ -2,11 +2,17 @@
 
 Next.js-powered collection browser with advanced filtering and streaming integration for MusicBrainz
 
+## Demo
+
+[![Demo Video](https://img.youtube.com/vi/sc5DKg-SS0I/maxresdefault.jpg)](https://youtu.be/sc5DKg-SS0I)
+
+▶️ [Watch the demo on YouTube](https://youtu.be/sc5DKg-SS0I)
+
 ## Features
 
 - Browse MusicBrainz release-group collections and series (e.g., "Rolling Stone 500")
 - Advanced filtering by genres, tags, labels, dates, and ratings with AND/OR logic
-- Streaming service links (Spotify, Apple Music, YouTube, and more)
+- Streaming service links (Spotify, Apple Music, Tidal, and more)
 - Optional OAuth for personal collection access
 - Modern design with dark theme
 
@@ -14,15 +20,15 @@ Next.js-powered collection browser with advanced filtering and streaming integra
 
 Album Grid:
 
-![Album Grid](docs/screenshots/album-grid-s.png)
+![Album Grid](docs/screenshots/album-grid.jpg)
 
 Album Details:
 
-![Album Details](docs/screenshots/album-details-s.png)
+![Album Details](docs/screenshots/album-details.jpg)
 
 Album Grid with Filters:
 
-![Album Grid with Filters](docs/screenshots/filters-s.png)
+![Album Grid with Filters](docs/screenshots/filters.jpg)
 
 ## Requirements
 
@@ -123,11 +129,9 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 - [OAuth Setup Guide](docs/oauth_setup.md) - MusicBrainz OAuth2 authentication setup
 - [Changelog](docs/CHANGELOG.md) - Version history and release notes
 
-## Disclaimer OR Why this app was built
+## Why this app was built
 
 I use MusicBrainz.org as a way to be independent of streaming services when it comes to managing my digital music library. However, unlike those streaming services, MusicBrainz doesn't come with a pretty, modern UI that allows me to browse my library ("collection") in a way I would enjoy. E.g. I would like to view all jazz albums in my collection, or all albums from the 80s. So, this app is tailored to my specific needs and aestetic preferences. Nevertheless, there is lots of room for additional features that are attractive for a larger audience including support of release collections, series or even expansion to the Discogs database.
-
-An honest disclamer on the development process: I have no formal background in software engineering nor web development, and my programming skills are more or less limited to Python, i.e. I don't know much about React apps. This is why I made extensive use of AI coding assistants (Claude Code) in the development of the app, so be aware!
 
 ## License
 
