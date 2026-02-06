@@ -79,6 +79,12 @@ npm start
 
 Runs on <http://localhost:3000>
 
+## Deployment
+
+For self-hosting on a production server (PM2, reverse proxy, cache directories, etc.), see the [Self-Hosting Guide](SELF-HOSTING_PLAN.md).
+
+**Important for HTTP deployments:** Set `COOKIE_SECURE=false` in your `.env.local` if deploying without HTTPS (e.g., local network or Tailscale).
+
 ## Using the Application
 
 1. Open the application in your browser
@@ -91,10 +97,10 @@ Runs on <http://localhost:3000>
 
 Configure in `.env.local` (see [.env.example](.env.example) for template):
 
-**Required for all usage:**
+**Required for all usage (no MusicBrainz account needed):**
 
-- `NEXT_PUBLIC_MUSICBRAINZ_APP_NAME` - Your application name
-- `NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL` - Your contact email (MusicBrainz API requirement)
+- `NEXT_PUBLIC_MUSICBRAINZ_APP_NAME` - Your application name (used in API User-Agent header)
+- `NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL` - Your contact email (MusicBrainz API requirement for identification)
 
 **Optional - to enable user authentication:**
 

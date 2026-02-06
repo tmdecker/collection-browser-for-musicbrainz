@@ -346,10 +346,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- **Production Deployment Guide**: Created comprehensive `docs/DEPLOYMENT.md` documentation
+- **Production Deployment Guide**: Created deployment documentation (now in `SELF-HOSTING_PLAN.md`)
   - Environment configuration for production
-  - Platform-specific deployment instructions (Vercel, Railway, Docker, AWS)
-  - Security best practices and troubleshooting guide
+  - Ubuntu deployment with PM2, Apache reverse proxy, and cron auto-deploy
+  - Security best practices and cache management
   - Post-deployment verification checklist
 
 ### Changed
