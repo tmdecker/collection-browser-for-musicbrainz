@@ -4,9 +4,9 @@ Next.js-powered collection browser with advanced filtering and streaming integra
 
 ## Demo
 
-[![Demo Video](https://img.youtube.com/vi/sc5DKg-SS0I/maxresdefault.jpg)](https://youtu.be/sc5DKg-SS0I)
+[![Demo Video](https://img.youtube.com/vi/U05FlKF24Tc/maxresdefault.jpg)](https://youtu.be/U05FlKF24Tc)
 
-▶️ [Watch the demo on YouTube](https://youtu.be/sc5DKg-SS0I)
+▶️ [Watch the demo on YouTube](https://youtu.be/U05FlKF24Tc)
 
 ## Features
 
