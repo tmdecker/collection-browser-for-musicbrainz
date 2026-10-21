@@ -371,7 +371,7 @@ NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL=your.email@example.com
 ### Optional Variables
 
 ```env
-NEXT_PUBLIC_ODESLI_API_KEY=your_odesli_api_key_here
+ODESLI_API_KEY=your_odesli_api_key_here  # server-only
 ```
 
 ## Benefits Over Static Configuration

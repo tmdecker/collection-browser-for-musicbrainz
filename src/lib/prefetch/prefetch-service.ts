@@ -253,6 +253,10 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
           odesliUrl.searchParams.set('url', streamingUrl);
           odesliUrl.searchParams.set('userCountry', 'DE');
           odesliUrl.searchParams.set('songIfSingle', 'true');
+          // Optional API key for higher rate limits (server-only env var)
+          if (process.env.ODESLI_API_KEY) {
+            odesliUrl.searchParams.set('key', process.env.ODESLI_API_KEY);
+          }
 
           const odesliResponse = await fetch(odesliUrl.toString(), {
             headers: {

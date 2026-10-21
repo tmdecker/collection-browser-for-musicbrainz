@@ -92,7 +92,7 @@ export const useAuth = (): UseAuthReturn => {
       // Update auth state with new token
       setAuthState(prev => ({
         ...prev,
-        accessToken: data.access_token,
+        accessToken: 'httponly', // Placeholder - real token is in an httpOnly cookie
         expiresAt: data.expires_at,
         status: 'authenticated',
         error: null,

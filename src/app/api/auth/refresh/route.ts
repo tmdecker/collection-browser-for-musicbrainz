@@ -44,9 +44,9 @@ export async function POST(request: NextRequest) {
     // Calculate token expiry for JSON response
     const expiresAt = Date.now() + tokenResponse.expires_in * 1000;
 
-    // Create response with new token data
+    // Create response with token metadata only
+    // Security: never return the access token itself - it stays in the httpOnly cookie
     const response = NextResponse.json({
-      access_token: tokenResponse.access_token,
       expires_at: expiresAt,
       scope: tokenResponse.scope,
     });

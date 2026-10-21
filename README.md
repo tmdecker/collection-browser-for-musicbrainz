@@ -114,7 +114,7 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 
 **Optional - for higher streaming link rate limits:**
 
-- `NEXT_PUBLIC_ODESLI_API_KEY` - Odesli API key
+- `ODESLI_API_KEY` - Odesli API key (server-only, never prefix with `NEXT_PUBLIC_`)
 
 ## Tech Stack
 

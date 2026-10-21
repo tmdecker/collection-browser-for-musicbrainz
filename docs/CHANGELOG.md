@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.4] - 2026-10-21
+
+### Security
+
+- **Apple Music Resolver SSRF**: `/api/resolve-apple-music` now parses the URL and only accepts HTTPS `music.apple.com` hosts
+  - Previously a substring check let any URL containing `music.apple.com` through (e.g. internal addresses)
+  - Redirects are followed manually and every hop is validated against the same allowlist
+  - Replaced axios with `fetch` in this route
+- **Token Refresh Response**: `/api/auth/refresh` no longer returns the access token in its JSON body (it stays in the httpOnly cookie)
+- **Odesli API Key**: Renamed `NEXT_PUBLIC_ODESLI_API_KEY` to server-only `ODESLI_API_KEY` and actually send it to Odesli from the server
+- **Dependencies**: `npm audit fix` (axios 1.20.0, postcss 8.5.31, next 14.2.35 and transitive fixes)
+
 ## [0.33.3] - 2025-12-14
 
 ### Fixed

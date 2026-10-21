@@ -61,6 +61,10 @@ export async function GET(request: NextRequest) {
     odesliUrl.searchParams.set('url', url);
     odesliUrl.searchParams.set('userCountry', userCountry);
     odesliUrl.searchParams.set('songIfSingle', 'true');
+    // Optional API key for higher rate limits (server-only env var)
+    if (process.env.ODESLI_API_KEY) {
+      odesliUrl.searchParams.set('key', process.env.ODESLI_API_KEY);
+    }
 
     const response = await fetch(odesliUrl.toString(), {
       headers: {
@@ -72,7 +76,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      console.error(`❌ Odesli API error: ${odesliUrl.toString()} - Status: ${response.status}`);
+      console.error(`❌ Odesli API error for ${url} - Status: ${response.status}`); // Avoid logging the API key
 
       // Return empty response for client-side graceful handling
       return NextResponse.json({
