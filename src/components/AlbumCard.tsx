@@ -10,7 +10,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import NextImage from 'next/image'; // Renamed to avoid conflict with global Image
 import { ReleaseGroup } from '@/types/music';
 import clsx from 'clsx';
 import CoverArtImage from './CoverArtImage';

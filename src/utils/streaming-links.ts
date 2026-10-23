@@ -277,58 +277,6 @@ const getPlatformFromUrl = (url: string): string | null => {
 };
 
 /**
- * Prioritizes URLs based on user preferences
- * Returns URLs sorted by preference order
- */
-const prioritizeUrls = (urls: string[], userPreferences: string[] = []): string[] => {
-  if (!urls || urls.length === 0) {
-    return [];
-  }
-
-  // If no preferences specified, return URLs as-is
-  if (!userPreferences || userPreferences.length === 0) {
-    return urls;
-  }
-
-  const prioritized: string[] = [];
-  const remaining: string[] = [];
-
-  // Group URLs by platform
-  const urlsByPlatform: Record<string, string[]> = {};
-
-  for (const url of urls) {
-    const platform = getPlatformFromUrl(url);
-    if (platform) {
-      if (!urlsByPlatform[platform]) {
-        urlsByPlatform[platform] = [];
-      }
-      urlsByPlatform[platform].push(url);
-    } else {
-      remaining.push(url);
-    }
-  }
-
-  // Add URLs based on user preference order
-  for (const preference of userPreferences) {
-    const platformUrls = urlsByPlatform[preference];
-    if (platformUrls) {
-      prioritized.push(...platformUrls);
-      delete urlsByPlatform[preference]; // Remove to avoid duplicates
-    }
-  }
-
-  // Add remaining platform URLs (not in preferences)
-  for (const platformUrls of Object.values(urlsByPlatform)) {
-    prioritized.push(...platformUrls);
-  }
-
-  // Add any unrecognized URLs at the end
-  prioritized.push(...remaining);
-
-  return prioritized;
-};
-
-/**
  * Logs detailed statistics about URL testing for debugging
  */
 const logUrlTestingStats = (
@@ -686,56 +634,6 @@ const parseOdesliResponse = (odesliData: any): StreamingLinks => {
 };
 
 /**
- * Filters streaming links based on user preferences
- */
-export const selectPreferredPlatforms = (
-  streamingLinks: StreamingLinks,
-  preferences: string[]
-): StreamingLinks => {
-  if (!preferences || preferences.length === 0) {
-    return streamingLinks;
-  }
-
-  const filtered: StreamingLinks = {};
-
-  // Include thumbnail regardless of preferences
-  if (streamingLinks.thumbnail) {
-    filtered.thumbnail = streamingLinks.thumbnail;
-  }
-
-  // Filter platforms based on preferences
-  for (const platform of preferences) {
-    const platformKey = platform as keyof StreamingLinks;
-    if (streamingLinks[platformKey] && platformKey !== 'thumbnail') {
-      filtered[platformKey] = streamingLinks[platformKey];
-    }
-  }
-
-  return filtered;
-};
-
-/**
- * Gets user streaming preferences from localStorage
- */
-export const getStreamingPreferences = (): string[] => {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-
-  try {
-    const config = localStorage.getItem('mbConfigOptions');
-    if (config) {
-      const parsed = JSON.parse(config);
-      return parsed.preferredStreamingPlatforms || [];
-    }
-  } catch (error) {
-    console.error('Error reading streaming preferences:', error);
-  }
-
-  return [];
-};
-
-/**
  * Enhanced streaming URL finder with direct links + Odesli merge strategy.
  * 1. Extracts direct MusicBrainz URLs and validates them
  * 2. Uses Odesli to discover additional platforms
@@ -750,8 +648,6 @@ const findStreamingUrlWithFallback = async (
   userCountry: string = 'DE',
   signal?: AbortSignal
 ): Promise<{ streamingLinks: StreamingLinks; successfulUrl: string; fromCache: boolean } | null> => {
-  const userPreferences = getStreamingPreferences();
-
   // First, try the primary release (already fetched with URL relationships)
   if (primaryRelease) {
     if (signal?.aborted) {
@@ -769,11 +665,8 @@ const findStreamingUrlWithFallback = async (
       const directCount = ALL_PLATFORM_KEYS.filter(k => directLinks[k]).length;
       console.log(`Direct MB links (validated): ${directCount} platforms from primary release`);
 
-      // Prioritize URLs for Odesli based on user preferences
-      const prioritizedUrls = prioritizeUrls(urls, userPreferences);
-
       // Try Odesli for cross-platform discovery
-      const odesliResult = await tryUrlsWithOdesli(prioritizedUrls, userCountry, albumTitle, signal);
+      const odesliResult = await tryUrlsWithOdesli(urls, userCountry, albumTitle, signal);
 
       if (odesliResult) {
         // Merge: direct MB links as base, Odesli fills gaps
@@ -848,8 +741,7 @@ const findStreamingUrlWithFallback = async (
         if (!firstDirectUrl) firstDirectUrl = urls[0];
 
         // Try Odesli for cross-platform discovery
-        const prioritizedUrls = prioritizeUrls(urls, userPreferences);
-        const odesliResult = await tryUrlsWithOdesli(prioritizedUrls, userCountry, albumTitle, signal);
+        const odesliResult = await tryUrlsWithOdesli(urls, userCountry, albumTitle, signal);
 
         if (odesliResult) {
           const merged = mergeStreamingLinks(accumulatedDirectLinks, odesliResult.streamingLinks);
@@ -955,11 +847,8 @@ export const fetchStreamingLinksForAlbum = async (
       if (cachedResult.links && Object.keys(cachedResult.links).length > 0) {
         console.log(`✅ Instant cache hit! Streaming links loaded instantly for: ${releaseGroup.title}`);
 
-        // Filter by user preferences
-        const preferences = getStreamingPreferences();
-        const filteredLinks = selectPreferredPlatforms(cachedResult.links, preferences);
-
-        return { links: filteredLinks, fromCache: true };
+        // Platform filtering by the user's enabled services happens in StreamingLinksSection
+        return { links: cachedResult.links, fromCache: true };
       } else {
         console.log(`⚠️ Cached URL no longer valid, falling back to full discovery`);
       }
@@ -991,14 +880,10 @@ export const fetchStreamingLinksForAlbum = async (
     // Cache the successful URL for future instant lookups
     setCachedStreamingUrl(releaseGroup.id, successfulUrl);
 
-    // Filter by user preferences
-    const preferences = getStreamingPreferences();
-    const filteredLinks = selectPreferredPlatforms(streamingLinks, preferences);
-
-    const platformCount = Object.keys(filteredLinks).length - (filteredLinks.thumbnail ? 1 : 0);
+    const platformCount = Object.keys(streamingLinks).length - (streamingLinks.thumbnail ? 1 : 0);
     console.log(`✓ Album "${releaseGroup.title}" linked via ${successfulUrl} → ${platformCount} platforms available`);
 
-    return { links: filteredLinks, fromCache };
+    return { links: streamingLinks, fromCache };
 
   } catch (error) {
     // Don't log AbortError
