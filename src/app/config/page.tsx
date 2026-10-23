@@ -264,7 +264,7 @@ export default function ConfigPage() {
             <div>
               <h4 className="text-md font-medium text-text-primary mb-2">Show These Services</h4>
               <p className="text-sm text-text-tertiary mb-3">
-                Select which streaming services to display in album details. Disabled services won't show their icons.
+                Select which streaming services to display in album details. Disabled services won&apos;t show their icons.
               </p>
 
               <div className="grid grid-cols-2 gap-2">

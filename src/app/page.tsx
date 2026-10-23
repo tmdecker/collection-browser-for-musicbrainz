@@ -544,7 +544,7 @@ export default function Home() {
             )}
             {error.includes('Using sample data') && (
               <div className="mt-4">
-                <p className="text-text-secondary">You're seeing sample album data because we couldn't connect to MusicBrainz.</p>
+                <p className="text-text-secondary">You&apos;re seeing sample album data because we couldn&apos;t connect to MusicBrainz.</p>
                 <p className="text-text-secondary mt-2">Visit <a href="/debug" className="text-primary hover:underline">the debug page</a> to troubleshoot.</p>
               </div>
             )}

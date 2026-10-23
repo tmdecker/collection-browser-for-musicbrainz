@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<<<<<<< HEAD
 ## [0.33.4] - 2026-10-21
 
 ### Security
@@ -15,6 +16,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Token Refresh Response**: `/api/auth/refresh` no longer returns the access token in its JSON body (it stays in the httpOnly cookie)
 - **Odesli API Key**: Renamed `NEXT_PUBLIC_ODESLI_API_KEY` to server-only `ODESLI_API_KEY` and actually send it to Odesli from the server
 - **Dependencies**: `npm audit fix` (axios 1.20.0, postcss 8.5.31, next 14.2.35 and transitive fixes)
+=======
+## [Unreleased]
+
+### Added
+
+- **Linting**: ESLint flat config (`eslint.config.mjs`) based on `next/core-web-vitals`, with `react-hooks/exhaustive-deps` as an error
+  - `npm run lint` now runs `eslint .` directly (previously `next lint` had no config and never linted anything)
+- **Tests**: Vitest with unit tests for MBID validation, date filtering, genre processing and ratings (`npm test`)
+
+### Fixed
+
+- Escaped apostrophes in JSX text flagged by `react/no-unescaped-entities`
+>>>>>>> 3da0d61 (chore: add ESLint flat config and Vitest unit tests)
 
 ## [0.33.3] - 2025-12-14
 

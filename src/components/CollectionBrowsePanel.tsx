@@ -374,7 +374,7 @@ export default function CollectionBrowsePanel({
                 No Collections Found
               </h3>
               <p className="text-text-secondary mb-6">
-                You don't have any release-group collections yet.
+                You don&apos;t have any release-group collections yet.
                 <br />
                 Create one on MusicBrainz.org to get started.
               </p>

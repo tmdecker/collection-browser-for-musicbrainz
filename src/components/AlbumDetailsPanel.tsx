@@ -119,6 +119,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
     return () => {
       abortController.abort();
     };
+  // Refetch only when the album or its release changes, not on every metadata update to displayAlbum
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayAlbum?.id, displayAlbum?.releaseDetails]);
 
   if (!isOpen || !displayAlbum) return null;
@@ -462,7 +464,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                             </div>
                           ) : displayAlbum.rating.personal == null ? (
                             <div className="text-sm text-text-tertiary italic">
-                              You haven't rated this album yet
+                              You haven&apos;t rated this album yet
                             </div>
                           ) : (
                             <StarRating

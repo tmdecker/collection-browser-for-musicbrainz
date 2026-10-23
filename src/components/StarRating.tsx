@@ -37,7 +37,7 @@ const StarRating: React.FC<StarRatingProps> = ({
     if (mode === 'personal') {
       return (
         <div className={`text-text-tertiary italic text-sm ${className}`}>
-          You haven't rated this album yet
+          You haven&apos;t rated this album yet
         </div>
       );
     }
