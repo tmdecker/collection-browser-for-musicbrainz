@@ -62,6 +62,10 @@ async function fetchWithRetry(
     const response = await fetch(url, options);
     if (response.status === 503) {
       backOffMusicBrainz(response);
+      // Retry after the back-off instead of dropping the item (waitForRateLimit honors the pause)
+      if (retryCount < MAX_RETRIES) {
+        return fetchWithRetry(url, options, retryCount + 1);
+      }
     }
     return response;
   } catch (error) {

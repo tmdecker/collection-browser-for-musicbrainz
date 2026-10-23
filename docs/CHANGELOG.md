@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Rate limiting**: MusicBrainz and Odesli limiters are now real queues. Concurrent callers used to read the same timestamp and fire together, causing bursts (and likely an IP block by MetaBrainz). State now lives on `globalThis`, so all routes share one limiter, including `/api/musicbrainz/collections`, which had its own copy
 - MusicBrainz 503 responses pause all further MusicBrainz requests (`Retry-After`, default 10 s)
 - **Cache persistence**: `.cache/*.json` are written to a temp file and renamed into place, so stopping the server mid-write no longer truncates them to 0 bytes (which lost the whole cache on the next start). Files are written without pretty-printing (smaller, faster)
+- Prefetch retries a MusicBrainz request after a 503 back-off (up to 3 times) instead of dropping the album
 - Odesli is only asked about a second URL when the first one returns no links (saves a rate-limited call per album)
 - Escaped apostrophes in JSX text flagged by `react/no-unescaped-entities`
 
