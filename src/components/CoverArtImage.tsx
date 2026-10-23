@@ -179,7 +179,9 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
       className={className}
       onLoad={handleLoad}
       onError={handleError}
-      // Now using our custom image optimization API instead of skipping optimization
+      // /api/image already resizes and converts to WebP, so skip Next's optimizer
+      // (avoids double processing; Next 16 also rejects local src with a query string)
+      unoptimized
     />
   );
 };
