@@ -175,7 +175,6 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
       fill
       sizes={`${size}px`}
       priority={priority}
-      quality={80}
       className={className}
       onLoad={handleLoad}
       onError={handleError}
