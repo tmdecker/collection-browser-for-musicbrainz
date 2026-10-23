@@ -23,17 +23,33 @@ export const dynamic = 'force-dynamic';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
+// Entities the app looks up through this proxy (collections list has its own route)
+const ALLOWED_ENTITIES = new Set(['release-group', 'release', 'collection', 'series']);
+const SAFE_SEGMENT = /^[A-Za-z0-9-]+$/;
+
 // Simple GET proxy for MusicBrainz API
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    // Security: only proxy the entity lookups the app uses. Arbitrary paths (including "..")
+    // could otherwise reach other MusicBrainz endpoints with the user's OAuth token attached
+    const segments = (await params).path;
+    if (
+      segments.length === 0 ||
+      segments.length > 3 ||
+      !ALLOWED_ENTITIES.has(segments[0]) ||
+      !segments.every(segment => SAFE_SEGMENT.test(segment))
+    ) {
+      return NextResponse.json({ error: 'Unsupported MusicBrainz path' }, { status: 400 });
+    }
+
     // Rate limiting
     await waitForRateLimit();
 
     // Get the path from route params
-    const mbPath = (await params).path.join('/');
+    const mbPath = segments.join('/');
     const searchParams = new URL(request.url).searchParams;
 
     // Construct the MusicBrainz URL

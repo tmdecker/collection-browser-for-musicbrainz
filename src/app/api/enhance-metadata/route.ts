@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { waitForRateLimit } from '@/lib/rate-limiter';
 import { getUserAgent } from '@/utils/config/userAgent';
+import { isMbid } from '@/utils/mbid-validation';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { extractRatingFromApiResponse } from '@/utils/ratings';
 
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
   try {
     const { mbid } = await request.json();
 
-    if (!mbid || typeof mbid !== 'string') {
+    if (!isMbid(mbid)) {
       return NextResponse.json({ error: 'Invalid mbid' }, { status: 400 });
     }
 

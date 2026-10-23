@@ -53,6 +53,13 @@ export function extractMbidFromUrl(input: string): ExtractedEntity | null {
 }
 
 /**
+ * Strict MBID check for untrusted API input (no trimming, any type accepted)
+ */
+export function isMbid(value: unknown): value is string {
+  return typeof value === 'string' && MBID_REGEX.test(value);
+}
+
+/**
  * Check if a string is a valid MBID format
  */
 export function isValidMbidFormat(mbid: string): boolean {

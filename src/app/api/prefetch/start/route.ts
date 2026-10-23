@@ -10,6 +10,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { startPrefetchForCollection } from '@/lib/prefetch/prefetch-service';
+import { isMbid } from '@/utils/mbid-validation';
+
+// Security: each item costs several rate-limited MusicBrainz calls, so cap the batch size
+const MAX_PREFETCH_ITEMS = 5000;
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -28,6 +32,20 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(rgMbids)) {
       return NextResponse.json(
         { error: 'rgMbids must be an array' },
+        { status: 400 }
+      );
+    }
+
+    if (rgMbids.length > MAX_PREFETCH_ITEMS) {
+      return NextResponse.json(
+        { error: `rgMbids may contain at most ${MAX_PREFETCH_ITEMS} items` },
+        { status: 400 }
+      );
+    }
+
+    if (!rgMbids.every(isMbid)) {
+      return NextResponse.json(
+        { error: 'rgMbids must contain only MusicBrainz IDs' },
         { status: 400 }
       );
     }

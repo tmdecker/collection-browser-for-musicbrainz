@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { streamingLinksCache } from '@/lib/cache/streaming-links-cache';
 import { waitForOdesliRateLimit } from '@/lib/odesli-rate-limiter';
 import { THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
+import { isStreamingUrl } from '@/utils/streaming-links';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,14 @@ export async function GET(request: NextRequest) {
     if (!url) {
       return NextResponse.json(
         { error: 'URL parameter is required' },
+        { status: 400 }
+      );
+    }
+
+    // Security: only streaming platform URLs become cache keys and Odesli lookups
+    if (!isStreamingUrl(url) || !/^[A-Z]{2}$/.test(userCountry)) {
+      return NextResponse.json(
+        { error: 'Not a supported streaming URL or country code' },
         { status: 400 }
       );
     }

@@ -17,6 +17,7 @@ import { getUserAgent } from '@/utils/config/userAgent';
 import { waitForRateLimit } from '@/lib/rate-limiter';
 import { Release, Track } from '@/types/music';
 import { extractTracksFromMedia, selectPreferredRelease } from '@/utils/release-selection';
+import { isMbid } from '@/utils/mbid-validation';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -57,6 +58,11 @@ export async function GET(
 ) {
   try {
     const { mbid } = await params;
+
+    // Security: only real MBIDs become cache keys and MusicBrainz URL paths
+    if (!isMbid(mbid)) {
+      return NextResponse.json({ error: 'Invalid release group ID' }, { status: 400 });
+    }
 
     // Initialize cache manager if needed
     if (!cacheManager.isInitialized()) {
