@@ -4,13 +4,14 @@
  * @ai-dependencies React hooks, UserPreferences types, preference-migration utilities
  * @ai-features
  * - Single source of truth for all user preferences (display, streaming, API, metadata, auth)
+ * - One shared store via PreferencesProvider (every usePreferences() call sees the same state)
  * - Type-safe preference updates with granular setters
  * - Automatic localStorage persistence
  * - Automatic migration from legacy keys (mbConfigOptions, sortOption, etc.)
  * - Import/export functionality
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { createContext, useState, useEffect, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import {
   UserPreferences,
   DisplayPreferences,
@@ -64,13 +65,15 @@ interface UsePreferencesReturn {
   cleanupLegacyStorage: () => void;
 }
 
-export const usePreferences = (): UsePreferencesReturn => {
+const usePreferencesStore = (): UsePreferencesReturn => {
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load preferences from localStorage on mount
+  // Load preferences from localStorage on mount (not during render: localStorage does not exist
+  // on the server, and reading it during hydration would cause a mismatch)
   useEffect(() => {
     const loadedPreferences = loadPreferences();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreferences(loadedPreferences);
     setIsInitialized(true);
   }, []);
@@ -140,25 +143,17 @@ export const usePreferences = (): UsePreferencesReturn => {
 
   const updateApi = useCallback(
     (updates: PartialPreferences<'api'>) => {
-      // If collection ID is being changed, clear the collection name
-      if (updates.collectionId !== undefined && updates.collectionId !== preferences.api.collectionId) {
-        // Clear collection name first
-        setPreferences(prev => ({
+      setPreferences(prev => {
+        // If collection ID is being changed, clear the collection name so it is fetched fresh
+        const collectionChanged = updates.collectionId !== undefined && updates.collectionId !== prev.api.collectionId;
+        return {
           ...prev,
-          metadata: {
-            ...prev.metadata,
-            collectionName: ''
-          },
-          api: {
-            ...prev.api,
-            ...updates
-          }
-        }));
-      } else {
-        updatePreferenceCategory('api', updates);
-      }
+          metadata: collectionChanged ? { ...prev.metadata, collectionName: '' } : prev.metadata,
+          api: { ...prev.api, ...updates },
+        };
+      });
     },
-    [updatePreferenceCategory, preferences.api.collectionId]
+    []
   );
 
   const updateMetadata = useCallback(
@@ -220,27 +215,23 @@ export const usePreferences = (): UsePreferencesReturn => {
 
   const setEnabledStreamingServices = useCallback(
     (services: Partial<StreamingServicePreferences>) => {
-      updateStreaming({
-        enabledServices: {
-          ...preferences.streaming.enabledServices,
-          ...services,
+      setPreferences(prev => ({
+        ...prev,
+        streaming: {
+          ...prev.streaming,
+          enabledServices: { ...prev.streaming.enabledServices, ...services },
         },
-      });
+      }));
     },
-    [preferences.streaming.enabledServices, updateStreaming]
+    []
   );
 
   const setCollectionId = useCallback(
     (collectionId: string) => {
-      // When changing collection ID, clear the collection name
-      // so it will be fetched fresh for the new collection
-      if (collectionId !== preferences.api.collectionId) {
-        console.log(`🔄 Collection ID changed from "${preferences.api.collectionId}" to "${collectionId}", clearing collection name`);
-        updateMetadata({ collectionName: '' });
-      }
+      // updateApi clears the collection name when the ID changes
       updateApi({ collectionId });
     },
-    [updateApi, updateMetadata, preferences.api.collectionId]
+    [updateApi]
   );
 
   const setCollectionName = useCallback(
@@ -265,8 +256,11 @@ export const usePreferences = (): UsePreferencesReturn => {
   );
 
   const toggleShowRatings = useCallback(() => {
-    updateDisplay({ showRatings: !preferences.display.showRatings });
-  }, [preferences.display.showRatings, updateDisplay]);
+    setPreferences(prev => ({
+      ...prev,
+      display: { ...prev.display, showRatings: !prev.display.showRatings },
+    }));
+  }, []);
 
   // Utility functions
   const resetToDefaults = useCallback(() => {
@@ -291,28 +285,52 @@ export const usePreferences = (): UsePreferencesReturn => {
     cleanupLegacyKeys();
   }, []);
 
-  return {
-    preferences,
-    updateDisplay,
-    updateStreaming,
-    updateApi,
-    updateMetadata,
-    updateAuth,
-    setSortOption,
-    setUseGenresOnly,
-    setEnableLabelFilter,
-    setSpotifyUseDesktopApp,
-    setTidalUseDesktopApp,
-    setAppleMusicUseDesktopApp,
-    setEnabledStreamingServices,
-    setCollectionId,
-    setCollectionName,
-    setShowRatings,
-    setRatingDisplayMode,
-    toggleShowRatings,
-    resetToDefaults,
-    exportPreferences,
-    importPreferences,
-    cleanupLegacyStorage,
-  };
+  // Memoized so consumers only re-render when preferences change (all updaters are stable)
+  return useMemo(
+    () => ({
+      preferences,
+      updateDisplay,
+      updateStreaming,
+      updateApi,
+      updateMetadata,
+      updateAuth,
+      setSortOption,
+      setUseGenresOnly,
+      setEnableLabelFilter,
+      setSpotifyUseDesktopApp,
+      setTidalUseDesktopApp,
+      setAppleMusicUseDesktopApp,
+      setEnabledStreamingServices,
+      setCollectionId,
+      setCollectionName,
+      setShowRatings,
+      setRatingDisplayMode,
+      toggleShowRatings,
+      resetToDefaults,
+      exportPreferences,
+      importPreferences,
+      cleanupLegacyStorage,
+    }),
+    [preferences, updateDisplay, updateStreaming, updateApi, updateMetadata, updateAuth, setSortOption, setUseGenresOnly, setEnableLabelFilter, setSpotifyUseDesktopApp, setTidalUseDesktopApp, setAppleMusicUseDesktopApp, setEnabledStreamingServices, setCollectionId, setCollectionName, setShowRatings, setRatingDisplayMode, toggleShowRatings, resetToDefaults, exportPreferences, importPreferences, cleanupLegacyStorage]
+  );
+};
+
+const PreferencesContext = createContext<UsePreferencesReturn | null>(null);
+
+/**
+ * Holds the one preferences store for the whole app (mounted in the root layout)
+ * Previously every usePreferences() call kept its own copy and wrote the whole object back,
+ * so stale copies overwrote each other's changes
+ */
+export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
+  const value = usePreferencesStore();
+  return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
+};
+
+export const usePreferences = (): UsePreferencesReturn => {
+  const context = useContext(PreferencesContext);
+  if (!context) {
+    throw new Error('usePreferences must be used inside <PreferencesProvider>');
+  }
+  return context;
 };

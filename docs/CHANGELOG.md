@@ -24,7 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Bandcamp**: New streaming platform with icon and settings toggle
 - **Linting**: ESLint flat config (`eslint.config.mjs`) based on `next/core-web-vitals`, with `react-hooks/exhaustive-deps` as an error
   - `npm run lint` now runs `eslint .` directly (previously `next lint` had no config and never linted anything)
-- **Tests**: Vitest with unit tests for MBID validation, date filtering, genre processing and ratings (`npm test`)
+- **Tests**: Vitest with unit tests for MBID validation, date filtering, genre processing and ratings (`npm test`); hook tests for auth and preferences with React Testing Library
 
 ### Fixed
 
@@ -32,6 +32,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - MusicBrainz 503 responses pause all further MusicBrainz requests (`Retry-After`, default 10 s)
 - **Cache persistence**: `.cache/*.json` are written to a temp file and renamed into place, so stopping the server mid-write no longer truncates them to 0 bytes (which lost the whole cache on the next start). Files are written without pretty-printing (smaller, faster)
 - Prefetch retries a MusicBrainz request after a 503 back-off (up to 3 times) instead of dropping the album
+- **Login and settings (B1 to B4)**: `useAuth` and `usePreferences` are now single shared instances (`AuthProvider` and `PreferencesProvider` in the root layout) instead of separate copies per component
+  - Reloading with an expired token refreshes once and still loads the profile (previously the second refresh call returned false and left the user without a profile)
+  - Only one refresh timer runs, so rotating refresh tokens no longer log you out
+  - The refresh timer is re-scheduled after every refresh, so a tab left open keeps its session
+  - Settings changes are no longer overwritten by stale copies (e.g. sort order reverting after the hourly token refresh)
 - Odesli is only asked about a second URL when the first one returns no links (saves a rate-limited call per album)
 - Escaped apostrophes in JSX text flagged by `react/no-unescaped-entities`
 
