@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **Lint warnings**: The home page reads the active collection ID straight from the shared preferences instead of mirroring it in local state; cover images reset their error state by comparing sources instead of an effect; two intentional effects are documented. 11 warnings remain in `FilterPanel`, `AlbumDetailsPanel`, `RatingFilterSection`, `LazyAlbumCard` and one panel effect in `page.tsx`
 - **Image route (S3)**: Output sizes snap to 180/250/360/500/720/1080 at a fixed quality (instead of any 1 to 2000 px and quality 1 to 100, which allowed millions of cached variants per image); every redirect hop is checked against the host allowlist; downloads over 15 MB are refused. Cover Art Archive thumbnails (250/500/1200) are fetched instead of full-size originals (e.g. 61 KB instead of a 26 MB PNG)
 - **Input validation (S4)**: Routes reject invalid MBIDs, non-streaming URLs and bad country codes before using them as cache keys or URL paths; `/api/prefetch/start` accepts at most 5,000 MBIDs; the MusicBrainz proxy only forwards `release-group`, `release`, `collection` and `series` lookups (previously any path, including `..`, was forwarded with the user's OAuth token)
 - **Shared release helpers**: `selectPreferredRelease`, `extractTracksFromMedia` and `findBestStreamingRelease` live once in `utils/release-selection.ts` instead of three copies (client, release-groups route, prefetch)

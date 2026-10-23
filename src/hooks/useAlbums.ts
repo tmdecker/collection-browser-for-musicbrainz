@@ -316,6 +316,8 @@ export const useAlbums = (externalCollectionId?: string) => {
 
   // Fetch albums on initial load and when collection changes
   useEffect(() => {
+    // Data fetching: fetchAlbums sets loading state right away, then loads asynchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAlbums();
   }, [fetchAlbums]);
 

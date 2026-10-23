@@ -31,14 +31,9 @@ import { validateEntityId } from '@/utils/mbid-validation';
 import { BiCheck, BiError, BiX, BiLinkExternal } from 'react-icons/bi';
 
 export default function Home() {
-  // Local state for active collection ID (to trigger useAlbums reload)
+  // Active collection ID comes straight from the shared preferences store (changing it reloads useAlbums)
   const { preferences: prefs } = usePreferences();
-  const [activeCollectionId, setActiveCollectionId] = useState<string | undefined>(undefined);
-
-  // Initialize activeCollectionId from preferences on mount and update when preferences change
-  useEffect(() => {
-    setActiveCollectionId(prefs.api.collectionId);
-  }, [prefs.api.collectionId]); // Update when collection preference changes
+  const activeCollectionId = prefs.api.collectionId || undefined;
 
   // Album-related state from useAlbums (pass activeCollectionId to enable automatic reload)
   const {
@@ -274,9 +269,6 @@ export default function Home() {
     // Update preferences (for persistence)
     updateApi({ collectionId: newCollectionId });
     updateMetadata({ collectionName, entityType });
-
-    // Update local state to trigger automatic reload via useAlbums
-    setActiveCollectionId(newCollectionId);
   };
 
   // Handle manual refresh of current collection

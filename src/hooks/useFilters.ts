@@ -126,6 +126,8 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
         const savedFilters = localStorage.getItem(FILTERS_STORAGE_KEY);
         if (savedFilters) {
           const parsed = JSON.parse(savedFilters);
+          // Loaded after mount on purpose: localStorage does not exist during server rendering
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setFilterState(prevState => ({
             ...prevState,
             ...parsed

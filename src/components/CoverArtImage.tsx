@@ -9,7 +9,7 @@
  * - Skips Next.js optimization for coverartarchive.org URLs
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 // Define the type for our global image cache
 interface ImageCache {
@@ -56,12 +56,9 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
   const actualSrc = src || (mbid ? `/api/coverart/release-group/${mbid}/front` : undefined);
   // Use provided alt text or fallback to title
   const altText = alt || (title ? `Cover art for ${title}` : 'Album cover art');
-  const [error, setError] = useState(false);
-
-  // Reset error state when the image source changes
-  useEffect(() => {
-    setError(false);
-  }, [actualSrc, mbid]);
+  // Remember which source failed, so a new source automatically starts without an error
+  const [failedSrc, setFailedSrc] = useState<string | undefined>(undefined);
+  const error = failedSrc === (actualSrc ?? '');
   
   // Generate a stable cache key regardless of size
   const generateCacheKey = (url: string | undefined): string => {
@@ -133,7 +130,7 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
   
   const handleError = () => {
     console.log(`Error loading cover art: ${imageUrl}`);
-    setError(true);
+    setFailedSrc(actualSrc ?? '');
     if (onError) onError();
   };
   
