@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **Odesli without API key**: Odesli shut down keyless access (`401 PUBLIC_API_ACCESS_DEPRECATED`). Without `ODESLI_API_KEY`, the app no longer calls Odesli at all (no 6 s rate-limit wait per album in the details panel and in prefetch) and shows the streaming links from MusicBrainz
 - **Rate limiting**: MusicBrainz and Odesli limiters are now real queues. Concurrent callers used to read the same timestamp and fire together, causing bursts (and likely an IP block by MetaBrainz). State now lives on `globalThis`, so all routes share one limiter, including `/api/musicbrainz/collections`, which had its own copy
 - MusicBrainz 503 responses pause all further MusicBrainz requests (`Retry-After`, default 10 s)
 - **Cache persistence**: `.cache/*.json` are written to a temp file and renamed into place, so stopping the server mid-write no longer truncates them to 0 bytes (which lost the whole cache on the next start). Files are written without pretty-printing (smaller, faster)

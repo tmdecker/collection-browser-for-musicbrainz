@@ -51,6 +51,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Odesli shut down keyless access (401 PUBLIC_API_ACCESS_DEPRECATED); without a key, skip the call
+    // (and its 6 s rate-limit wait) so the client falls back to MusicBrainz links right away
+    const apiKey = process.env.ODESLI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({
+        linksByPlatform: {},
+        entitiesByUniqueId: {},
+        userCountry,
+        disabled: true,
+      });
+    }
+
     console.log(`🌐 Server cache miss, fetching from Odesli API: ${url}`);
 
     // Enforce rate limiting (critical for ToS compliance)
@@ -61,10 +73,7 @@ export async function GET(request: NextRequest) {
     odesliUrl.searchParams.set('url', url);
     odesliUrl.searchParams.set('userCountry', userCountry);
     odesliUrl.searchParams.set('songIfSingle', 'true');
-    // Optional API key for higher rate limits (server-only env var)
-    if (process.env.ODESLI_API_KEY) {
-      odesliUrl.searchParams.set('key', process.env.ODESLI_API_KEY);
-    }
+    odesliUrl.searchParams.set('key', apiKey); // Server-only env var
 
     const response = await fetch(odesliUrl.toString(), {
       headers: {

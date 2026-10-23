@@ -264,17 +264,15 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
         if (cached) {
           console.log(`✅ Streaming links cached for ${mbid}: ${streamingUrl}`);
           odesliLinks = cached.streamingLinks;
-        } else {
+        } else if (process.env.ODESLI_API_KEY) {
+          // Odesli requires an API key (keyless access was shut down); without one, only MusicBrainz links are used
           // Fetch from Odesli API with rate limiting
           await waitForOdesliRateLimit();
           const odesliUrl = new URL('https://api.song.link/v1-alpha.1/links');
           odesliUrl.searchParams.set('url', streamingUrl);
           odesliUrl.searchParams.set('userCountry', 'DE');
           odesliUrl.searchParams.set('songIfSingle', 'true');
-          // Optional API key for higher rate limits (server-only env var)
-          if (process.env.ODESLI_API_KEY) {
-            odesliUrl.searchParams.set('key', process.env.ODESLI_API_KEY);
-          }
+          odesliUrl.searchParams.set('key', process.env.ODESLI_API_KEY); // Server-only env var
 
           const odesliResponse = await fetch(odesliUrl.toString(), {
             headers: {
