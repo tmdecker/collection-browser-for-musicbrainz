@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - **Faster MusicBrainz loading**: 1.1 s between MusicBrainz requests instead of 2 s (MusicBrainz allows 1/s; safe now that the limiter is a real queue). Removed the extra 2 s client-side wait between collection pages, which the server already rate-limits
 - **Clicks before prefetch (B13)**: Requests a user is waiting on go ahead of queued background prefetch and series enhancement requests
+- MusicBrainz 503 warnings now include MusicBrainz's reason (IP too fast vs. server busy) and the `X-RateLimit` headers
 - **Odesli without API key**: Odesli shut down keyless access (`401 PUBLIC_API_ACCESS_DEPRECATED`). Without `ODESLI_API_KEY`, the app no longer calls Odesli at all (no 6 s rate-limit wait per album in the details panel and in prefetch) and shows the streaming links from MusicBrainz
 - **Rate limiting**: MusicBrainz and Odesli limiters are now real queues. Concurrent callers used to read the same timestamp and fire together, causing bursts (and likely an IP block by MetaBrainz). State now lives on `globalThis`, so all routes share one limiter, including `/api/musicbrainz/collections`, which had its own copy
 - MusicBrainz 503 responses pause all further MusicBrainz requests (`Retry-After`, default 10 s)

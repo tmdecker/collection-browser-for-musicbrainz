@@ -90,3 +90,23 @@ describe('createRateLimiter', () => {
     expect(await released).toBe(10000);
   });
 });
+
+describe('backOffMusicBrainz', () => {
+  it("logs MusicBrainz's 503 reason without consuming the response body", async () => {
+    vi.useRealTimers();
+    const { backOffMusicBrainz } = await import('@/lib/rate-limiter');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const response = new Response('<p>Your requests are exceeding the allowable rate limit.</p>', {
+      status: 503,
+      headers: { 'retry-after': '1', 'x-ratelimit-limit': '1900', 'x-ratelimit-remaining': '0' },
+    });
+
+    backOffMusicBrainz(response);
+    await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+
+    expect(warn.mock.calls[0][0]).toContain('pausing requests for 1s. Reason: Your requests are exceeding the allowable rate limit.');
+    expect(warn.mock.calls[0][0]).toContain('X-RateLimit remaining 0/1900');
+    expect(await response.text()).toContain('exceeding');
+    warn.mockRestore();
+  });
+});

@@ -100,6 +100,19 @@ export const waitForRateLimit = (priority: RateLimitPriority = 'high'): Promise<
 export function backOffMusicBrainz(response: Response): void {
   const retryAfterSeconds = Number(response.headers.get('retry-after'));
   const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 10000;
-  console.warn(`⚠️  MusicBrainz rate limit hit (503), pausing requests for ${delayMs / 1000}s`);
   musicBrainzLimiter.backOff(delayMs);
+
+  // Log MusicBrainz's reason: it says whether this IP is too fast or the server is busy overall
+  // (read from a clone, so callers can still use the response body)
+  const remaining = response.headers.get('x-ratelimit-remaining');
+  const limit = response.headers.get('x-ratelimit-limit');
+  response
+    .clone()
+    .text()
+    .catch(() => '')
+    .then(body => {
+      const reason = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) || 'no reason given';
+      const budget = limit ? `, X-RateLimit remaining ${remaining}/${limit}` : '';
+      console.warn(`⚠️  MusicBrainz rate limit hit (503), pausing requests for ${delayMs / 1000}s. Reason: ${reason}${budget}`);
+    });
 }
