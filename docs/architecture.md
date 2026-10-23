@@ -4,7 +4,7 @@ This document provides a comprehensive technical overview of the Music Library V
 
 ## Technical Stack
 
-- **Framework:** Next.js 14 with React
+- **Framework:** Next.js 16 with React 19
 - **Language:** TypeScript
 - **CSS:** Tailwind CSS
 - **State Management:** React Hooks

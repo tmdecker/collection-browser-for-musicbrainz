@@ -32,7 +32,7 @@ Album Grid with Filters:
 
 ## Requirements
 
-- Node.js 18 or higher
+- Node.js 20.9 or higher (22 or 24 recommended)
 - npm 9 or higher
 
 ## Installation
@@ -118,8 +118,8 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 
 ## Tech Stack
 
-- Next.js 14
-- React 18
+- Next.js 16
+- React 19
 - TypeScript
 - Tailwind CSS
 - IndexedDB for caching

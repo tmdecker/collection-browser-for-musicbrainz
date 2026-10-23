@@ -26,14 +26,14 @@ const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 // Simple GET proxy for MusicBrainz API
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
     // Rate limiting
     await waitForRateLimit();
 
     // Get the path from route params
-    const mbPath = params.path.join('/');
+    const mbPath = (await params).path.join('/');
     const searchParams = new URL(request.url).searchParams;
 
     // Construct the MusicBrainz URL

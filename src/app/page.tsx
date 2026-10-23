@@ -12,9 +12,6 @@
 
 'use client';
 
-// Force dynamic runtime for this page
-export const dynamic = 'force-dynamic';
-
 import { useEffect, useState, useRef, useMemo, useCallback, Suspense } from 'react';
 import Header, { HeaderRef } from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';

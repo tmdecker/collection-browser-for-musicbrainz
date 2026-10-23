@@ -8,7 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Security
 
+- **Next.js 16 upgrade**: Fixes the remaining critical and high `npm audit` findings in Next 14 (no longer supported) and the libvips CVEs in sharp
 - `/api/validate-url` and `isStreamingUrl` only accept known streaming hosts (exact or subdomain match, every redirect hop checked); validation cache capped at 1,000 entries
+
+### Changed
+
+- **Dependencies**: Next.js 14.2 → 16.4, React 18 → 19, sharp 0.33 → 0.35, react-intersection-observer 9 → 11, ESLint 8 → 9 with the native `eslint-config-next` flat config; Node.js 20.9+ required
+- Dynamic route `params` are awaited (async in Next 15+); removed the no-op `export const dynamic` from the client home page
+- New `react-hooks/set-state-in-effect` and `react-hooks/refs` lint rules are warnings for now (18 hits, mostly in the hooks the auth/preferences refactor will replace)
 
 ### Added
 

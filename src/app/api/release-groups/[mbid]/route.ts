@@ -89,10 +89,10 @@ async function fetchReleaseWithDetails(releaseId: string): Promise<Release> {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { mbid: string } }
+  { params }: { params: Promise<{ mbid: string }> }
 ) {
   try {
-    const { mbid } = params;
+    const { mbid } = await params;
 
     // Initialize cache manager if needed
     if (!cacheManager.isInitialized()) {
