@@ -16,7 +16,7 @@ import { releaseStore } from '../cache/release-store';
 import { streamingLinksCache } from '../cache/streaming-links-cache';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent } from '@/utils/config/userAgent';
-import { waitForRateLimit } from '../rate-limiter';
+import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
 import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
 import { findStreamingUrl, extractAllStreamingUrls, isStreamingUrl, buildDirectLinksFromUrlsServer, validateStreamingUrlServer } from '@/utils/streaming-links';
 import { Release, Track, Media, StreamingLinks } from '@/types/music';
@@ -60,6 +60,9 @@ async function fetchWithRetry(
   try {
     await waitForRateLimit();
     const response = await fetch(url, options);
+    if (response.status === 503) {
+      backOffMusicBrainz(response);
+    }
     return response;
   } catch (error) {
     if (isRetryableError(error) && retryCount < MAX_RETRIES) {

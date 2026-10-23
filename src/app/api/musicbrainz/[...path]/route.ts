@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAgent } from '@/utils/config/userAgent';
-import { waitForRateLimit } from '@/lib/rate-limiter';
+import { waitForRateLimit, backOffMusicBrainz } from '@/lib/rate-limiter';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -69,6 +69,9 @@ export async function GET(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        if (response.status === 503) {
+          backOffMusicBrainz(response);
+        }
         console.error(`❌ MusicBrainz API error: ${mbUrl.toString()} - Status: ${response.status}`);
         return NextResponse.json(
           { error: `MusicBrainz API error: ${response.statusText}` },

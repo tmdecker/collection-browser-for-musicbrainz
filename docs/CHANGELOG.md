@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **Rate limiting**: MusicBrainz and Odesli limiters are now real queues. Concurrent callers used to read the same timestamp and fire together, causing bursts (and likely an IP block by MetaBrainz). State now lives on `globalThis`, so all routes share one limiter, including `/api/musicbrainz/collections`, which had its own copy
+- MusicBrainz 503 responses pause all further MusicBrainz requests (`Retry-After`, default 10 s)
 - Odesli is only asked about a second URL when the first one returns no links (saves a rate-limited call per album)
 - Escaped apostrophes in JSX text flagged by `react/no-unescaped-entities`
 

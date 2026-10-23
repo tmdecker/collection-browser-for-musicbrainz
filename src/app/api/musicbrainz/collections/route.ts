@@ -12,16 +12,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAgent } from '@/utils/config/userAgent';
+import { waitForRateLimit } from '@/lib/rate-limiter';
 import { MusicBrainzCollectionList, MusicBrainzCollection } from '@/types/auth';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
-
-// Rate limiting (shared with main proxy)
-let lastRequestTime = 0;
-const RATE_LIMIT_MS = 2000;
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,15 +32,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Rate limiting
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-
-    if (timeSinceLastRequest < RATE_LIMIT_MS) {
-      const waitTime = RATE_LIMIT_MS - timeSinceLastRequest;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    lastRequestTime = Date.now();
+    // Rate limiting (shared with all MusicBrainz routes)
+    await waitForRateLimit();
 
     // Get username from query params
     const { searchParams } = new URL(request.url);
