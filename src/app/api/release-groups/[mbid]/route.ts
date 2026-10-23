@@ -6,7 +6,7 @@
  * - Server-side cached endpoint for release group details
  * - Returns hydrated data immediately if cached (~50ms)
  * - Fetches from MusicBrainz + caches if not cached (~10-15s)
- * - Respects MusicBrainz 2-second rate limiting
+ * - Respects the shared MusicBrainz rate limit (user requests go ahead of prefetch)
  */
 
 import { NextRequest, NextResponse } from 'next/server';

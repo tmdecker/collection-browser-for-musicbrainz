@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch from MusicBrainz API
-    await waitForRateLimit();
+    await waitForRateLimit('low'); // Background enhancement: user requests go first
 
     const response = await fetch(
       `https://musicbrainz.org/ws/2/release-group/${mbid}?fmt=json&inc=genres+tags+ratings`,

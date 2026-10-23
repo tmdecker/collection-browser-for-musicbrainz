@@ -58,7 +58,7 @@ async function fetchWithRetry(
   retryCount = 0
 ): Promise<Response> {
   try {
-    await waitForRateLimit();
+    await waitForRateLimit('low'); // Background work: user requests go first
     const response = await fetch(url, options);
     if (response.status === 503) {
       backOffMusicBrainz(response);

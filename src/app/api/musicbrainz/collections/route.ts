@@ -7,7 +7,7 @@
  * - Fetches user's collections (both public and private)
  * - Uses inc=user-collections parameter for private access
  * - Filters by release_group type
- * - Shares rate limiting with main proxy (2-second interval)
+ * - Shares rate limiting with all MusicBrainz routes
  */
 
 import { NextRequest, NextResponse } from 'next/server';

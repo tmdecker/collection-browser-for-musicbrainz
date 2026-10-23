@@ -5,7 +5,7 @@
  * @ai-features
  * - Paginated collection fetching with 100-item limit per page
  * - Single-request series fetching with ordering support
- * - 2-second rate limiting between requests (MusicBrainz requirement)
+ * - Rate limiting is enforced server-side by the /api/musicbrainz proxy
  * - Collection/series name extraction with early callback support
  */
 
@@ -60,13 +60,7 @@ export const fetchAllReleaseGroupsInCollection = async (
       const offset = page * limit;
       console.log(`Fetching page ${page + 1}/${pagesNeeded} at offset ${offset}`);
       
-      // This is critical - MusicBrainz requires a 1 second delay between requests
-      // We'll use 2 seconds to be extra safe
-      if (page > 0) {
-        console.log(`Waiting 2 seconds before next request to respect rate limits...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
+      // No client-side delay: requests go through /api/musicbrainz, which enforces the rate limit
       // We'll retry up to 5 times with exponential backoff
       let retryCount = 0;
       const maxRetries = 5;

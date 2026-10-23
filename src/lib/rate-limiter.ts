@@ -3,35 +3,64 @@
  * @ai-description Shared rate limiter for MusicBrainz API calls
  * @ai-features
  * - Single source of truth for rate limiting across all API routes
- * - Configurable delay (default 2000ms for MusicBrainz requirements)
- * - Serial slots: concurrent callers are spaced out, never released together
+ * - Configurable delay (default 1100ms, MusicBrainz allows 1 request/second)
+ * - Serial queue: concurrent callers are spaced out, never released together
+ * - Two priorities: user requests ('high') go ahead of background prefetch ('low')
  * - State on globalThis, so every route bundle shares one limiter (like the caches)
  */
 
+export type RateLimitPriority = 'high' | 'low';
+
+interface Waiter {
+  resolve: () => void;
+  gapMs: number;
+}
+
 interface RateLimiterState {
   nextSlot: number; // Earliest timestamp the next request may start
+  high: Waiter[];
+  low: Waiter[];
+  timer: ReturnType<typeof setTimeout> | null;
 }
 
 const getState = (key: string): RateLimiterState => {
   const store = globalThis as typeof globalThis & Record<string, RateLimiterState | undefined>;
-  return (store[key] ??= { nextSlot: 0 });
+  return (store[key] ??= { nextSlot: 0, high: [], low: [], timer: null });
 };
 
 /**
- * Creates a limiter that hands out request slots at least `defaultGapMs` apart
- * Each caller reserves its slot synchronously, so concurrent callers queue up instead of
- * reading the same timestamp and firing at once
+ * Creates a limiter that releases requests at least `defaultGapMs` apart
+ * Waiting requests are queued; when a slot opens, the oldest high-priority request goes first
  */
 export function createRateLimiter(key: string, defaultGapMs: number) {
-  const wait = async (gapMs = defaultGapMs): Promise<void> => {
-    const state = getState(key);
-    const now = Date.now();
-    const slot = Math.max(now, state.nextSlot);
-    state.nextSlot = slot + gapMs;
-
-    if (slot > now) {
-      await new Promise(resolve => setTimeout(resolve, slot - now));
+  // Release the next waiter once its slot has come; picks at release time, so a high-priority
+  // request that arrives while low ones are waiting still goes next
+  const pump = (state: RateLimiterState): void => {
+    if (state.timer || (state.high.length === 0 && state.low.length === 0)) {
+      return;
     }
+
+    const delay = state.nextSlot - Date.now();
+    if (delay > 0) {
+      state.timer = setTimeout(() => {
+        state.timer = null;
+        pump(state);
+      }, delay);
+      return;
+    }
+
+    const waiter = (state.high.shift() ?? state.low.shift())!;
+    state.nextSlot = Date.now() + waiter.gapMs;
+    waiter.resolve();
+    pump(state);
+  };
+
+  const wait = (priority: RateLimitPriority = 'high', gapMs = defaultGapMs): Promise<void> => {
+    const state = getState(key);
+    return new Promise(resolve => {
+      (priority === 'high' ? state.high : state.low).push({ resolve, gapMs });
+      pump(state);
+    });
   };
 
   /**
@@ -40,23 +69,29 @@ export function createRateLimiter(key: string, defaultGapMs: number) {
   const backOff = (delayMs: number): void => {
     const state = getState(key);
     state.nextSlot = Math.max(state.nextSlot, Date.now() + delayMs);
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    pump(state);
   };
 
   return { wait, backOff };
 }
 
-// MusicBrainz API requires minimum 2-second delay between requests
-export const MUSICBRAINZ_RATE_LIMIT_MS = 2000;
+// MusicBrainz allows an average of 1 request per second per IP; 1.1 s leaves a small margin
+export const MUSICBRAINZ_RATE_LIMIT_MS = 1100;
 
-const musicBrainzLimiter = createRateLimiter('__musicBrainzRateLimiter', MUSICBRAINZ_RATE_LIMIT_MS);
+const musicBrainzLimiter = createRateLimiter('__musicBrainzRateLimiterQueue', MUSICBRAINZ_RATE_LIMIT_MS);
 
 /**
  * Wait for rate limit before making MusicBrainz API request
  * Enforces minimum delay between consecutive requests, also when they arrive concurrently
  *
- * @param rateLimitMs - Optional custom rate limit in milliseconds (default: 2000ms)
+ * @param priority - 'high' for requests a user is waiting on (default), 'low' for background prefetch
  */
-export const waitForRateLimit = musicBrainzLimiter.wait;
+export const waitForRateLimit = (priority: RateLimitPriority = 'high'): Promise<void> =>
+  musicBrainzLimiter.wait(priority);
 
 /**
  * Pause all MusicBrainz requests after MusicBrainz answered 503 (rate limited)

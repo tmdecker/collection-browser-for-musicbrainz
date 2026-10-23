@@ -49,6 +49,36 @@ describe('createRateLimiter', () => {
     expect(await second).toBe(1000);
   });
 
+  it('lets high-priority requests go ahead of waiting low-priority ones (B13)', async () => {
+    const limiter = newLimiter(1000);
+    const order: string[] = [];
+
+    const calls = [
+      limiter.wait('low').then(() => order.push('prefetch-1')),
+      limiter.wait('low').then(() => order.push('prefetch-2')),
+      limiter.wait('low').then(() => order.push('prefetch-3')),
+    ];
+    // A user click arrives while the prefetch requests are queued
+    calls.push(limiter.wait('high').then(() => order.push('click')));
+
+    await vi.runAllTimersAsync();
+    await Promise.all(calls);
+
+    expect(order).toEqual(['prefetch-1', 'click', 'prefetch-2', 'prefetch-3']);
+  });
+
+  it('applies a back-off to requests that are already waiting', async () => {
+    const limiter = newLimiter(1000);
+    const start = Date.now();
+    await limiter.wait();
+
+    const released = limiter.wait().then(() => Date.now() - start);
+    limiter.backOff(5000);
+    await vi.runAllTimersAsync();
+
+    expect(await released).toBe(5000);
+  });
+
   it('delays all future slots after a back-off', async () => {
     const limiter = newLimiter(2000);
     const start = Date.now();

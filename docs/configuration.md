@@ -433,7 +433,7 @@ The configuration system integrates with various parts of the application:
 
 #### API Rate Limiting
 - **Symptom**: Slow loading, error messages about rate limits
-- **Solution**: MusicBrainz API requests are rate-limited per their requirements (2 seconds between requests)
+- **Solution**: MusicBrainz API requests are rate-limited per their requirements (1.1 seconds between requests, enforced server-side)
 - **Note**: The application automatically handles rate limiting
 
 #### Streaming Links Not Working

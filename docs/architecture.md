@@ -77,7 +77,7 @@ MusicBrainz_GUI
 │   │   │   ├── prefetch-queue.ts     # Priority queue system
 │   │   │   └── prefetch-service.ts   # Background prefetch orchestration
 │   │   ├── odesli-rate-limiter.ts    # Odesli API 6s rate limiting
-│   │   ├── rate-limiter.ts           # MusicBrainz API 2s rate limiting
+│   │   ├── rate-limiter.ts           # MusicBrainz API rate limit queue (1.1s, user requests first)
 │   │   └── types/
 │   │       └── cache.ts              # Cache-specific interfaces
 │   ├── types/
@@ -497,7 +497,7 @@ LAYER 1: Check localStorage for album → URL mapping
     └─ If no mapping → Full discovery process
         ↓
         Search through releases for streaming URLs
-        (3+ MusicBrainz API calls, 2-second delays)
+        (3+ MusicBrainz API calls, 1.1-second delays)
         ↓
         Test URLs with Odesli API
         ↓
@@ -650,14 +650,14 @@ This prevents cache resets during development and hot module replacement.
 - Background fetching of release group details + streaming links
 - Triggered automatically when collection loads
 - Filters already-cached items
-- Respects rate limiting (2s MusicBrainz, 6s Odesli)
+- Respects rate limiting (1.1s MusicBrainz, 6s Odesli); prefetch requests yield to user requests
 - Progress logging every 60 seconds
 - Retry logic with exponential backoff (1s → 2s → 4s) for network errors
 
 ### Rate Limiting
 
 **MusicBrainz Rate Limiter (`lib/rate-limiter.ts`)**:
-- Shared 2-second delay for all MusicBrainz API calls
+- Shared 1.1-second queue for all MusicBrainz API calls
 - Used by: collection fetches, release group fetches, release detail fetches
 
 **Odesli Rate Limiter (`lib/odesli-rate-limiter.ts`)**:

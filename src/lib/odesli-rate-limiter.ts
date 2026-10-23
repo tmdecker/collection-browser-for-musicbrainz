@@ -18,4 +18,4 @@ export const ODESLI_RATE_LIMIT_MS = 6000;
  *
  * @param rateLimitMs - Optional custom rate limit in milliseconds (default: 6000ms)
  */
-export const waitForOdesliRateLimit = createRateLimiter('__odesliRateLimiter', ODESLI_RATE_LIMIT_MS).wait;
+export const waitForOdesliRateLimit = createRateLimiter('__odesliRateLimiterQueue', ODESLI_RATE_LIMIT_MS).wait;

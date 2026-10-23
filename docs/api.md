@@ -410,7 +410,7 @@ interface GeoCacheEntry {
 - **Server-Side Cache**: Memory cache with disk persistence, 30-day TTL
 - **Instant Response**: ~50ms for cached items vs 10-15s for uncached
 - **Hydrated Releases**: Returns full release data from shared release store
-- **Rate Limiting**: 2-second delay for MusicBrainz API calls (uncached only)
+- **Rate Limiting**: 1.1-second delay for MusicBrainz API calls (uncached only)
 - **Automatic Prefetch**: Integrates with background prefetch service
 
 #### Example Usage
@@ -556,7 +556,7 @@ GET /api/cache/stats
 - **Non-Blocking**: Returns immediately, prefetch runs in background
 - **Smart Filtering**: Automatically skips already-cached items
 - **Priority Queue**: User-requested items get high priority
-- **Rate Limiting**: Respects MusicBrainz (2s) and Odesli (6s) limits
+- **Rate Limiting**: Respects MusicBrainz (1.1s) and Odesli (6s) limits
 - **Progress Logging**: Logs progress every 60 seconds
 - **Error Retry**: Exponential backoff for network errors (1s → 2s → 4s)
 
@@ -626,7 +626,7 @@ const response = await fetch('/api/prefetch/start', {
 #### Features
 
 - **Background Processing**: Processes items without blocking UI
-- **Rate Limiting**: Respects MusicBrainz 2-second rate limit
+- **Rate Limiting**: Respects the MusicBrainz rate limit (1.1 s between requests)
 - **Cache Integration**: Updates both server-side and client-side caches
 - **Selective Enhancement**: Only fetches metadata for items lacking it
 

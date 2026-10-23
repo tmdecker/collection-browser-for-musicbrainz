@@ -4,7 +4,7 @@
  * @ai-dependencies Next.js server components, getUserAgent utility
  * @ai-features
  * - Proxies requests to MusicBrainz API to avoid CORS issues
- * - Rate limiting (1 request per 2 seconds per MusicBrainz guidelines)
+ * - Rate limiting (shared queue, ~1 request per second per MusicBrainz guidelines)
  * - Automatically includes OAuth Bearer token from cookies when available
  * - Enables access to private collections for authenticated users
  * - AbortSignal for request timeouts with error handling
