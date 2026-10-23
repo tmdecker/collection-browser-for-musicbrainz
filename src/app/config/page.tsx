@@ -280,6 +280,7 @@ export default function ConfigPage() {
                     tidal: 'Tidal',
                     soundcloud: 'SoundCloud',
                     pandora: 'Pandora',
+                    bandcamp: 'Bandcamp',
                   };
 
                   return (

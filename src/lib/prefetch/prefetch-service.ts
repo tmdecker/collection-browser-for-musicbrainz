@@ -18,8 +18,8 @@ import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { waitForRateLimit } from '../rate-limiter';
 import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
-import { findStreamingUrl } from '@/utils/streaming-links';
-import { Release, Track, Media } from '@/types/music';
+import { findStreamingUrl, extractAllStreamingUrls, isStreamingUrl, buildDirectLinksFromUrlsServer, validateStreamingUrlServer } from '@/utils/streaming-links';
+import { Release, Track, Media, StreamingLinks } from '@/types/music';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
@@ -216,7 +216,7 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
       ? await detailedReleaseResponse.json()
       : preferredRelease;
 
-    // Step 5: Fetch streaming links (if available)
+    // Step 5: Fetch streaming links (direct MB URLs + Odesli cross-platform)
     let streamingLinks = undefined;
     try {
       // Find best release for streaming (Digital Media + XW preferred)
@@ -239,13 +239,24 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
         }
       }
 
+      // Extract ALL streaming URLs from the release
+      const allStreamingUrls = extractAllStreamingUrls(releaseWithUrls);
+
+      // Build validated direct links from MusicBrainz URLs
+      const directLinks = allStreamingUrls.length > 0
+        ? await buildDirectLinksFromUrlsServer(allStreamingUrls)
+        : {};
+
+      // Try Odesli for cross-platform discovery using the first valid URL
       const streamingUrl = findStreamingUrl([releaseWithUrls]);
+      let odesliLinks: Record<string, any> = {};
+
       if (streamingUrl) {
         // Check if already cached
         const cached = streamingLinksCache.getByUrl(streamingUrl, 'DE');
         if (cached) {
           console.log(`✅ Streaming links cached for ${mbid}: ${streamingUrl}`);
-          streamingLinks = cached.streamingLinks;
+          odesliLinks = cached.streamingLinks;
         } else {
           // Fetch from Odesli API with rate limiting
           await waitForOdesliRateLimit();
@@ -268,20 +279,37 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
 
           if (odesliResponse.ok) {
             const odesliData = await odesliResponse.json();
-            streamingLinks = odesliData.linksByPlatform || {};
-
-            // Cache the result
-            const now = Date.now();
-            const sevenDays = 7 * 24 * 60 * 60 * 1000;
-            streamingLinksCache.setByUrl(streamingUrl, 'DE', {
-              streamingLinks,
-              sourceUrl: streamingUrl,
-              userCountry: 'DE',
-              _cachedAt: now,
-              _expiresAt: now + sevenDays,
-            });
-            console.log(`💾 Prefetched streaming links for ${mbid}: ${streamingUrl}`);
+            odesliLinks = odesliData.linksByPlatform || {};
           }
+        }
+      }
+
+      // Merge: convert direct links to Odesli-compatible format, then merge
+      // Odesli format: { platformName: { url: "https://..." } }
+      // Direct links fill gaps for platforms Odesli missed
+      const mergedLinks: Record<string, any> = { ...odesliLinks };
+      for (const [platform, url] of Object.entries(directLinks)) {
+        if (platform === 'thumbnail') continue;
+        // Map our platform keys to Odesli platform keys (they're mostly the same)
+        if (url && !mergedLinks[platform]) {
+          mergedLinks[platform] = { url };
+        }
+      }
+
+      if (Object.keys(mergedLinks).length > 0) {
+        streamingLinks = mergedLinks;
+        const cacheUrl = streamingUrl || allStreamingUrls[0];
+        if (cacheUrl) {
+          const now = Date.now();
+          const sevenDays = 7 * 24 * 60 * 60 * 1000;
+          streamingLinksCache.setByUrl(cacheUrl, 'DE', {
+            streamingLinks: mergedLinks,
+            sourceUrl: cacheUrl,
+            userCountry: 'DE',
+            _cachedAt: now,
+            _expiresAt: now + sevenDays,
+          });
+          console.log(`💾 Prefetched streaming links for ${mbid}: ${cacheUrl} (merged: ${Object.keys(mergedLinks).length} platforms)`);
         }
       }
     } catch (error) {

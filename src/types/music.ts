@@ -45,6 +45,7 @@ export interface StreamingLinks {
   tidal?: string;
   soundcloud?: string;
   pandora?: string;
+  bandcamp?: string;
   thumbnail?: string;
 }
 

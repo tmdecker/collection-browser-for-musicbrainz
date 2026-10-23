@@ -11,6 +11,7 @@
 
 import { ReleaseGroup, Release, StreamingLinks } from '@/types/music';
 import { fetchReleaseUrlRels } from '@/utils/api';
+import { getUserAgent } from '@/utils/config/userAgent';
 
 // Platform mapping from Odesli response to our StreamingLinks interface
 const PLATFORM_MAPPING: Record<string, keyof StreamingLinks> = {
@@ -25,6 +26,7 @@ const PLATFORM_MAPPING: Record<string, keyof StreamingLinks> = {
   'tidal': 'tidal',
   'soundcloud': 'soundcloud',
   'pandora': 'pandora',
+  'bandcamp': 'bandcamp',
 };
 
 // Supported streaming domain patterns for URL detection
@@ -133,7 +135,7 @@ const extractUrlFromRelease = (release: Release): string | null => {
  * Extracts ALL streaming URLs from a release's relationships/URLs
  * Returns all found URLs for testing with Odesli
  */
-const extractAllStreamingUrls = (release: Release): string[] => {
+export const extractAllStreamingUrls = (release: Release): string[] => {
   const urls: string[] = [];
 
   if (!release.relations) {
@@ -167,10 +169,21 @@ const extractAllStreamingUrls = (release: Release): string[] => {
 };
 
 /**
- * Tests multiple URLs with Odesli API until one is recognized
- * Returns the streaming links from the first successful URL
+ * All known streaming platform keys (excluding thumbnail)
+ */
+const ALL_PLATFORM_KEYS: (keyof StreamingLinks)[] = [
+  'spotify', 'appleMusic', 'youtube', 'youtubeMusic',
+  'amazon', 'amazonMusic', 'deezer', 'tidal',
+  'soundcloud', 'pandora', 'bandcamp',
+];
+
+/**
+ * Tests URLs with Odesli API until one is recognized.
+ * Tries the next URL (up to MAX_ODESLI_CALLS calls) only when Odesli returns no links for the previous one.
  * @param signal - Optional AbortSignal to cancel the operation
  */
+const MAX_ODESLI_CALLS = 2;
+
 const tryUrlsWithOdesli = async (
   urls: string[],
   userCountry: string = 'DE',
@@ -181,10 +194,14 @@ const tryUrlsWithOdesli = async (
     return null;
   }
 
-  console.log(`Testing ${urls.length} URLs with Odesli for album: ${albumTitle || 'Unknown'}`);
+  console.log(`Testing up to ${Math.min(urls.length, MAX_ODESLI_CALLS)} of ${urls.length} URLs with Odesli for album: ${albumTitle || 'Unknown'}`);
 
-  for (let i = 0; i < urls.length; i++) {
-    // Check if operation was aborted
+  let merged: StreamingLinks = {};
+  let firstSuccessfulUrl: string | null = null;
+  let anyFromCache = false;
+  let odesliCalls = 0;
+
+  for (let i = 0; i < urls.length && odesliCalls < MAX_ODESLI_CALLS; i++) {
     if (signal?.aborted) {
       console.log('⚠️ URL testing aborted');
       return null;
@@ -193,27 +210,43 @@ const tryUrlsWithOdesli = async (
     const url = urls[i];
 
     try {
-      console.log(`Trying URL ${i + 1}/${urls.length}: ${url}`);
+      console.log(`Trying URL ${i + 1}/${urls.length} (Odesli call ${odesliCalls + 1}/${MAX_ODESLI_CALLS}): ${url}`);
 
       const result = await fetchStreamingLinks(url, userCountry, signal);
+      odesliCalls++;
       const streamingLinks = result.links;
 
       if (streamingLinks && Object.keys(streamingLinks).length > (streamingLinks.thumbnail ? 1 : 0)) {
-        console.log(`✓ Success! Odesli recognized URL ${i + 1}/${urls.length}: ${url}`);
-        logUrlTestingStats(albumTitle || 'Unknown', urls.length, i + 1, url);
-        return { streamingLinks, successfulUrl: url, fromCache: result.fromCache };
+        console.log(`✓ Odesli recognized URL ${i + 1}/${urls.length}: ${url}`);
+
+        if (!firstSuccessfulUrl) {
+          firstSuccessfulUrl = url;
+        }
+        if (result.fromCache) {
+          anyFromCache = true;
+        }
+
+        // First recognized URL wins; further Odesli calls only happen when a URL is not recognized
+        merged = streamingLinks;
+        break;
       } else {
         console.log(`✗ URL ${i + 1}/${urls.length} not recognized by Odesli: ${url}`);
       }
 
     } catch (error) {
       console.warn(`Error testing URL ${i + 1}/${urls.length} (${url}):`, error);
-      // Continue to next URL even if this one fails
     }
   }
 
-  console.log(`All ${urls.length} URLs failed with Odesli`);
-  logUrlTestingStats(albumTitle || 'Unknown', urls.length, urls.length);
+  if (firstSuccessfulUrl) {
+    const platformCount = ALL_PLATFORM_KEYS.filter(k => merged[k]).length;
+    logUrlTestingStats(albumTitle || 'Unknown', urls.length, odesliCalls, firstSuccessfulUrl);
+    console.log(`Odesli provided ${platformCount} platforms after ${odesliCalls} call(s)`);
+    return { streamingLinks: merged, successfulUrl: firstSuccessfulUrl, fromCache: anyFromCache };
+  }
+
+  console.log(`All ${odesliCalls} Odesli calls failed for album: ${albumTitle || 'Unknown'}`);
+  logUrlTestingStats(albumTitle || 'Unknown', urls.length, odesliCalls);
   return null;
 };
 
@@ -227,7 +260,9 @@ const getPlatformFromUrl = (url: string): string | null => {
 
     if (hostname.includes('spotify.com')) return 'spotify';
     if (hostname.includes('apple.com') || hostname.includes('itunes.apple.com')) return 'appleMusic';
+    if (hostname.includes('music.youtube.com')) return 'youtubeMusic';
     if (hostname.includes('youtube.com')) return 'youtube';
+    if (hostname.includes('music.amazon.com')) return 'amazonMusic';
     if (hostname.includes('amazon.com')) return 'amazon';
     if (hostname.includes('deezer.com')) return 'deezer';
     if (hostname.includes('tidal.com')) return 'tidal';
@@ -321,10 +356,169 @@ const logUrlTestingStats = (
 export const isStreamingUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
-    return STREAMING_DOMAINS.some(domain => urlObj.hostname.includes(domain));
+    if (urlObj.protocol !== 'https:' && urlObj.protocol !== 'http:') return false;
+    if (urlObj.username || urlObj.password || urlObj.port) return false;
+    // Security: match the parsed hostname exactly or as a subdomain, never as a substring
+    // (so "spotify.com.evil.example" or "127.0.0.1/?x=spotify.com" are rejected)
+    const hostname = urlObj.hostname.toLowerCase();
+    return STREAMING_DOMAINS.some(domain => hostname === domain || hostname.endsWith(`.${domain}`));
   } catch {
     return false;
   }
+};
+
+/**
+ * Validates a streaming URL by checking if it's alive (not 404/gone)
+ * Uses server-side HEAD request proxy to avoid CORS issues
+ */
+const validateStreamingUrl = async (url: string, signal?: AbortSignal): Promise<boolean> => {
+  try {
+    const response = await fetch(`/api/validate-url?url=${encodeURIComponent(url)}`, {
+      method: 'GET',
+      signal,
+    });
+    if (!response.ok) return true; // Assume valid on proxy error
+    const data = await response.json();
+    return data.valid;
+  } catch {
+    return true; // On network error, assume valid (don't discard)
+  }
+};
+
+const MAX_VALIDATION_REDIRECTS = 5;
+const VALIDATION_TIMEOUT_MS = 5000;
+
+/**
+ * Requests a URL and follows redirects manually, so only streaming hosts are ever contacted
+ * Returns the final status, or null if a redirect leaves the streaming hosts
+ */
+const fetchStreamingStatus = async (url: string, method: 'HEAD' | 'GET'): Promise<number | null> => {
+  let current = url;
+
+  for (let hop = 0; hop <= MAX_VALIDATION_REDIRECTS; hop++) {
+    const response = await fetch(current, {
+      method,
+      headers: { 'User-Agent': getUserAgent() },
+      redirect: 'manual',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(VALIDATION_TIMEOUT_MS),
+    });
+    response.body?.cancel(); // Only the status is needed
+
+    const location = response.headers.get('location');
+    if (response.status < 300 || response.status >= 400 || !location) {
+      return response.status;
+    }
+
+    const next = new URL(location, current).toString();
+    if (!isStreamingUrl(next)) {
+      return null;
+    }
+    current = next;
+  }
+
+  return null;
+};
+
+/**
+ * Server-side URL validation for use in prefetch service and the validate-url route
+ * Security: only contacts known streaming hosts (prevents SSRF via MusicBrainz URLs or the API route)
+ * @returns false only when the platform answers 4xx/5xx; network errors count as valid
+ */
+export const validateStreamingUrlServer = async (url: string): Promise<boolean> => {
+  if (!isStreamingUrl(url)) {
+    return false;
+  }
+
+  try {
+    let status = await fetchStreamingStatus(url, 'HEAD');
+    // Some servers reject HEAD requests, so retry with GET
+    if (status !== null && status >= 400) {
+      status = await fetchStreamingStatus(url, 'GET');
+    }
+    // A redirect to a non-streaming host is not proof the link is dead
+    return status === null || status < 400;
+  } catch {
+    return true; // Assume valid on network error (don't discard)
+  }
+};
+
+/**
+ * Builds StreamingLinks directly from MusicBrainz URLs by mapping each to its platform
+ * Validates each URL for liveness before including it
+ */
+const buildDirectLinksFromUrls = async (
+  urls: string[],
+  signal?: AbortSignal
+): Promise<StreamingLinks> => {
+  const links: StreamingLinks = {};
+
+  // Validate URLs in parallel (batch of all URLs at once)
+  const validationResults = await Promise.all(
+    urls.map(async (url) => {
+      const platform = getPlatformFromUrl(url);
+      if (!platform || platform === 'thumbnail') return null;
+      // Skip if we already have a link for this platform
+      if (links[platform as keyof StreamingLinks]) return null;
+
+      const valid = await validateStreamingUrl(url, signal);
+      return valid ? { platform, url } : null;
+    })
+  );
+
+  for (const result of validationResults) {
+    if (result && !links[result.platform as keyof StreamingLinks]) {
+      (links as Record<string, string>)[result.platform] = result.url;
+    }
+  }
+
+  return links;
+};
+
+/**
+ * Server-side version of buildDirectLinksFromUrls for use in prefetch service
+ */
+export const buildDirectLinksFromUrlsServer = async (
+  urls: string[]
+): Promise<StreamingLinks> => {
+  const links: StreamingLinks = {};
+
+  const validationResults = await Promise.all(
+    urls.map(async (url) => {
+      const platform = getPlatformFromUrl(url);
+      if (!platform || platform === 'thumbnail') return null;
+
+      const valid = await validateStreamingUrlServer(url);
+      return valid ? { platform, url } : null;
+    })
+  );
+
+  for (const result of validationResults) {
+    if (result && !links[result.platform as keyof StreamingLinks]) {
+      (links as Record<string, string>)[result.platform] = result.url;
+    }
+  }
+
+  return links;
+};
+
+/**
+ * Merges two StreamingLinks objects. Base takes priority, overlay fills gaps.
+ * Thumbnail prefers overlay (Odesli provides thumbnails, direct MB URLs don't)
+ */
+const mergeStreamingLinks = (base: StreamingLinks, overlay: StreamingLinks): StreamingLinks => {
+  const merged = { ...base };
+  for (const [key, value] of Object.entries(overlay)) {
+    if (key === 'thumbnail') continue; // Handle thumbnail separately
+    if (value && !merged[key as keyof StreamingLinks]) {
+      (merged as Record<string, string>)[key] = value;
+    }
+  }
+  // Prefer Odesli thumbnail (direct MB URLs don't provide thumbnails)
+  if (overlay.thumbnail) {
+    merged.thumbnail = overlay.thumbnail;
+  }
+  return merged;
 };
 
 /**
@@ -542,8 +736,11 @@ export const getStreamingPreferences = (): string[] => {
 };
 
 /**
- * Enhanced streaming URL finder with fallback strategy and multi-URL testing
- * Tests ALL available URLs with Odesli before moving to fallback releases
+ * Enhanced streaming URL finder with direct links + Odesli merge strategy.
+ * 1. Extracts direct MusicBrainz URLs and validates them
+ * 2. Uses Odesli to discover additional platforms
+ * 3. Merges both sources: direct MB URLs as baseline, Odesli fills gaps
+ * 4. Falls back to direct-only links if Odesli fails entirely
  * @param signal - Optional AbortSignal to cancel the operation
  */
 const findStreamingUrlWithFallback = async (
@@ -555,11 +752,9 @@ const findStreamingUrlWithFallback = async (
 ): Promise<{ streamingLinks: StreamingLinks; successfulUrl: string; fromCache: boolean } | null> => {
   const userPreferences = getStreamingPreferences();
 
-  // First, try ALL URLs from the primary release (already fetched with URL relationships)
+  // First, try the primary release (already fetched with URL relationships)
   if (primaryRelease) {
-    // Check if aborted
     if (signal?.aborted) {
-      console.log('⚠️ Streaming URL discovery aborted');
       return null;
     }
 
@@ -569,116 +764,119 @@ const findStreamingUrlWithFallback = async (
     if (urls.length > 0) {
       console.log(`Found ${urls.length} streaming URLs in primary release ${primaryRelease.id}`);
 
-      // Prioritize URLs based on user preferences
+      // Build direct links from MusicBrainz URLs (validated for liveness)
+      const directLinks = await buildDirectLinksFromUrls(urls, signal);
+      const directCount = ALL_PLATFORM_KEYS.filter(k => directLinks[k]).length;
+      console.log(`Direct MB links (validated): ${directCount} platforms from primary release`);
+
+      // Prioritize URLs for Odesli based on user preferences
       const prioritizedUrls = prioritizeUrls(urls, userPreferences);
 
-      // Test all URLs with Odesli
-      const result = await tryUrlsWithOdesli(prioritizedUrls, userCountry, albumTitle, signal);
-      if (result) {
-        console.log(`✓ Primary release ${primaryRelease.id} provided working URL: ${result.successfulUrl}`);
-        return result;
+      // Try Odesli for cross-platform discovery
+      const odesliResult = await tryUrlsWithOdesli(prioritizedUrls, userCountry, albumTitle, signal);
+
+      if (odesliResult) {
+        // Merge: direct MB links as base, Odesli fills gaps
+        const merged = mergeStreamingLinks(directLinks, odesliResult.streamingLinks);
+        const mergedCount = ALL_PLATFORM_KEYS.filter(k => merged[k]).length;
+        console.log(`✓ Merged result for primary release: ${mergedCount} platforms (${directCount} direct + Odesli fill)`);
+        return { streamingLinks: merged, successfulUrl: odesliResult.successfulUrl, fromCache: odesliResult.fromCache };
+      }
+
+      // Odesli failed — return direct links if we have any
+      if (directCount > 0) {
+        console.log(`Odesli failed, using ${directCount} direct MB links for: ${albumTitle}`);
+        return { streamingLinks: directLinks, successfulUrl: urls[0], fromCache: false };
       }
     }
   }
 
-  // Check if aborted before continuing to fallback
   if (signal?.aborted) {
-    console.log('⚠️ Streaming URL discovery aborted');
     return null;
   }
 
-  // If no working URL from primary release, try fallback strategy
+  // Fallback: try other releases
   console.log(`No working URLs in primary release, trying fallback releases for album: ${albumTitle}`);
 
-  // Debug: Log total releases and their countries
-  console.log(`🔍 DEBUG: Total releases available: ${allReleases.length}`);
-  const xwReleases = allReleases.filter(r => r.country === 'XW');
-  console.log(`🔍 DEBUG: XW releases in allReleases: ${xwReleases.length}`);
-  if (xwReleases.length > 0) {
-    console.log('🔍 DEBUG: XW releases:', xwReleases.map(r => ({ id: r.id, date: r.date, country: r.country })));
-  }
-
-  // Create a list of releases to try, excluding the primary release
   const fallbackReleases = allReleases.filter(release =>
     release.id !== primaryRelease?.id
   );
 
-  // Separate releases by priority tiers
-  // Note: release.media is often undefined in the releases array, so we can't reliably detect Digital Media format
-  // Instead, we rely on country code (XW) and date (newer releases are more likely Digital Media)
-
-  // Priority 1: Worldwide (XW) releases (try ALL - most likely to have streaming links)
-  // Sort by date (newest first) as Digital Media releases are typically newer
+  // Priority 1: Worldwide (XW) releases — most likely to have streaming links
   const worldwideReleases = fallbackReleases
     .filter(release => release.country === 'XW')
     .sort((a, b) => {
       const aDate = a.date || '0000-00-00';
       const bDate = b.date || '0000-00-00';
-      return bDate.localeCompare(aDate); // Newest first
+      return bDate.localeCompare(aDate);
     });
 
   // Priority 2: Other country-specific releases (limit to 5, newest first)
-  // Increased limit from 3 to 5 for better coverage
   const otherReleases = fallbackReleases
     .filter(release => release.country !== 'XW')
     .sort((a, b) => {
       const aDate = a.date || '0000-00-00';
       const bDate = b.date || '0000-00-00';
-      return bDate.localeCompare(aDate); // Newest first
+      return bDate.localeCompare(aDate);
     })
     .slice(0, 5);
 
-  // Combine all tiers: ALL XW releases (newest first) + top 5 other releases (newest first)
-  const releasesToTry = [
-    ...worldwideReleases,
-    ...otherReleases
-  ];
+  const releasesToTry = [...worldwideReleases, ...otherReleases];
+  console.log(`Will try ${worldwideReleases.length} XW releases and ${otherReleases.length} other releases`);
 
-  console.log(`Will try ${worldwideReleases.length} Worldwide (XW) releases (all, newest first), and ${otherReleases.length} other releases (newest first)`);
+  // Accumulate direct links across all fallback releases
+  let accumulatedDirectLinks: StreamingLinks = {};
+  let firstDirectUrl: string | null = null;
 
   for (const release of releasesToTry) {
-    // Check if aborted before each release
     if (signal?.aborted) {
-      console.log('⚠️ Streaming URL discovery aborted');
       return null;
     }
 
     try {
-      console.log(`Fetching URL relationships for fallback release ${release.id} (${release.country || 'Unknown country'})`);
+      console.log(`Fetching URL relationships for fallback release ${release.id} (${release.country || 'Unknown'})`);
 
-      // Fetch URL relationships for this release
       const releaseWithUrls = await fetchReleaseUrlRels(release.id, signal);
       const urls = extractAllStreamingUrls(releaseWithUrls);
 
       if (urls.length > 0) {
         console.log(`Found ${urls.length} streaming URLs in fallback release ${release.id}`);
 
-        // Prioritize URLs based on user preferences
-        const prioritizedUrls = prioritizeUrls(urls, userPreferences);
+        // Build and validate direct links
+        const directLinks = await buildDirectLinksFromUrls(urls, signal);
+        accumulatedDirectLinks = mergeStreamingLinks(accumulatedDirectLinks, directLinks);
+        if (!firstDirectUrl) firstDirectUrl = urls[0];
 
-        // Test all URLs with Odesli
-        const result = await tryUrlsWithOdesli(prioritizedUrls, userCountry, albumTitle, signal);
-        if (result) {
-          console.log(`✓ Fallback release ${release.id} provided working URL: ${result.successfulUrl}`);
-          return result;
+        // Try Odesli for cross-platform discovery
+        const prioritizedUrls = prioritizeUrls(urls, userPreferences);
+        const odesliResult = await tryUrlsWithOdesli(prioritizedUrls, userCountry, albumTitle, signal);
+
+        if (odesliResult) {
+          const merged = mergeStreamingLinks(accumulatedDirectLinks, odesliResult.streamingLinks);
+          const mergedCount = ALL_PLATFORM_KEYS.filter(k => merged[k]).length;
+          console.log(`✓ Fallback release ${release.id} provided ${mergedCount} platforms (merged)`);
+          return { streamingLinks: merged, successfulUrl: odesliResult.successfulUrl, fromCache: odesliResult.fromCache };
         }
       }
 
-      // Add delay between release attempts to respect MusicBrainz rate limits
+      // Rate limit delay between fallback release attempts
       if (releasesToTry.indexOf(release) < releasesToTry.length - 1) {
-        console.log('Waiting 2 seconds before trying next release...');
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
     } catch (error) {
-      // Don't log AbortError
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('⚠️ Streaming URL discovery aborted');
         return null;
       }
       console.warn(`Failed to fetch URL relationships for release ${release.id}:`, error);
-      // Continue to next release
     }
+  }
+
+  // Odesli failed for all releases — return accumulated direct links if we have any
+  const directCount = ALL_PLATFORM_KEYS.filter(k => accumulatedDirectLinks[k]).length;
+  if (directCount > 0 && firstDirectUrl) {
+    console.log(`Odesli failed for all releases, using ${directCount} accumulated direct MB links for: ${albumTitle}`);
+    return { streamingLinks: accumulatedDirectLinks, successfulUrl: firstDirectUrl, fromCache: false };
   }
 
   console.log(`No working streaming URLs found after checking ${releasesToTry.length} fallback releases`);

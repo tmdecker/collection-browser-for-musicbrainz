@@ -24,7 +24,8 @@ import {
   SiApplemusic,
   SiAmazonmusic,
   SiYoutubemusic,
-  SiPandora
+  SiPandora,
+  SiBandcamp
 } from 'react-icons/si';
 import { StreamingLinks } from '@/types/music';
 import { StreamingServicePreferences, DEFAULT_STREAMING_SERVICES } from '@/types/preferences';
@@ -95,6 +96,11 @@ const PLATFORM_CONFIGS: Record<keyof Omit<StreamingLinks, 'thumbnail'>, Platform
   pandora: {
     icon: SiPandora,
     name: 'Pandora',
+    color: 'hover:text-white',
+  },
+  bandcamp: {
+    icon: SiBandcamp,
+    name: 'Bandcamp',
     color: 'hover:text-white',
   },
 };
@@ -370,7 +376,16 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
         })}
       </div>
       <div className="text-xs text-text-tertiary mt-2">
-        Powered by{' '}
+        Links via{' '}
+        <a
+          href="https://musicbrainz.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-text-secondary transition-colors duration-200"
+        >
+          MusicBrainz
+        </a>
+        {' & '}
         <a
           href="https://odesli.co"
           target="_blank"

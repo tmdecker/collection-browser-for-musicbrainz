@@ -24,6 +24,7 @@ export interface StreamingServicePreferences {
   tidal: boolean;
   soundcloud: boolean;
   pandora: boolean;
+  bandcamp: boolean;
 }
 
 export interface DisplayPreferences {
@@ -84,6 +85,7 @@ export const DEFAULT_STREAMING_SERVICES: StreamingServicePreferences = {
   tidal: true,
   soundcloud: true,
   pandora: true,
+  bandcamp: true,
 };
 
 export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
