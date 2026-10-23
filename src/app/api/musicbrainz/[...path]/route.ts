@@ -23,6 +23,9 @@ export const dynamic = 'force-dynamic';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
+const MAX_RETRIES = 2;
+const REQUEST_TIMEOUT_MS = 30000;
+
 // Entities the app looks up through this proxy (collections list has its own route)
 const ALLOWED_ENTITIES = new Set(['release-group', 'release', 'collection', 'series']);
 const SAFE_SEGMENT = /^[A-Za-z0-9-]+$/;
@@ -45,9 +48,6 @@ export async function GET(
       return NextResponse.json({ error: 'Unsupported MusicBrainz path' }, { status: 400 });
     }
 
-    // Rate limiting
-    await waitForRateLimit();
-
     // Get the path from route params
     const mbPath = segments.join('/');
     const searchParams = new URL(request.url).searchParams;
@@ -58,10 +58,6 @@ export async function GET(
 
     // Check for access token (for authenticated requests to private collections)
     const accessToken = request.cookies.get('mb_access_token')?.value;
-
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     // Build headers
     const headers: HeadersInit = {
@@ -74,41 +70,43 @@ export async function GET(
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
-    try {
-      const response = await fetch(mbUrl.toString(), {
-        method: 'GET',
-        headers,
-        signal: controller.signal,
-        cache: 'no-store',
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        if (response.status === 503) {
-          backOffMusicBrainz(response);
-        }
-        console.error(`❌ MusicBrainz API error: ${mbUrl.toString()} - Status: ${response.status}`);
-        return NextResponse.json(
-          { error: `MusicBrainz API error: ${response.statusText}` },
-          { status: response.status }
-        );
+    // Retry after a 503 (MusicBrainz busy, shared back-off) or a network error, so a click
+    // does not fail on a single hiccup; each attempt waits for its own rate-limit slot
+    let response: Response | null = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      await waitForRateLimit();
+      try {
+        response = await fetch(mbUrl.toString(), {
+          method: 'GET',
+          headers,
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          cache: 'no-store',
+        });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        console.warn(`⚠️  MusicBrainz request failed (${reason}), attempt ${attempt + 1}/${MAX_RETRIES + 1}: ${mbUrl.pathname}`);
+        response = null;
+        continue;
       }
 
-      const data = await response.json();
-      return NextResponse.json(data);
-
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.error(`❌ MusicBrainz request timeout: ${mbUrl.toString()}`);
-        return NextResponse.json(
-          { error: 'Request timeout' },
-          { status: 408 }
-        );
-      }
-      throw error;
+      if (response.status !== 503) break;
+      backOffMusicBrainz(response);
     }
+
+    if (!response) {
+      return NextResponse.json({ error: 'MusicBrainz is unreachable' }, { status: 502 });
+    }
+
+    if (!response.ok) {
+      console.error(`❌ MusicBrainz API error: ${mbUrl.toString()} - Status: ${response.status}`);
+      return NextResponse.json(
+        { error: `MusicBrainz API error: ${response.statusText}` },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
 
   } catch (error) {
     console.error('❌ Error in MusicBrainz proxy:', error);

@@ -222,7 +222,8 @@ export const fetchReleaseUrlRels = async (releaseId: string, signal?: AbortSigna
     if (axios.isAxiosError(error) && error.code === 'ERR_CANCELED') {
       throw error;
     }
-    console.error(`Error fetching release URL relationships ${releaseId}:`, error);
+    // Warning, not error: callers fall back to other releases, and console.error opens the Next dev overlay
+    console.warn(`Error fetching release URL relationships ${releaseId}:`, error);
     throw error;
   }
 };
