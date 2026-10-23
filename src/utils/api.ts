@@ -9,9 +9,10 @@
  */
 
 import axios from 'axios';
-import { Collection, ReleaseGroup, CoverArt, Release, Media, Track } from '@/types/music';
+import { Collection, ReleaseGroup, CoverArt, Release } from '@/types/music';
 import { fetchStreamingLinksForAlbum } from './streaming-links';
 import { extractRatingFromApiResponse } from './ratings';
+import { extractTracksFromMedia, selectPreferredRelease } from './release-selection';
 
 
 // MusicBrainz API base URL
@@ -31,29 +32,6 @@ export const mbApi = axios.create({
 const CA_API_BASE = '/api/coverart';
 
 
-/**
- * Select the preferred release from a list of releases
- * @ai Priority: Official status first, then oldest release date
- * @ai Ensures album details (tracks, labels) come from original official release
- * @param releases - Array of releases from a release-group
- * @returns The preferred release, or null if no releases exist
- */
-const selectPreferredRelease = (releases: Release[]): Release | null => {
-  if (!releases || releases.length === 0) return null;
-
-  // Priority 1: Official releases only (if available)
-  const officialReleases = releases.filter(r => r.status === 'Official');
-  const candidates = officialReleases.length > 0 ? officialReleases : releases;
-
-  // Priority 2: Sort by date (oldest first = original release)
-  const sorted = [...candidates].sort((a, b) => {
-    const dateA = a.date || '9999-99-99';
-    const dateB = b.date || '9999-99-99';
-    return dateA.localeCompare(dateB);
-  });
-
-  return sorted[0];
-};
 
 /**
  * Fetch a specific release with detailed information including tracks and labels
@@ -80,22 +58,6 @@ const fetchReleaseWithDetails = async (releaseId: string, signal?: AbortSignal):
   }
 };
 
-/**
- * Convert MusicBrainz media tracks to our Track interface
- */
-const extractTracksFromMedia = (media: Media[]): Track[] => {
-  if (!media || media.length === 0) return [];
-
-  const tracks: Track[] = [];
-
-  media.forEach(medium => {
-    if (medium.tracks) {
-      tracks.push(...medium.tracks);
-    }
-  });
-
-  return tracks;
-};
 
 /**
  * Fetch a specific release group with complete track and label information

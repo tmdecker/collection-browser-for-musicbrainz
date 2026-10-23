@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { streamingLinksCache } from '@/lib/cache/streaming-links-cache';
 import { waitForOdesliRateLimit } from '@/lib/odesli-rate-limiter';
+import { THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(odesliUrl.toString(), {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'MusicBrainz-GUI/1.0 (https://github.com/user/musicbrainz-gui)',
+        'User-Agent': THIRD_PARTY_USER_AGENT,
       },
       // 30 second timeout
       signal: AbortSignal.timeout(30000)

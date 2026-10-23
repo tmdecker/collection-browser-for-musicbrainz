@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { waitForRateLimit } from '@/lib/rate-limiter';
+import { getUserAgent } from '@/utils/config/userAgent';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { extractRatingFromApiResponse } from '@/utils/ratings';
 
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       `https://musicbrainz.org/ws/2/release-group/${mbid}?fmt=json&inc=genres+tags+ratings`,
       {
         headers: {
-          'User-Agent': `${process.env.NEXT_PUBLIC_MUSICBRAINZ_APP_NAME} (${process.env.NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL})`,
+          'User-Agent': getUserAgent(), // Same format as all MusicBrainz calls (with fallbacks when env vars are missing)
           'Accept': 'application/json',
         },
       }

@@ -23,3 +23,10 @@ export const getUserAgent = (): string => {
   const contactEmail = process.env.NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL || 'your.email@example.com';
   return `${appName} (mailto:${contactEmail})`;
 };
+
+/**
+ * User-Agent for services other than MusicBrainz (Odesli, streaming platforms)
+ * Identifies the app without the contact email, which only MusicBrainz asks for
+ */
+export const THIRD_PARTY_USER_AGENT =
+  'collection-browser-for-musicbrainz (+https://github.com/tmdecker/collection-browser-for-musicbrainz)';

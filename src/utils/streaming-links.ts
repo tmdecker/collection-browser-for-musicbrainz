@@ -11,7 +11,7 @@
 
 import { ReleaseGroup, Release, StreamingLinks } from '@/types/music';
 import { fetchReleaseUrlRels } from '@/utils/api';
-import { getUserAgent } from '@/utils/config/userAgent';
+import { THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
 
 // Platform mapping from Odesli response to our StreamingLinks interface
 const PLATFORM_MAPPING: Record<string, keyof StreamingLinks> = {
@@ -346,7 +346,7 @@ const fetchStreamingStatus = async (url: string, method: 'HEAD' | 'GET'): Promis
   for (let hop = 0; hop <= MAX_VALIDATION_REDIRECTS; hop++) {
     const response = await fetch(current, {
       method,
-      headers: { 'User-Agent': getUserAgent() },
+      headers: { 'User-Agent': THIRD_PARTY_USER_AGENT },
       redirect: 'manual',
       cache: 'no-store',
       signal: AbortSignal.timeout(VALIDATION_TIMEOUT_MS),

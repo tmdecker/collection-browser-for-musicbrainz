@@ -15,7 +15,8 @@ import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { releaseStore } from '@/lib/cache/release-store';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { waitForRateLimit } from '@/lib/rate-limiter';
-import { Release, Track, Media } from '@/types/music';
+import { Release, Track } from '@/types/music';
+import { extractTracksFromMedia, selectPreferredRelease } from '@/utils/release-selection';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -23,44 +24,7 @@ export const dynamic = 'force-dynamic';
 // MusicBrainz API base URL
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
-/**
- * Select the preferred release from a list of releases
- * Priority: Official status first, then oldest release date
- * (Reused from src/utils/api.ts:41-56)
- */
-function selectPreferredRelease(releases: Release[]): Release | null {
-  if (!releases || releases.length === 0) return null;
 
-  // Priority 1: Official releases only (if available)
-  const officialReleases = releases.filter(r => r.status === 'Official');
-  const candidates = officialReleases.length > 0 ? officialReleases : releases;
-
-  // Priority 2: Sort by date (oldest first = original release)
-  const sorted = [...candidates].sort((a, b) => {
-    const dateA = a.date || '9999-99-99';
-    const dateB = b.date || '9999-99-99';
-    return dateA.localeCompare(dateB);
-  });
-
-  return sorted[0];
-}
-
-/**
- * Extract tracks from media array
- * (Reused from src/utils/api.ts:86-98)
- */
-function extractTracksFromMedia(media: Media[]): Track[] {
-  if (!media || media.length === 0) return [];
-
-  const tracks: Track[] = [];
-  media.forEach(medium => {
-    if (medium.tracks) {
-      tracks.push(...medium.tracks);
-    }
-  });
-
-  return tracks;
-}
 
 /**
  * Fetch a specific release with detailed information including tracks and labels

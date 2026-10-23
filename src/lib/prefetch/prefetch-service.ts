@@ -15,11 +15,12 @@ import { releaseGroupCache } from '../cache/release-group-cache';
 import { releaseStore } from '../cache/release-store';
 import { streamingLinksCache } from '../cache/streaming-links-cache';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
-import { getUserAgent } from '@/utils/config/userAgent';
+import { getUserAgent, THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
 import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
 import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
 import { findStreamingUrl, extractAllStreamingUrls, isStreamingUrl, buildDirectLinksFromUrlsServer, validateStreamingUrlServer } from '@/utils/streaming-links';
-import { Release, Track, Media, StreamingLinks } from '@/types/music';
+import { Release } from '@/types/music';
+import { extractTracksFromMedia, findBestStreamingRelease, selectPreferredRelease } from '@/utils/release-selection';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
@@ -89,67 +90,8 @@ export interface PrefetchStatus extends QueueStats {
   isRunning: boolean;
 }
 
-/**
- * Select the preferred release from a list of releases
- * Priority: Official status first, then oldest release date
- */
-function selectPreferredRelease(releases: Release[]): Release | null {
-  if (!releases || releases.length === 0) return null;
 
-  const officialReleases = releases.filter(r => r.status === 'Official');
-  const candidates = officialReleases.length > 0 ? officialReleases : releases;
 
-  const sorted = [...candidates].sort((a, b) => {
-    const dateA = a.date || '9999-99-99';
-    const dateB = b.date || '9999-99-99';
-    return dateA.localeCompare(dateB);
-  });
-
-  return sorted[0];
-}
-
-/**
- * Extract tracks from media array
- */
-function extractTracksFromMedia(media: Media[]): Track[] {
-  if (!media || media.length === 0) return [];
-
-  const tracks: Track[] = [];
-  media.forEach(medium => {
-    if (medium.tracks) {
-      tracks.push(...medium.tracks);
-    }
-  });
-
-  return tracks;
-}
-
-/**
- * Find the best release for streaming links
- * @ai Priority: Digital Media + XW > Digital Media > XW > fallback to first
- * @ai Enables finding streaming URLs on modern digital releases
- */
-function findBestStreamingRelease(releases: Release[]): Release | null {
-  if (!releases || releases.length === 0) return null;
-
-  // Priority 1: Digital Media + Worldwide
-  const digitalXW = releases.find(r =>
-    r.media?.some(m => m.format === 'Digital Media') && r.country === 'XW'
-  );
-  if (digitalXW) return digitalXW;
-
-  // Priority 2: Any Digital Media
-  const digital = releases.find(r =>
-    r.media?.some(m => m.format === 'Digital Media')
-  );
-  if (digital) return digital;
-
-  // Priority 3: Any XW release
-  const xw = releases.find(r => r.country === 'XW');
-  if (xw) return xw;
-
-  return null;
-}
 
 /**
  * Fetch and cache a single release group
@@ -277,7 +219,7 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
           const odesliResponse = await fetch(odesliUrl.toString(), {
             headers: {
               'Accept': 'application/json',
-              'User-Agent': getUserAgent(),
+              'User-Agent': THIRD_PARTY_USER_AGENT,
             },
             signal: AbortSignal.timeout(30000),
           });

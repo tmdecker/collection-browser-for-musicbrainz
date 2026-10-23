@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **Shared release helpers**: `selectPreferredRelease`, `extractTracksFromMedia` and `findBestStreamingRelease` live once in `utils/release-selection.ts` instead of three copies (client, release-groups route, prefetch)
+- **User-Agent**: `/api/enhance-metadata` used its own User-Agent format (`undefined (undefined)` when env vars are missing) and now uses the shared one. Odesli and streaming platform checks get an app identifier without your contact email, instead of a placeholder or the MusicBrainz contact
 - **Dead code (B6)**: Removed the `/api/coverart` route handler, which the `next.config.js` rewrite always shadowed (covers are proxied by the rewrite), the unused `collection-handler.ts`, and the streaming platform preference filter that read a legacy key nothing writes anymore (the enabled-services setting already filters icons)
 - **Faster MusicBrainz loading**: 1.1 s between MusicBrainz requests instead of 2 s (MusicBrainz allows 1/s; safe now that the limiter is a real queue). Removed the extra 2 s client-side wait between collection pages, which the server already rate-limits
 - **Clicks before prefetch (B13)**: Requests a user is waiting on go ahead of queued background prefetch and series enhancement requests
