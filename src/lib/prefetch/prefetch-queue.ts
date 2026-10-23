@@ -4,8 +4,9 @@
  * @ai-dependencies none (standalone)
  * @ai-features
  * - High/low priority queues (high = user clicks, low = background prefetch)
- * - Deduplication (won't add already queued/processing/completed items)
- * - Processing loop that runs until stopped
+ * - Deduplication (won't add already queued/processing items)
+ * - Processing loop that runs until the queue is empty
+ * - Callers decide what needs fetching (via the cache), so expired items can be queued again
  * - Statistics for monitoring
  */
 
@@ -29,16 +30,16 @@ class PrefetchQueue {
   private highQueue: string[] = [];
   private lowQueue: string[] = [];
   private processing: Set<string> = new Set();
-  private completed: Set<string> = new Set();
+  private completedCount = 0; // For progress display only, not for deduplication
   private isRunning = false;
   private currentItem: string | null = null;
 
   /**
    * Add item to queue with specified priority
-   * @returns true if added, false if already queued/processing/completed
+   * @returns true if added, false if already queued or processing
    */
   add(mbid: string, priority: Priority = 'low'): boolean {
-    // Skip if already queued, processing, or completed
+    // Skip if already queued or processing
     if (this.has(mbid)) {
       return false;
     }
@@ -59,8 +60,7 @@ class PrefetchQueue {
     return (
       this.highQueue.includes(mbid) ||
       this.lowQueue.includes(mbid) ||
-      this.processing.has(mbid) ||
-      this.completed.has(mbid)
+      this.processing.has(mbid)
     );
   }
 
@@ -79,7 +79,8 @@ class PrefetchQueue {
 
   /**
    * Start processing queue with provided fetch function
-   * Runs until stopped, processing items one at a time
+   * Processes items one at a time and stops when the queue is empty (instead of polling forever);
+   * the next add() is followed by another start() call
    */
   async start(fetchFn: FetchFunction): Promise<void> {
     if (this.isRunning) {
@@ -92,9 +93,7 @@ class PrefetchQueue {
       const mbid = this.getNext();
 
       if (!mbid) {
-        // Empty queue - wait and retry
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        continue;
+        break;
       }
 
       this.processing.add(mbid);
@@ -102,15 +101,17 @@ class PrefetchQueue {
 
       try {
         await fetchFn(mbid);
-        this.completed.add(mbid);
+        this.completedCount++;
       } catch (error) {
         console.error(`Failed to prefetch ${mbid}:`, error);
-        // Don't add to completed - can be retried if added again
+        // Not cached, so the next prefetch for this collection queues it again
       } finally {
         this.processing.delete(mbid);
         this.currentItem = null;
       }
     }
+
+    this.isRunning = false;
   }
 
   /**
@@ -128,7 +129,7 @@ class PrefetchQueue {
       highPriority: this.highQueue.length,
       lowPriority: this.lowQueue.length,
       processing: this.processing.size,
-      completed: this.completed.size,
+      completed: this.completedCount,
       currentItem: this.currentItem,
     };
   }
@@ -141,12 +142,11 @@ class PrefetchQueue {
   }
 
   /**
-   * Clear pending items from queues (does not clear completed set)
+   * Clear pending items from queues
    */
   clear(): void {
     this.highQueue = [];
     this.lowQueue = [];
-    // Don't clear completed - that's the "already cached" memory
   }
 }
 

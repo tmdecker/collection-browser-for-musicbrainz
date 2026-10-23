@@ -32,6 +32,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - MusicBrainz 503 responses pause all further MusicBrainz requests (`Retry-After`, default 10 s)
 - **Cache persistence**: `.cache/*.json` are written to a temp file and renamed into place, so stopping the server mid-write no longer truncates them to 0 bytes (which lost the whole cache on the next start). Files are written without pretty-printing (smaller, faster)
 - Prefetch retries a MusicBrainz request after a 503 back-off (up to 3 times) instead of dropping the album
+- **Cache expiry (B8)**: Cache files store each entry's real expiry; a restart restores the remaining TTL and skips expired entries instead of granting every entry a fresh 30 days. Old files are read once using their `_expiresAt` fields
+- **Cache startup (B10)**: Caches load from disk at server start (`instrumentation.ts`) before any request, and a restore never overwrites newer entries. Shutdown saves synchronously, so it actually finishes (before, the server exited mid-write and left empty `.tmp` files, which are now cleaned up)
+- **Prefetch queue (B7)**: Albums are no longer remembered as "done" forever, so expired entries are prefetched again without a server restart; the queue stops when empty instead of polling every second
+- **Cache stats (B9)**: Memory is estimated from sizes tracked on write instead of serializing the whole cache on every 10 s poll
 - **Login and settings (B1 to B4)**: `useAuth` and `usePreferences` are now single shared instances (`AuthProvider` and `PreferencesProvider` in the root layout) instead of separate copies per component
   - Reloading with an expired token refreshes once and still loads the profile (previously the second refresh call returned false and left the user without a profile)
   - Only one refresh timer runs, so rotating refresh tokens no longer log you out

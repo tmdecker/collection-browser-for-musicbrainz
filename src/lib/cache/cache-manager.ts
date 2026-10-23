@@ -26,17 +26,19 @@ const PERSIST_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
  */
 class CacheManager {
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
   private persistInterval: NodeJS.Timeout | null = null;
 
   /**
-   * Initialize both caches by restoring from disk
+   * Initialize all caches by restoring from disk
+   * Runs once at server start (instrumentation.ts); concurrent callers share the same promise
    */
-  async initialize(): Promise<void> {
-    if (this.initialized) {
-      console.log('⚠️ Cache manager already initialized');
-      return;
-    }
+  initialize(): Promise<void> {
+    this.initPromise ??= this.restoreAll();
+    return this.initPromise;
+  }
 
+  private async restoreAll(): Promise<void> {
     console.log('🚀 Initializing cache manager...');
 
     // Ensure cache directory exists
@@ -69,10 +71,13 @@ class CacheManager {
    * Setup graceful shutdown handlers
    */
   private setupExitHandlers(): void {
-    const gracefulShutdown = async () => {
+    const gracefulShutdown = () => {
       console.log('🛑 Graceful shutdown: persisting caches...');
       if (this.persistInterval) clearInterval(this.persistInterval);
-      await this.persistAll();
+      // Synchronous on purpose: the server exits before async writes would finish
+      releaseStore.persistSync();
+      releaseGroupCache.persistSync();
+      streamingLinksCache.persistSync();
       process.exit(0);
     };
     process.on('SIGTERM', gracefulShutdown);
