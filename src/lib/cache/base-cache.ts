@@ -139,8 +139,11 @@ export abstract class BaseCache<T> {
         }
       }
 
-      // Write to file
-      await fs.writeFile(this.persistPath, JSON.stringify(data, null, 2), 'utf-8');
+      // Write to a temp file, then rename over the old one: rename is atomic, so a crash
+      // or Ctrl+C mid-write leaves the previous file intact instead of a truncated one
+      const tmpPath = `${this.persistPath}.${process.pid}.tmp`;
+      await fs.writeFile(tmpPath, JSON.stringify(data), 'utf-8');
+      await fs.rename(tmpPath, this.persistPath);
       console.log(`✅ Persisted ${keys.length} ${this.name} entries to ${this.persistPath}`);
     } catch (error) {
       console.error(`❌ Failed to persist ${this.name} cache:`, error);
