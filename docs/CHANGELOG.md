@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.34.0] - 2026-10-23
+
+### Upgrade Notes
+
+- **Node.js 20.9 or newer** is required (Next.js 16). Run `npm ci` and `npm run build` after pulling; a plain `git pull` is not enough
+- **Cache migration is automatic**: the first start reads the old `.cache/*.json` format, drops entries that already expired (often most of an old release cache) and saves the new format. The background prefetch refills what is needed
+- **Odesli** needs `ODESLI_API_KEY` (server-only, no `NEXT_PUBLIC_` prefix). Without it, only streaming links stored in MusicBrainz are shown
+- Set `NEXT_PUBLIC_MUSICBRAINZ_APP_NAME` and `NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL` to real values; MusicBrainz throttles generic User-Agents harder
+- Instances on the same IP share MusicBrainz's limit of about 1 request per second, so a dev server and production on the same network slow each other down
 
 ### Security
 
@@ -16,7 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Dependencies**: Next.js 14.2 → 16.4, React 18 → 19, sharp 0.33 → 0.35, react-intersection-observer 9 → 11, ESLint 8 → 9 with the native `eslint-config-next` flat config; Node.js 20.9+ required
 - Dynamic route `params` are awaited (async in Next 15+); removed the no-op `export const dynamic` from the client home page
 - Cover images skip the Next image optimizer (`unoptimized`); `/api/image` already resizes and converts to WebP, so covers were processed twice
-- New `react-hooks/set-state-in-effect` and `react-hooks/refs` lint rules are warnings for now (18 hits, mostly in the hooks the auth/preferences refactor will replace)
+- New `react-hooks/set-state-in-effect` and `react-hooks/refs` lint rules are warnings for now (11 hits left, in FilterPanel and other UI components)
 
 ### Added
 
