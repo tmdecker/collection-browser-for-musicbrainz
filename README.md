@@ -83,7 +83,7 @@ Runs on <http://localhost:3000>
 
 For self-hosting on a production server (PM2, reverse proxy, cache directories, etc.), see the [Self-Hosting Guide](SELF-HOSTING_PLAN.md).
 
-**Important for HTTP deployments:** Set `COOKIE_SECURE=false` in your `.env.local` if deploying without HTTPS (e.g., local network or Tailscale).
+**Important for HTTP deployments:** Set `COOKIE_SECURE=false` in your `.env.local` if deploying without HTTPS (e.g., local network or Tailscale). This also leaves out the `upgrade-insecure-requests` CSP directive, which would otherwise break plain-HTTP access. Rebuild after changing it.
 
 ## Using the Application
 

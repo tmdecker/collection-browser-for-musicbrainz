@@ -67,7 +67,9 @@ const nextConfig = {
               "base-uri 'self'",
               "form-action 'self' https://musicbrainz.org", // Allow OAuth form submission
               "frame-ancestors 'none'",
-              "upgrade-insecure-requests",
+              // Only over HTTPS: on plain-HTTP deployments (COOKIE_SECURE=false, e.g. a LAN server)
+              // the browser would upgrade every request to https and nothing would load
+              ...(process.env.COOKIE_SECURE === 'false' ? [] : ["upgrade-insecure-requests"]),
             ].join('; '),
           },
         ],

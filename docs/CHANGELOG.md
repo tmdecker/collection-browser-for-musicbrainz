@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.1] - 2026-10-23
+
+### Fixed
+
+- **CSP on plain-HTTP deployments**: `upgrade-insecure-requests` is only sent when `COOKIE_SECURE` is not `false`, so a server reached over HTTP (e.g. on the local network) no longer needs a locally edited `next.config.js`
+
 ## [0.34.0] - 2026-10-23
 
 ### Upgrade Notes
