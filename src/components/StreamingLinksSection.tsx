@@ -385,15 +385,7 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
         >
           MusicBrainz
         </a>
-        {' & '}
-        <a
-          href="https://odesli.co"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-text-secondary transition-colors duration-200"
-        >
-          Songlink
-        </a>
+        {' & barcode lookup'}
       </div>
     </div>
   );
