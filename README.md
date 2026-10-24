@@ -115,6 +115,7 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 **Optional:**
 
 - `ODESLI_API_KEY` - Odesli API key (server-only, never prefix with `NEXT_PUBLIC_`). Odesli no longer works without a key; without it, only streaming links stored in MusicBrainz are shown
+- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` and `TIDAL_CLIENT_ID` / `TIDAL_CLIENT_SECRET` - Find Spotify and Tidal links by the release barcode (server-only; Deezer and Apple Music are looked up by barcode without a key)
 - `PREFETCH_ENABLED=false` - Turns off the background prefetch. Useful for a dev server on the same network as production, since MusicBrainz allows about 1 request per second per IP. Albums still load when clicked
 
 ## Tech Stack

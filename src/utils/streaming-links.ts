@@ -821,6 +821,56 @@ const setCachedStreamingUrl = (albumId: string, url: string): void => {
  * Returns both the links and whether they came from cache
  * @param signal - Optional AbortSignal to cancel the entire operation
  */
+const MAX_BARCODES_PER_ALBUM = 2;
+
+/**
+ * Barcodes to try for an album: the displayed release first, then other releases (distinct, valid only)
+ */
+const candidateBarcodes = (primaryRelease: Release | undefined, releases: Release[]): string[] => {
+  const barcodes: string[] = [];
+  for (const release of [primaryRelease, ...releases]) {
+    const barcode = release?.barcode?.trim();
+    if (barcode && /^(\d{8}|\d{12,14})$/.test(barcode) && !barcodes.includes(barcode)) {
+      barcodes.push(barcode);
+    }
+    if (barcodes.length >= MAX_BARCODES_PER_ALBUM) break;
+  }
+  return barcodes;
+};
+
+/**
+ * Fill platforms the other sources missed with links found by barcode (Deezer, Apple Music,
+ * Spotify, Tidal). Links that came from MusicBrainz or Odesli always win.
+ */
+const addBarcodeLinks = async (
+  links: StreamingLinks | null,
+  primaryRelease: Release | undefined,
+  releases: Release[],
+  country: string,
+  signal?: AbortSignal
+): Promise<StreamingLinks | null> => {
+  let merged = links;
+
+  for (const barcode of candidateBarcodes(primaryRelease, releases)) {
+    if (signal?.aborted) break;
+    try {
+      const response = await fetch(`/api/barcode-links?barcode=${barcode}&country=${country}`, { signal });
+      if (!response.ok) continue;
+      const { links: barcodeLinks } = (await response.json()) as { links?: StreamingLinks };
+      if (barcodeLinks && Object.keys(barcodeLinks).length > 0) {
+        merged = mergeStreamingLinks(merged ?? {}, barcodeLinks);
+        console.log(`🏷️ Barcode ${barcode} added: ${Object.keys(barcodeLinks).join(', ')}`);
+        break;
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
+      console.warn(`⚠️ Barcode lookup failed for ${barcode}:`, error);
+    }
+  }
+
+  return merged && Object.keys(merged).length > 0 ? merged : null;
+};
+
 export const fetchStreamingLinksForAlbum = async (
   releaseGroup: ReleaseGroup,
   primaryRelease?: Release,
@@ -848,7 +898,8 @@ export const fetchStreamingLinksForAlbum = async (
         console.log(`✅ Instant cache hit! Streaming links loaded instantly for: ${releaseGroup.title}`);
 
         // Platform filtering by the user's enabled services happens in StreamingLinksSection
-        return { links: cachedResult.links, fromCache: true };
+        const links = await addBarcodeLinks(cachedResult.links, primaryRelease, releaseGroup.releases || [], country, signal);
+        return { links, fromCache: true };
       } else {
         console.log(`⚠️ Cached URL no longer valid, falling back to full discovery`);
       }
@@ -871,8 +922,12 @@ export const fetchStreamingLinksForAlbum = async (
     );
 
     if (!result) {
-      console.log(`No working streaming links found for album: ${releaseGroup.title}`);
-      return { links: null, fromCache: false };
+      // No streaming URLs on MusicBrainz: the barcode may still find the album on the platforms
+      const barcodeOnly = await addBarcodeLinks(null, primaryRelease, releaseGroup.releases || [], country, signal);
+      if (!barcodeOnly) {
+        console.log(`No working streaming links found for album: ${releaseGroup.title}`);
+      }
+      return { links: barcodeOnly, fromCache: false };
     }
 
     const { streamingLinks, successfulUrl, fromCache } = result;
@@ -880,10 +935,11 @@ export const fetchStreamingLinksForAlbum = async (
     // Cache the successful URL for future instant lookups
     setCachedStreamingUrl(releaseGroup.id, successfulUrl);
 
-    const platformCount = Object.keys(streamingLinks).length - (streamingLinks.thumbnail ? 1 : 0);
+    const links = (await addBarcodeLinks(streamingLinks, primaryRelease, releaseGroup.releases || [], country, signal)) ?? streamingLinks;
+    const platformCount = Object.keys(links).length - (links.thumbnail ? 1 : 0);
     console.log(`✓ Album "${releaseGroup.title}" linked via ${successfulUrl} → ${platformCount} platforms available`);
 
-    return { links: streamingLinks, fromCache };
+    return { links, fromCache };
 
   } catch (error) {
     // Don't log AbortError

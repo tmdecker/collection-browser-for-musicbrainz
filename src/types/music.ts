@@ -96,6 +96,7 @@ export interface Release {
   media?: Media[];
   relations?: Relation[];
   'label-info'?: LabelInfo[];
+  barcode?: string | null;   // UPC/EAN as entered on MusicBrainz (may be empty or null)
 }
 
 export interface Relation {

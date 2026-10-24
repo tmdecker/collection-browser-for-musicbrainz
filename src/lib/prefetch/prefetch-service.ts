@@ -16,6 +16,7 @@ import { releaseStore } from '../cache/release-store';
 import { streamingLinksCache } from '../cache/streaming-links-cache';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent, THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
+import { getBarcodeLinksCached, isLookupBarcode } from '../barcode-links';
 import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
 import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
 import { findStreamingUrl, extractAllStreamingUrls, isStreamingUrl, buildDirectLinksFromUrlsServer, validateStreamingUrlServer } from '@/utils/streaming-links';
@@ -262,6 +263,19 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
     } catch (error) {
       // Non-critical: log and continue if streaming links fail
       console.warn(`⚠️  Failed to fetch streaming links for ${mbid}:`, error);
+    }
+
+    // Step 5b: Warm the barcode cache (Deezer, Apple Music, Spotify, Tidal), so the details panel
+    // gets those links instantly; the client merges them with the links above
+    try {
+      const barcode = [detailedRelease, ...releases]
+        .map(release => release.barcode?.trim())
+        .find(isLookupBarcode);
+      if (barcode) {
+        await getBarcodeLinksCached(barcode, 'DE');
+      }
+    } catch (error) {
+      console.warn(`⚠️  Barcode lookup failed for ${mbid}:`, error);
     }
 
     // Step 6: Store in caches

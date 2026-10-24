@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- **Streaming links by barcode**: The release barcode (UPC/EAN) from MusicBrainz is looked up at Deezer and Apple Music (no key needed) and, when client credentials are set, at Spotify and Tidal (`SPOTIFY_CLIENT_ID`/`_SECRET`, `TIDAL_CLIENT_ID`/`_SECRET`). Found links fill platforms that MusicBrainz and Odesli did not provide; MusicBrainz links keep priority
+  - New route `/api/barcode-links` with a 7-day server cache; the prefetch warms it, so the details panel gets the links instantly
+  - iTunes lookups are spaced 3.1 s apart (about 20 per minute allowed)
 - **`PREFETCH_ENABLED=false`**: Turns off the background prefetch, e.g. for a dev server on the same IP as production (MusicBrainz allows about 1 request per second per IP). Albums still load on click; series metadata enhancement still runs
 
 ## [0.34.1] - 2026-10-23
