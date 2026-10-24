@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Documentation**: Removed `api.md`, `components.md`, `indexeddb.md`, `configuration.md` and the lazy-loading README, which repeated the code and had gone stale (Odesli as main source, 2 s rate limit, 30-minute reload, deleted files). `architecture.md` is now a one-page overview; the README gained a deployment section (replacing the link to an untracked guide), the settings overview and development commands
+
 ### Added
 
 - **Collection sync check**: Instead of reloading the whole collection whenever the local copy is older than 30 minutes, the app checks the album count on MusicBrainz (one request, at most every 10 minutes) and reloads only when albums were added or removed. A full reload still runs once a day to pick up edits such as genres or ratings, and the Refresh button reloads on demand
