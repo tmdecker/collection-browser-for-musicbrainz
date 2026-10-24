@@ -64,12 +64,16 @@ export async function getBasicData(collectionId: string, entityType?: 'collectio
       const { normalizeReleaseGroups } = await import('./normalize-mb-data');
       const normalizedCachedData = normalizeReleaseGroups(cachedData);
 
-      // Start background refresh if cache is older than 30 minutes
+      // Keep the cache in sync without re-downloading the whole collection on every visit
       if (collectionMetadata.lastUpdated) {
-        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-        if (collectionMetadata.lastUpdated < thirtyMinutesAgo) {
-          console.log('🔄 Cache is older than 30 minutes, starting background refresh');
+        const cacheAge = Date.now() - new Date(collectionMetadata.lastUpdated).getTime();
+        if (cacheAge > FULL_REFRESH_INTERVAL_MS) {
+          // Daily full refresh also picks up edits (genres, ratings) and add+remove swaps
+          console.log('🔄 Cache is older than 24 hours, starting background refresh');
           refreshDataInBackground(collectionId);
+        } else if (entityType !== 'series' && cacheAge > MIN_REFRESH_INTERVAL_MS) {
+          // Cheap check: one request for the item count; refresh only when albums were added or removed
+          checkCollectionCountInBackground(collectionId, collectionMetadata.itemCount);
         }
       }
 
@@ -83,6 +87,38 @@ export async function getBasicData(collectionId: string, entityType?: 'collectio
     console.error('Failed to load basic data:', error);
     throw error;
   }
+}
+
+// A full collection reload costs one MusicBrainz request per 100 albums, so it runs at most daily
+const FULL_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Never refresh more often than this, even when the item count differs (avoids loops)
+const MIN_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+// Count checks per collection in this browser session (one per page load and interval)
+const COUNT_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+const lastCountCheck = new Map<string, number>();
+
+/**
+ * Compare the collection's item count on MusicBrainz with the cached count (one request)
+ * and start a full background refresh only when they differ
+ */
+function checkCollectionCountInBackground(collectionId: string, cachedCount: number): void {
+  const lastCheck = lastCountCheck.get(collectionId) ?? 0;
+  if (Date.now() - lastCheck < COUNT_CHECK_INTERVAL_MS) return;
+  lastCountCheck.set(collectionId, Date.now());
+
+  fetch(`/api/musicbrainz/collection/${collectionId}?fmt=json`)
+    .then(response => (response.ok ? response.json() : null))
+    .then((data: { 'release-group-count'?: number } | null) => {
+      const remoteCount = data?.['release-group-count'];
+      if (typeof remoteCount !== 'number') return;
+      if (remoteCount !== cachedCount) {
+        console.log(`🔄 Collection changed on MusicBrainz (${cachedCount} → ${remoteCount} albums), starting background refresh`);
+        refreshDataInBackground(collectionId);
+      } else {
+        console.log(`✅ Collection unchanged on MusicBrainz (${remoteCount} albums)`);
+      }
+    })
+    .catch(error => console.warn('⚠️ Collection count check failed:', error));
 }
 
 /**

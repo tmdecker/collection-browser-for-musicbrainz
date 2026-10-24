@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- **Collection sync check**: Instead of reloading the whole collection whenever the local copy is older than 30 minutes, the app checks the album count on MusicBrainz (one request, at most every 10 minutes) and reloads only when albums were added or removed. A full reload still runs once a day to pick up edits such as genres or ratings, and the Refresh button reloads on demand
 - **Streaming links by barcode**: The release barcode (UPC/EAN) from MusicBrainz is looked up at Deezer and Apple Music (no key needed) and, when client credentials are set, at Spotify and Tidal (`SPOTIFY_CLIENT_ID`/`_SECRET`, `TIDAL_CLIENT_ID`/`_SECRET`). Found links fill platforms that MusicBrainz and Odesli did not provide; MusicBrainz links keep priority
   - New route `/api/barcode-links` with a 7-day server cache; the prefetch warms it, so the details panel gets the links instantly
   - iTunes lookups are spaced 3.1 s apart (about 20 per minute allowed)
