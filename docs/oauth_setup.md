@@ -99,7 +99,7 @@ npm run dev
 3. **Callback** (`/api/auth/callback`):
    - Verifies state parameter (CSRF protection)
    - Exchanges authorization code for tokens
-   - Stores refresh token in httpOnly cookie (7 days)
+   - Stores refresh token in httpOnly cookie (90 days)
    - Stores access token in cookie (short-lived)
 
 4. **Authenticated Requests**:
@@ -171,9 +171,17 @@ This error occurs when using a **Web application** (Confidential client) without
 - Collections must be public or owned by your account
 - Try creating a test collection on MusicBrainz
 
+### "Invalid state parameter" after login
+
+The browser came back from MusicBrainz without the login cookie. Check:
+
+- `MUSICBRAINZ_OAUTH_REDIRECT_URI` matches the address in your browser exactly (host name or IP, and port)
+- The same URI is registered with your MusicBrainz application
+- On plain HTTP, `COOKIE_SECURE=false` is set (otherwise the browser drops the cookie)
+
 ### Token Refresh Issues
 
-- Refresh tokens expire after 7 days of inactivity
+- Login cookies last 90 days; after that, log in again
 - Log out and log in again to get a new refresh token
 - Check browser console for error messages
 
@@ -199,7 +207,7 @@ OAuth authentication is **optional for app deployment**. Without OAuth configure
 ### What We Store
 
 - **Access Token**: Short-lived (typically 1 hour), stored in cookie
-- **Refresh Token**: Long-lived (7 days), stored in httpOnly cookie
+- **Refresh Token**: Long-lived (90-day cookie), stored in httpOnly cookie
 - **User Profile**: Username and user ID, stored in localStorage
 
 ### What We Don't Store
