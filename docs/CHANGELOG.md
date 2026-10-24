@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`PREFETCH_ENABLED=false`**: Turns off the background prefetch, e.g. for a dev server on the same IP as production (MusicBrainz allows about 1 request per second per IP). Albums still load on click; series metadata enhancement still runs
+
 ## [0.34.1] - 2026-10-23
 
 ### Fixed

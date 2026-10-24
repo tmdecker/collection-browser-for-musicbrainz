@@ -24,6 +24,12 @@ export const dynamic = 'force-dynamic';
  * Response: { queued: number, alreadyCached: number }
  */
 export async function POST(request: NextRequest) {
+  // PREFETCH_ENABLED=false turns off background prefetch, e.g. on a dev server that shares
+  // its IP (and MusicBrainz's ~1 request/second limit) with production. Clicks still load on demand
+  if (process.env.PREFETCH_ENABLED === 'false') {
+    return NextResponse.json({ queued: 0, alreadyCached: 0, disabled: true });
+  }
+
   try {
     const body = await request.json();
     const { rgMbids } = body;

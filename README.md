@@ -112,9 +112,10 @@ Configure in `.env.local` (see [.env.example](.env.example) for template):
 
 Register at <https://musicbrainz.org/account/applications/register> to get OAuth credentials. See [docs/oauth_setup.md](docs/oauth_setup.md) for detailed setup.
 
-**Optional - for higher streaming link rate limits:**
+**Optional:**
 
-- `ODESLI_API_KEY` - Odesli API key (server-only, never prefix with `NEXT_PUBLIC_`)
+- `ODESLI_API_KEY` - Odesli API key (server-only, never prefix with `NEXT_PUBLIC_`). Odesli no longer works without a key; without it, only streaming links stored in MusicBrainz are shown
+- `PREFETCH_ENABLED=false` - Turns off the background prefetch. Useful for a dev server on the same network as production, since MusicBrainz allows about 1 request per second per IP. Albums still load when clicked
 
 ## Tech Stack
 
