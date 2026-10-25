@@ -5,7 +5,9 @@
  * @ai-features
  * - Album results keyed by release group and country (getRgStreamingLinks / setRgStreamingLinks)
  * - Barcode lookups keyed by barcode, configured providers and country
- * - 30-day TTL for complete results (like the album data), 1 hour when a provider failed, so failures are retried soon
+ * - Fresh for 30 days when complete, 1 hour when a provider failed; stale album results are still
+ *   served while they are refreshed in the background, stale barcode results are looked up again
+ * - URL liveness checks (urlCheckCache), keyed by URL, fresh for 30 days
  * - Singleton pattern via globalThis for persistence across Next.js module re-evaluations
  */
 
@@ -13,7 +15,7 @@ import { BaseCache } from './base-cache';
 import { CachedStreamingLinks } from '../types/cache';
 import { StreamingLinks } from '@/types/music';
 
-// Same as the release group cache, so the prefetch (which skips cached albums) never leaves links expired
+// Links rarely change; a stale result is refreshed in the background the next time it is used
 export const STREAMING_LINKS_TTL_SECONDS = 30 * 24 * 60 * 60;
 // A lookup where a provider timed out or failed is only kept briefly
 export const STREAMING_LINKS_FAILURE_TTL_SECONDS = 60 * 60;
@@ -40,6 +42,20 @@ class StreamingLinksCache extends BaseCache<CachedStreamingLinks> {
   getByUrl(source: string, userCountry: string = 'DE'): CachedStreamingLinks | undefined {
     const key = this.getCacheKey(source, userCountry);
     return this.get(key);
+  }
+
+  /**
+   * Cached streaming links only while fresh (barcode lookups are repeated once stale)
+   */
+  getFreshByUrl(source: string, userCountry: string): CachedStreamingLinks | undefined {
+    return this.getFresh(this.getCacheKey(source, userCountry));
+  }
+
+  /**
+   * True when the entry exists but is past its fresh time
+   */
+  isStaleByUrl(source: string, userCountry: string): boolean {
+    return this.isStale(this.getCacheKey(source, userCountry));
   }
 
   /**
@@ -77,6 +93,12 @@ export const getRgStreamingLinks = (releaseGroupMbid: string, country: string): 
   streamingLinksCache.getByUrl(rgSource(releaseGroupMbid), country);
 
 /**
+ * True when the album's cached streaming links should be refreshed (they are still usable)
+ */
+export const isRgStreamingLinksStale = (releaseGroupMbid: string, country: string): boolean =>
+  streamingLinksCache.isStaleByUrl(rgSource(releaseGroupMbid), country);
+
+/**
  * Store the streaming links of an album (release group)
  * @param complete - false when a lookup failed: kept for 1 hour instead of 30 days
  */
@@ -86,3 +108,20 @@ export const setRgStreamingLinks = (
   links: StreamingLinks,
   complete: boolean
 ): CachedStreamingLinks => streamingLinksCache.setByUrl(rgSource(releaseGroupMbid), country, links, complete);
+
+// --- URL liveness checks ---
+
+const URL_CHECK_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+/**
+ * Whether a streaming URL answered (true) or is gone (false), keyed by URL, so releases and
+ * albums that share a link share the check
+ */
+class UrlCheckCache extends BaseCache<{ valid: boolean }> {
+  constructor() {
+    super('url-checks', URL_CHECK_TTL_SECONDS);
+  }
+}
+
+const globalForUrlChecks = globalThis as unknown as { urlCheckCache: UrlCheckCache };
+export const urlCheckCache = globalForUrlChecks.urlCheckCache ?? (globalForUrlChecks.urlCheckCache = new UrlCheckCache());

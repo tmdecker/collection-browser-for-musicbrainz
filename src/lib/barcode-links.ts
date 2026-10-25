@@ -227,7 +227,8 @@ export const getBarcodeLinksCached = async (
     .filter(Boolean)
     .join('+');
   const cacheKey = `barcode:${providers}:${barcode}`;
-  const cached = streamingLinksCache.getByUrl(cacheKey, country);
+  // Stale results are looked up again (this runs inside an album lookup, which is background work)
+  const cached = streamingLinksCache.getFreshByUrl(cacheKey, country);
   if (cached) {
     return { links: cached.streamingLinks, fromCache: true, failed: cached.complete === false };
   }

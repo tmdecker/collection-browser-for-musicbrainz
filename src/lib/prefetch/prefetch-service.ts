@@ -5,13 +5,13 @@
  * @ai-features
  * - Background prefetching of release groups after collection loads
  * - Streaming links prefetch (MusicBrainz links of all releases + barcode lookups)
- * - Filters already-cached RGs before queueing
+ * - Filters already-cached RGs before queueing; stale ones are queued after uncached ones for a refresh
  * - Retry logic with exponential backoff for network errors
  * - Progress logging every 60 seconds
  */
 
 import { cacheManager } from '../cache/cache-manager';
-import { releaseGroupCache } from '../cache/release-group-cache';
+import { ALBUM_DATA_TTL_SECONDS, releaseGroupCache } from '../cache/release-group-cache';
 import { releaseStore } from '../cache/release-store';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent } from '@/utils/config/userAgent';
@@ -164,7 +164,7 @@ async function fetchReleaseGroupData(mbid: string): Promise<{ releases: Release[
         releaseMbids: [],
         cover: `/api/coverart/release-group/${mbid}/front`,
         _cachedAt: now,
-        _expiresAt: now + 30 * 24 * 60 * 60 * 1000,
+        _expiresAt: now + ALBUM_DATA_TTL_SECONDS * 1000,
       });
       return null;
     }
@@ -186,7 +186,7 @@ async function fetchReleaseGroupData(mbid: string): Promise<{ releases: Release[
 
     // Step 5: Store in caches
     const now = Date.now();
-    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+    const expiresAt = now + ALBUM_DATA_TTL_SECONDS * 1000;
 
     // Store each release in the release store
     for (const release of releases) {
@@ -257,44 +257,63 @@ export async function startPrefetchForCollection(
     await cacheManager.initialize();
   }
 
-  // Filter out already-cached RGs
+  // Uncached RGs first; stale ones (still served) after them, oldest first
   const uncached: string[] = [];
+  const stale: { mbid: string; freshUntil: number }[] = [];
   let alreadyCached = 0;
 
   for (const mbid of rgMbids) {
-    if (releaseGroupCache.isFullyCached(mbid)) {
-      alreadyCached++;
-    } else {
+    if (!releaseGroupCache.isFullyCached(mbid)) {
       uncached.push(mbid);
+    } else if (releaseGroupCache.isStale(mbid)) {
+      stale.push({ mbid, freshUntil: releaseGroupCache.freshUntil(mbid) ?? 0 });
+    } else {
+      alreadyCached++;
     }
   }
+  stale.sort((a, b) => a.freshUntil - b.freshUntil);
 
-  // Add uncached RGs to queue with low priority
+  // Add to queue with low priority
   let queued = 0;
-  for (const mbid of uncached) {
+  for (const mbid of [...uncached, ...stale.map(item => item.mbid)]) {
     const added = prefetchQueue.add(mbid, 'low');
     if (added) {
       queued++;
     }
   }
 
-  // Start queue processing if items were queued
   if (queued > 0) {
-    console.log(`🚀 Starting prefetch queue with ${queued} items`);
-
-    // Start queue in background (non-blocking)
-    prefetchQueue.start(async (mbid: string) => {
-      await fetchAndCacheReleaseGroup(mbid, prefetchCountry);
-
-      // Log progress periodically
-      const stats = prefetchQueue.getStats();
-      logProgress(stats);
-    });
+    console.log(`🚀 Starting prefetch queue with ${queued} items (${uncached.length} new, ${stale.length} to refresh)`);
+    startQueue();
   }
 
   console.log(`📊 Prefetch: ${queued} queued, ${alreadyCached} already cached`);
 
   return { queued, alreadyCached };
+}
+
+/**
+ * Start queue processing in the background (non-blocking; does nothing while it runs)
+ */
+function startQueue(): void {
+  prefetchQueue.start(async (mbid: string) => {
+    await fetchAndCacheReleaseGroup(mbid, prefetchCountry);
+
+    // Log progress periodically
+    const stats = prefetchQueue.getStats();
+    logProgress(stats);
+  });
+}
+
+/**
+ * Refresh a stale album in the background (a click was just served the stale copy)
+ * Skipped when background prefetch is turned off (PREFETCH_ENABLED=false)
+ */
+export function queueReleaseGroupRefresh(mbid: string): void {
+  if (process.env.PREFETCH_ENABLED === 'false') return;
+  if (prefetchQueue.add(mbid, 'low')) {
+    startQueue();
+  }
 }
 
 /**

@@ -2,15 +2,23 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BaseCache } from '@/lib/cache/base-cache';
+import { BaseCache, jitteredTtlMs } from '@/lib/cache/base-cache';
+import { openCacheDatabase, setCacheDatabase } from '@/lib/cache/database';
 
-class TestCache extends BaseCache<{ title: string }> {
-  constructor() {
-    super('test-cache', 60);
+const DAY_S = 24 * 60 * 60;
+const DAY_MS = DAY_S * 1000;
+
+class TestCache extends BaseCache<{ title: string; group?: string; _cachedAt?: number; _expiresAt?: number }> {
+  constructor(ttlSeconds = 60 * DAY_S) {
+    super('test-cache', ttlSeconds);
   }
 
-  destroy(): void {
-    this.cache.close();
+  protected override groupKeyOf(value: { group?: string }): string | null {
+    return value.group ?? null;
+  }
+
+  byGroup(group: string) {
+    return this.getByGroup(group);
   }
 }
 
@@ -20,112 +28,125 @@ let cache: TestCache;
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'base-cache-'));
   vi.spyOn(process, 'cwd').mockReturnValue(dir);
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  setCacheDatabase(openCacheDatabase(':memory:'));
   cache = new TestCache();
 });
 
 afterEach(async () => {
-  cache.destroy();
   vi.restoreAllMocks();
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-describe('BaseCache persistence', () => {
-  it('round-trips entries through disk', async () => {
+describe('BaseCache storage', () => {
+  it('round-trips entries through the database', () => {
     cache.set('a', { title: 'OK Computer' });
-    await cache.persist();
+    expect(cache.get('a')).toEqual({ title: 'OK Computer' });
+    expect(cache.has('a')).toBe(true);
+    expect(new TestCache().get('a')).toEqual({ title: 'OK Computer' });
 
-    const restored = new TestCache();
-    await restored.restore();
-    expect(restored.get('a')).toEqual({ title: 'OK Computer' });
-    restored.destroy();
-  });
-
-  it('keeps the previous file intact when a write fails midway', async () => {
-    cache.set('a', { title: 'first' });
-    await cache.persist();
-    const cacheFile = path.join(dir, '.cache', 'test-cache.json');
-    const before = await fs.readFile(cacheFile, 'utf-8');
-
-    cache.set('b', { title: 'second' });
-    vi.spyOn(fs, 'rename').mockRejectedValueOnce(new Error('killed during write'));
-    await cache.persist();
-
-    expect(await fs.readFile(cacheFile, 'utf-8')).toBe(before);
-  });
-});
-
-describe('BaseCache expiry across restarts (B8)', () => {
-  const cacheFile = () => path.join(dir, '.cache', 'test-cache.json');
-
-  it('keeps the remaining TTL instead of granting a fresh one', async () => {
-    cache.set('a', { title: 'first' });
-    await cache.persist();
-
-    // Restart 50 s later: 10 s of the 60 s TTL should be left
-    const realNow = Date.now();
-    vi.spyOn(Date, 'now').mockReturnValue(realNow + 50_000);
-    const restored = new TestCache();
-    await restored.restore();
-    const expiresAt = (restored as unknown as { cache: { getTtl: (k: string) => number } }).cache.getTtl('a');
-    expect(expiresAt).toBeGreaterThan(realNow + 59_000);
-    expect(expiresAt).toBeLessThanOrEqual(realNow + 61_000);
-    restored.destroy();
-  });
-
-  it('skips entries that expired while the server was down', async () => {
-    cache.set('a', { title: 'first' });
-    await cache.persist();
-
-    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000);
-    const restored = new TestCache();
-    await restored.restore();
-    expect(restored.has('a')).toBe(false);
-    restored.destroy();
-  });
-
-  it('reads old-format files, using _expiresAt when present', async () => {
-    await fs.mkdir(path.dirname(cacheFile()), { recursive: true });
-    await fs.writeFile(
-      cacheFile(),
-      JSON.stringify({
-        fresh: { title: 'no expiry field' },
-        stale: { title: 'expired', _expiresAt: Date.now() - 1000 },
-      })
-    );
-
-    await cache.restore();
-    expect(cache.get('fresh')).toEqual({ title: 'no expiry field' });
-    expect(cache.has('stale')).toBe(false);
-  });
-
-  it('does not overwrite entries written before the restore finished (B10)', async () => {
-    cache.set('a', { title: 'old' });
-    await cache.persist();
-
-    const restarted = new TestCache();
-    restarted.set('a', { title: 'new' });
-    await restarted.restore();
-    expect(restarted.get('a')).toEqual({ title: 'new' });
-    restarted.destroy();
-  });
-
-  it('reports memory from tracked sizes', () => {
-    cache.set('a', { title: 'x'.repeat(1000) });
-    expect(cache.getStats().memoryMB).toBeGreaterThan(0.0009);
     cache.delete('a');
-    expect(cache.getStats().memoryMB).toBe(0);
+    expect(cache.has('a')).toBe(false);
+  });
+
+  it('writes to a database file right away, so a restart keeps every entry', async () => {
+    const file = path.join(dir, 'data', 'cache.db');
+    const db = openCacheDatabase(file);
+    setCacheDatabase(db);
+    cache.set('a', { title: 'Kid A' });
+    db.close();
+
+    setCacheDatabase(openCacheDatabase(file));
+    expect(new TestCache().get('a')).toEqual({ title: 'Kid A' });
+  });
+
+  it('looks entries up by group key', () => {
+    cache.set('r1', { title: 'CD', group: 'rg-1' });
+    cache.set('r2', { title: 'Vinyl', group: 'rg-1' });
+    cache.set('r3', { title: 'Other', group: 'rg-2' });
+    expect(cache.byGroup('rg-1').map(release => release.title).sort()).toEqual(['CD', 'Vinyl']);
   });
 });
 
-describe('BaseCache temp files', () => {
-  it('removes temp files left by an interrupted write on restore', async () => {
-    const cacheDir = path.join(dir, '.cache');
-    await fs.mkdir(cacheDir, { recursive: true });
-    await fs.writeFile(path.join(cacheDir, 'test-cache.json.12345.tmp'), '');
-    await fs.writeFile(path.join(cacheDir, 'other-cache.json.12345.tmp'), '');
+describe('BaseCache stale-while-revalidate', () => {
+  it('keeps serving an entry past its fresh time and reports it as stale', () => {
+    const now = Date.now();
+    cache.set('a', { title: 'first' }, 60);
 
-    await cache.restore();
+    vi.spyOn(Date, 'now').mockReturnValue(now + 61_000);
+    expect(cache.get('a')).toEqual({ title: 'first' });
+    expect(cache.isStale('a')).toBe(true);
+    expect(cache.getFresh('a')).toBeUndefined();
+    expect(cache.getStats()).toMatchObject({ entries: 1, stale: 1 });
+  });
 
-    expect(await fs.readdir(cacheDir)).toEqual(['other-cache.json.12345.tmp']);
+  it('spreads fresh times of a day or more by ±15%, short ones stay exact', () => {
+    expect(jitteredTtlMs(60, () => 0)).toBe(60_000);
+    expect(jitteredTtlMs(60 * DAY_S, () => 0)).toBe(Math.round(60 * DAY_MS * 0.85));
+    expect(jitteredTtlMs(60 * DAY_S, () => 1)).toBe(Math.round(60 * DAY_MS * 1.15));
+  });
+
+  it('makes a stale entry fresh again when it is stored again', () => {
+    const now = Date.now();
+    cache.set('a', { title: 'old' }, 60);
+    vi.spyOn(Date, 'now').mockReturnValue(now + 61_000);
+    cache.set('a', { title: 'new' }, 60);
+    expect(cache.isStale('a')).toBe(false);
+    expect(cache.get('a')).toEqual({ title: 'new' });
+  });
+});
+
+describe('BaseCache legacy JSON import', () => {
+  const legacyFile = () => path.join(dir, '.cache', 'test-cache.json');
+  const writeLegacy = async (data: unknown) => {
+    await fs.mkdir(path.dirname(legacyFile()), { recursive: true });
+    await fs.writeFile(legacyFile(), JSON.stringify(data));
+  };
+
+  it('imports every entry, expired ones as stale, and renames the file', async () => {
+    const now = Date.now();
+    await writeLegacy({
+      version: 2,
+      entries: {
+        fresh: { value: { title: 'fresh', _cachedAt: now - DAY_MS }, expiresAt: now + 29 * DAY_MS },
+        old: { value: { title: 'old', _cachedAt: now - 90 * DAY_MS }, expiresAt: now - 60 * DAY_MS },
+      },
+    });
+
+    await cache.importLegacyFile();
+
+    expect(cache.get('fresh')).toMatchObject({ title: 'fresh' });
+    expect(cache.isStale('fresh')).toBe(false);
+    expect(cache.get('old')).toMatchObject({ title: 'old' });
+    expect(cache.isStale('old')).toBe(true);
+    await expect(fs.access(legacyFile())).rejects.toThrow();
+    await expect(fs.access(`${legacyFile()}.imported`)).resolves.toBeUndefined();
+  });
+
+  it('gives imported entries this cache’s jittered fresh time, short-lived ones keep their expiry', async () => {
+    const now = Date.now();
+    await writeLegacy({
+      version: 2,
+      entries: {
+        album: { value: { title: 'album', _cachedAt: now }, expiresAt: now + 30 * DAY_MS },
+        failed: { value: { title: 'failed lookup', _cachedAt: now }, expiresAt: now + 3_600_000 },
+      },
+    });
+
+    await cache.importLegacyFile();
+
+    expect(cache.freshUntil('album')).toBeGreaterThanOrEqual(now + 51 * DAY_MS - 1);
+    expect(cache.freshUntil('album')).toBeLessThanOrEqual(now + 69 * DAY_MS + 1);
+    expect(cache.freshUntil('failed')).toBe(now + 3_600_000);
+  });
+
+  it('reads old-format files and never overwrites entries already in the database', async () => {
+    cache.set('a', { title: 'new' });
+    await writeLegacy({ a: { title: 'old' }, b: { title: 'no expiry field' } });
+
+    await cache.importLegacyFile();
+
+    expect(cache.get('a')).toEqual({ title: 'new' });
+    expect(cache.get('b')).toEqual({ title: 'no expiry field' });
   });
 });

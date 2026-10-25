@@ -6,13 +6,16 @@
  * - Stores RG metadata with release MBID references (not full objects)
  * - Hydrates releases from ReleaseStore on fetch
  * - Checks cache completeness (RG + all releases)
+ * - Album data stays fresh for 60 days, then is refreshed in the background (still served meanwhile)
  * - Singleton export for app-wide use
  */
 
 import { BaseCache } from './base-cache';
-import { releaseStore } from './release-store';
+import { ALBUM_DATA_TTL_SECONDS, releaseStore } from './release-store';
 import { CachedReleaseGroup, HydratedReleaseGroup } from '../types/cache';
 import { Release } from '@/types/music';
+
+export { ALBUM_DATA_TTL_SECONDS };
 
 /**
  * Release group cache with MBID references
@@ -20,7 +23,7 @@ import { Release } from '@/types/music';
  */
 class ReleaseGroupCache extends BaseCache<CachedReleaseGroup> {
   constructor() {
-    super('release-groups', 30 * 24 * 60 * 60); // 30 days TTL
+    super('release-groups', ALBUM_DATA_TTL_SECONDS);
   }
 
   /**

@@ -45,6 +45,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       releaseGroups: {
         cached: cacheStats.releaseGroups.entries,
+        stale: cacheStats.releaseGroups.stale,
         hits: cacheStats.releaseGroups.hits,
         misses: cacheStats.releaseGroups.misses,
         hitRate: cacheStats.releaseGroups.hitRate,
@@ -52,6 +53,7 @@ export async function GET() {
       },
       releases: {
         cached: cacheStats.releases.entries,
+        stale: cacheStats.releases.stale,
         hits: cacheStats.releases.hits,
         misses: cacheStats.releases.misses,
         hitRate: cacheStats.releases.hitRate,

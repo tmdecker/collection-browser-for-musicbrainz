@@ -1,100 +1,49 @@
 /**
  * @ai-file cache
- * @ai-description Coordinator for release, release group, and streaming links caches
- * @ai-dependencies release-store, release-group-cache, streaming-links-cache
+ * @ai-description Coordinator for release, release group, streaming links and URL check caches
+ * @ai-dependencies database, release-store, release-group-cache, streaming-links-cache
  * @ai-features
- * - Initializes all caches from disk
- * - Coordinates persistence operations
- * - Periodic persistence every 5 minutes
- * - Graceful shutdown on process exit
+ * - Opens the SQLite cache database at server start
+ * - Imports the JSON cache files of older versions once (nothing is fetched again)
+ * - Every write goes straight to the database, so there is no periodic save and no shutdown save
  * - Provides aggregate statistics
  * - Singleton export for app-wide use
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import { getCacheDatabase } from './database';
 import { releaseStore } from './release-store';
 import { releaseGroupCache } from './release-group-cache';
-import { streamingLinksCache } from './streaming-links-cache';
+import { streamingLinksCache, urlCheckCache } from './streaming-links-cache';
 import { AggregateStats } from '../types/cache';
 
-const PERSIST_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-
 /**
- * Cache manager coordinates both release and release group caches
- * Handles initialization, persistence, and aggregate statistics
+ * Cache manager coordinates the caches
+ * Handles initialization and aggregate statistics
  */
 class CacheManager {
   private initialized = false;
   private initPromise: Promise<void> | null = null;
-  private persistInterval: NodeJS.Timeout | null = null;
 
   /**
-   * Initialize all caches by restoring from disk
+   * Open the database and import legacy JSON caches
    * Runs once at server start (instrumentation.ts); concurrent callers share the same promise
    */
   initialize(): Promise<void> {
-    this.initPromise ??= this.restoreAll();
+    this.initPromise ??= this.openAll();
     return this.initPromise;
   }
 
-  private async restoreAll(): Promise<void> {
+  private async openAll(): Promise<void> {
     console.log('🚀 Initializing cache manager...');
+    getCacheDatabase();
 
-    // Ensure cache directory exists
-    await this.ensureCacheDir();
-
-    // Restore all caches from disk
-    await Promise.all([
-      releaseStore.restore(),
-      releaseGroupCache.restore(),
-      streamingLinksCache.restore(),
-    ]);
+    // Sequential: each import is one database transaction
+    for (const cache of [releaseStore, releaseGroupCache, streamingLinksCache, urlCheckCache]) {
+      await cache.importLegacyFile();
+    }
 
     this.initialized = true;
-    this.startPeriodicPersistence();
-    this.setupExitHandlers();
     console.log('✅ Cache manager initialized');
-  }
-
-  /**
-   * Start periodic persistence to disk
-   */
-  private startPeriodicPersistence(): void {
-    if (this.persistInterval) return;
-    this.persistInterval = setInterval(() => {
-      this.persistAll().catch(err => console.error('❌ Periodic persist failed:', err));
-    }, PERSIST_INTERVAL_MS);
-  }
-
-  /**
-   * Setup graceful shutdown handlers
-   */
-  private setupExitHandlers(): void {
-    const gracefulShutdown = () => {
-      console.log('🛑 Graceful shutdown: persisting caches...');
-      if (this.persistInterval) clearInterval(this.persistInterval);
-      // Synchronous on purpose: the server exits before async writes would finish
-      releaseStore.persistSync();
-      releaseGroupCache.persistSync();
-      streamingLinksCache.persistSync();
-      process.exit(0);
-    };
-    process.on('SIGTERM', gracefulShutdown);
-    process.on('SIGINT', gracefulShutdown);
-  }
-
-  /**
-   * Persist all caches to disk
-   */
-  async persistAll(): Promise<void> {
-    console.log('💾 Persisting all caches...');
-    await Promise.all([
-      releaseStore.persist(),
-      releaseGroupCache.persist(),
-      streamingLinksCache.persist(),
-    ]);
-    console.log('✅ All caches persisted');
   }
 
   /**
@@ -121,19 +70,6 @@ class CacheManager {
         combinedHitRate,
       },
     };
-  }
-
-  /**
-   * Ensure cache directory exists
-   */
-  private async ensureCacheDir(): Promise<void> {
-    const cacheDir = path.join(process.cwd(), '.cache');
-    try {
-      await fs.mkdir(cacheDir, { recursive: true });
-    } catch (error) {
-      console.error('❌ Failed to create cache directory:', error);
-      throw error;
-    }
   }
 
   /**

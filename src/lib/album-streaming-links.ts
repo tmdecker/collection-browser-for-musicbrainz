@@ -6,12 +6,13 @@
  * - MusicBrainz url-rels of every release, one live link per platform (best release, then Digital Media, XW, rest)
  * - Dead links are skipped for the next candidate of the same platform (at most 3 checks per platform)
  * - Barcode lookups (Deezer, Apple Music, Spotify, Tidal) fill the platforms MusicBrainz lacks
- * - One cached result per album and country: 30 days, or 1 hour when a lookup failed
+ * - One cached result per album and country: fresh 30 days, or 1 hour when a lookup failed
+ * - Stale results are returned right away and refreshed in the background (low priority)
  * - Used by /api/streaming-links (user clicks) and the prefetch (background), concurrent calls share one lookup
  */
 
 import { Release, StreamingLinks } from '@/types/music';
-import { getRgStreamingLinks, setRgStreamingLinks } from '@/lib/cache/streaming-links-cache';
+import { getRgStreamingLinks, isRgStreamingLinksStale, setRgStreamingLinks, urlCheckCache } from '@/lib/cache/streaming-links-cache';
 import { cacheManager } from '@/lib/cache/cache-manager';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { getBarcodeLinksCached, isLookupBarcode } from '@/lib/barcode-links';
@@ -66,27 +67,15 @@ export const candidateBarcodes = ({ releases, bestRelease }: AlbumReleases): str
   return barcodes;
 };
 
-// URL liveness results, keyed by URL so releases and albums that share a link share the check
-const VALIDATION_TTL_MS = 24 * 60 * 60 * 1000;
-const MAX_VALIDATION_ENTRIES = 5000;
-const validationStore = globalThis as typeof globalThis & {
-  __streamingUrlValidation?: Map<string, { valid: boolean; checkedAt: number }>;
-};
-
+// URL liveness results are stored per URL (30 days), so releases and albums that share a link share the check
 const isUrlAlive = async (url: string): Promise<boolean> => {
-  const cache = (validationStore.__streamingUrlValidation ??= new Map());
-  const cached = cache.get(url);
-  if (cached && Date.now() - cached.checkedAt < VALIDATION_TTL_MS) {
+  const cached = urlCheckCache.getFresh(url);
+  if (cached) {
     return cached.valid;
   }
 
   const valid = await validateStreamingUrlServer(url);
-  cache.delete(url);
-  cache.set(url, { valid, checkedAt: Date.now() });
-  if (cache.size > MAX_VALIDATION_ENTRIES) {
-    // Map keeps insertion order, so the first key is the oldest entry
-    cache.delete(cache.keys().next().value!);
-  }
+  urlCheckCache.set(url, { valid });
   return valid;
 };
 
@@ -178,21 +167,41 @@ export const getAlbumStreamingLinks = async (
 ): Promise<{ links: StreamingLinks; fromCache: boolean }> => {
   const cached = getRgStreamingLinks(releaseGroupMbid, country);
   if (cached) {
+    if (isRgStreamingLinksStale(releaseGroupMbid, country)) {
+      const refresh = lookUpAndStore(releaseGroupMbid, country, options.releases, 'low');
+      if (options.releases) {
+        // The prefetch is background work already: refresh now, with the releases it just loaded
+        return { links: await refresh, fromCache: false };
+      }
+      // Clicks get the stale links right away; the refresh runs behind them
+      refresh.catch(error => console.warn(`⚠️ Background refresh of streaming links for ${releaseGroupMbid} failed:`, error));
+    }
     return { links: cached.streamingLinks, fromCache: true };
   }
 
+  return { links: await lookUpAndStore(releaseGroupMbid, country, options.releases, options.priority ?? 'high'), fromCache: false };
+};
+
+/**
+ * Resolve and cache an album's streaming links; concurrent calls for the same album share one lookup
+ */
+const lookUpAndStore = (
+  releaseGroupMbid: string,
+  country: string,
+  releases: AlbumReleases | undefined,
+  priority: RateLimitPriority
+): Promise<StreamingLinks> => {
   const pending = (pendingStore.__albumStreamingLinksPending ??= new Map());
   const pendingKey = `${releaseGroupMbid}:${country}`;
   let lookup = pending.get(pendingKey);
   if (!lookup) {
     lookup = (async () => {
-      const albumReleases = options.releases ?? (await loadAlbumReleases(releaseGroupMbid, options.priority ?? 'high'));
+      const albumReleases = releases ?? (await loadAlbumReleases(releaseGroupMbid, priority));
       const { links, complete } = await resolveAlbumStreamingLinks(releaseGroupMbid, country, albumReleases);
       setRgStreamingLinks(releaseGroupMbid, country, links, complete);
       return links;
     })().finally(() => pending.delete(pendingKey));
     pending.set(pendingKey, lookup);
   }
-
-  return { links: await lookup, fromCache: false };
+  return lookup;
 };

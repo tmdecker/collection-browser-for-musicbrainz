@@ -1,42 +1,44 @@
 /**
  * @ai-file cache
- * @ai-description Abstract base class for server-side caching with persistence
- * @ai-dependencies node-cache, fs, path
+ * @ai-description Abstract base class for server-side caches stored in SQLite (stale-while-revalidate)
+ * @ai-dependencies database, fs, path
  * @ai-features
- * - Generic type-safe cache wrapper around node-cache
- * - Automatic persistence to JSON files
+ * - Generic type-safe cache over one SQLite table (see database.ts), written through on every set
+ * - Entries are never deleted for age: past their fresh time they are "stale" and still served,
+ *   while callers refresh them in the background
+ * - Fresh times get ±15% random jitter, so entries fetched together do not all go stale together
+ * - Optional group key per entry (e.g. a release's release group) for lookups by group
+ * - One-time import of the JSON files written by older versions (.cache/<name>.json)
  * - Hit/miss statistics tracking
- * - TTL management with configurable expiration
  */
 
-import NodeCache from 'node-cache';
 import fs from 'fs/promises';
-import { mkdirSync, renameSync, writeFileSync } from 'fs';
 import path from 'path';
 import { CacheStats } from '../types/cache';
+import { getCacheDatabase, getDataDir } from './database';
 
-// Version 2 stores each entry's expiry; version 1 files were a plain key -> value map
-const PERSIST_FORMAT_VERSION = 2;
+// Older versions stored each cache as one JSON file; version 2 stores each entry's expiry
+const LEGACY_FORMAT_VERSION = 2;
 
-interface PersistedEntry<T> {
+interface LegacyEntry<T> {
   value: T;
   expiresAt: number; // Timestamp in ms, 0 = no expiry
 }
 
-interface PersistedCacheFile<T> {
-  version: typeof PERSIST_FORMAT_VERSION;
-  entries: Record<string, PersistedEntry<T>>;
+interface LegacyCacheFile<T> {
+  version: typeof LEGACY_FORMAT_VERSION;
+  entries: Record<string, LegacyEntry<T>>;
 }
 
 /**
- * Normalizes both file formats to entries with an expiry (null = unknown)
- * Old files fall back to the entry's own _expiresAt field when it has one
+ * Normalizes both legacy file formats to entries with an expiry (null = unknown)
+ * Version 1 files fall back to the entry's own _expiresAt field when it has one
  */
-const toPersistedEntries = <T>(
-  data: PersistedCacheFile<T> | Record<string, T>
+export const toLegacyEntries = <T>(
+  data: LegacyCacheFile<T> | Record<string, T>
 ): Record<string, { value: T; expiresAt: number | null }> => {
-  if ((data as PersistedCacheFile<T>).version === PERSIST_FORMAT_VERSION) {
-    const entries = (data as PersistedCacheFile<T>).entries;
+  if ((data as LegacyCacheFile<T>).version === LEGACY_FORMAT_VERSION) {
+    const entries = (data as LegacyCacheFile<T>).entries;
     return Object.fromEntries(
       Object.entries(entries).map(([key, entry]) => [key, { value: entry.value, expiresAt: entry.expiresAt || null }])
     );
@@ -50,249 +52,212 @@ const toPersistedEntries = <T>(
   );
 };
 
+// Fresh times of a day or longer are spread by ±15%; shorter ones (failure retries) stay exact
+const JITTER = 0.15;
+const MIN_JITTER_TTL_SECONDS = 24 * 60 * 60;
+
+export const jitteredTtlMs = (ttlSeconds: number, random: () => number = Math.random): number => {
+  const ms = ttlSeconds * 1000;
+  return ttlSeconds < MIN_JITTER_TTL_SECONDS ? ms : Math.round(ms * (1 - JITTER + 2 * JITTER * random()));
+};
+
+interface Row {
+  value: string;
+  fresh_until: number;
+}
+
 /**
  * Abstract base class for all cache implementations
- * Provides common caching operations with persistence support
  */
 export abstract class BaseCache<T> {
-  protected cache: NodeCache;
-  protected persistPath: string;
   protected stats = { hits: 0, misses: 0 };
   protected name: string;
-  // Approximate serialized size per key, updated on writes so getStats() stays cheap
-  private entrySizes = new Map<string, number>();
-  private totalBytes = 0;
+  protected ttlSeconds: number;
 
   /**
-   * @param name - Cache name (used for persistence file)
-   * @param ttlSeconds - Time to live in seconds
+   * @param name - Cache name (row prefix in the database, and the legacy JSON file name)
+   * @param ttlSeconds - How long an entry stays fresh
    */
   constructor(name: string, ttlSeconds: number) {
     this.name = name;
-    this.cache = new NodeCache({
-      stdTTL: ttlSeconds,
-      checkperiod: 600, // Check for expired keys every 10 minutes
-      useClones: false, // Don't clone objects for better performance
-    });
-    this.persistPath = path.join(process.cwd(), '.cache', `${name}.json`);
+    this.ttlSeconds = ttlSeconds;
+  }
 
-    this.cache.on('set', (key: string, value: unknown) => {
-      const size = JSON.stringify(value)?.length ?? 0;
-      this.totalBytes += size - (this.entrySizes.get(key) ?? 0);
-      this.entrySizes.set(key, size);
-    });
-    const forget = (key: string) => {
-      this.totalBytes -= this.entrySizes.get(key) ?? 0;
-      this.entrySizes.delete(key);
-    };
-    this.cache.on('del', forget);
-    this.cache.on('expired', forget);
-    this.cache.on('flush', () => {
-      this.entrySizes.clear();
-      this.totalBytes = 0;
-    });
+  protected get db() {
+    return getCacheDatabase();
   }
 
   /**
-   * Get value from cache with hit/miss tracking
+   * Group key stored with an entry (null = none); subclasses override it to look entries up by group
+   */
+  protected groupKeyOf(_value: T): string | null {
+    return null;
+  }
+
+  private row(key: string): Row | undefined {
+    return this.db
+      .prepare('SELECT value, fresh_until FROM cache_entries WHERE cache = ? AND key = ?')
+      .get(this.name, key) as Row | undefined;
+  }
+
+  /**
+   * Get value from cache, fresh or stale, with hit/miss tracking
    */
   get(key: string): T | undefined {
-    const value = this.cache.get<T>(key);
-    if (value !== undefined) {
+    const row = this.row(key);
+    if (row) {
       this.stats.hits++;
-    } else {
-      this.stats.misses++;
+      return JSON.parse(row.value) as T;
     }
-    return value;
+    this.stats.misses++;
+    return undefined;
   }
 
   /**
-   * Store value in cache
-   * @param ttlSeconds - Overrides the cache's default TTL for this entry
+   * Get value only while it is fresh (for data that must be fetched again once stale)
    */
-  set(key: string, value: T, ttlSeconds?: number): void {
-    if (ttlSeconds === undefined) {
-      this.cache.set(key, value);
-    } else {
-      this.cache.set(key, value, ttlSeconds);
+  getFresh(key: string): T | undefined {
+    const row = this.row(key);
+    if (row && row.fresh_until > Date.now()) {
+      this.stats.hits++;
+      return JSON.parse(row.value) as T;
     }
+    this.stats.misses++;
+    return undefined;
   }
 
   /**
-   * Check if key exists in cache
+   * True when the entry exists but is past its fresh time (callers refresh it in the background)
+   */
+  isStale(key: string): boolean {
+    const row = this.row(key);
+    return !!row && row.fresh_until <= Date.now();
+  }
+
+  /**
+   * When the entry stops being fresh (ms timestamp), or undefined when it is not cached
+   */
+  freshUntil(key: string): number | undefined {
+    return this.row(key)?.fresh_until;
+  }
+
+  /**
+   * Store value in cache (written to disk right away)
+   * @param ttlSeconds - How long this entry stays fresh (default: the cache's TTL), jittered
+   */
+  set(key: string, value: T, ttlSeconds: number = this.ttlSeconds): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO cache_entries (cache, key, value, group_key, fetched_at, fresh_until) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (cache, key) DO UPDATE SET value = excluded.value, group_key = excluded.group_key,
+           fetched_at = excluded.fetched_at, fresh_until = excluded.fresh_until`
+      )
+      .run(this.name, key, JSON.stringify(value), this.groupKeyOf(value), now, now + jitteredTtlMs(ttlSeconds));
+  }
+
+  /**
+   * Check if key exists in cache (fresh or stale)
    */
   has(key: string): boolean {
-    return this.cache.has(key);
+    return !!this.db.prepare('SELECT 1 FROM cache_entries WHERE cache = ? AND key = ?').get(this.name, key);
   }
 
   /**
    * Delete key from cache
    */
   delete(key: string): void {
-    this.cache.del(key);
+    this.db.prepare('DELETE FROM cache_entries WHERE cache = ? AND key = ?').run(this.name, key);
+  }
+
+  /**
+   * Values of all entries with this group key
+   */
+  protected getByGroup(groupKey: string): T[] {
+    const rows = this.db
+      .prepare('SELECT value FROM cache_entries WHERE cache = ? AND group_key = ?')
+      .all(this.name, groupKey) as { value: string }[];
+    return rows.map(row => JSON.parse(row.value) as T);
   }
 
   /**
    * Get all cache keys
    */
   keys(): string[] {
-    return this.cache.keys();
+    const rows = this.db.prepare('SELECT key FROM cache_entries WHERE cache = ?').all(this.name) as { key: string }[];
+    return rows.map(row => row.key);
   }
 
   /**
    * Clear all cache entries
    */
   clear(): void {
-    this.cache.flushAll();
+    this.db.prepare('DELETE FROM cache_entries WHERE cache = ?').run(this.name);
   }
 
   /**
    * Get cache statistics
    */
   getStats(): CacheStats {
-    const keys = this.cache.keys();
+    const totals = this.db
+      .prepare(
+        `SELECT COUNT(*) AS entries, COALESCE(SUM(fresh_until <= ?), 0) AS stale,
+           COALESCE(SUM(LENGTH(value)), 0) AS bytes, MIN(fetched_at) AS oldest
+         FROM cache_entries WHERE cache = ?`
+      )
+      .get(Date.now(), this.name) as { entries: number; stale: number; bytes: number; oldest: number | null };
     const totalRequests = this.stats.hits + this.stats.misses;
-    const hitRate = totalRequests > 0 ? this.stats.hits / totalRequests : 0;
-
-    // Rough memory estimate from sizes tracked on write (serializing the whole cache here
-    // cost megabytes of work on every 10 s stats poll)
-    const memoryMB = this.totalBytes / (1024 * 1024);
-
-    // Find oldest entry
-    let oldestTimestamp: number | undefined;
-    for (const key of keys) {
-      const value = this.cache.get<T & { _cachedAt?: number }>(key);
-      if (value && value._cachedAt) {
-        if (!oldestTimestamp || value._cachedAt < oldestTimestamp) {
-          oldestTimestamp = value._cachedAt;
-        }
-      }
-    }
 
     return {
-      entries: keys.length,
+      entries: totals.entries,
+      stale: totals.stale,
       hits: this.stats.hits,
       misses: this.stats.misses,
-      hitRate,
-      memoryMB,
-      oldestEntry: oldestTimestamp ? new Date(oldestTimestamp).toISOString() : undefined,
+      hitRate: totalRequests > 0 ? this.stats.hits / totalRequests : 0,
+      memoryMB: totals.bytes / (1024 * 1024),
+      oldestEntry: totals.oldest ? new Date(totals.oldest).toISOString() : undefined,
     };
   }
 
   /**
-   * Persist cache to disk as JSON
+   * Import the JSON file an older version wrote (.cache/<name>.json), then rename it to *.imported
+   * Expired entries are imported too (as stale), so the upgrade fetches nothing again; entries
+   * already in the database are never overwritten
    */
-  async persist(): Promise<void> {
+  async importLegacyFile(): Promise<void> {
+    const legacyPath = path.join(process.cwd(), '.cache', `${this.name}.json`);
+    let content: string;
     try {
-      await fs.mkdir(path.dirname(this.persistPath), { recursive: true });
-
-      // Write to a temp file, then rename over the old one: rename is atomic, so a crash
-      // or Ctrl+C mid-write leaves the previous file intact instead of a truncated one
-      const { json, count } = this.serialize();
-      const tmpPath = this.tempPath();
-      await fs.writeFile(tmpPath, json, 'utf-8');
-      await fs.rename(tmpPath, this.persistPath);
-      console.log(`✅ Persisted ${count} ${this.name} entries to ${this.persistPath}`);
-    } catch (error) {
-      console.error(`❌ Failed to persist ${this.name} cache:`, error);
-    }
-  }
-
-  /**
-   * Synchronous persist for shutdown: async writes do not finish before the process exits
-   */
-  persistSync(): void {
-    try {
-      mkdirSync(path.dirname(this.persistPath), { recursive: true });
-      const { json, count } = this.serialize();
-      const tmpPath = this.tempPath();
-      writeFileSync(tmpPath, json, 'utf-8');
-      renameSync(tmpPath, this.persistPath);
-      console.log(`✅ Persisted ${count} ${this.name} entries to ${this.persistPath}`);
-    } catch (error) {
-      console.error(`❌ Failed to persist ${this.name} cache:`, error);
-    }
-  }
-
-  private tempPath(): string {
-    return `${this.persistPath}.${process.pid}.tmp`;
-  }
-
-  /**
-   * All entries with their real expiry, so a restart does not reset TTLs
-   */
-  private serialize(): { json: string; count: number } {
-    const entries: Record<string, PersistedEntry<T>> = {};
-    for (const key of this.cache.keys()) {
-      const value = this.cache.get<T>(key);
-      if (value !== undefined) {
-        entries[key] = { value, expiresAt: this.cache.getTtl(key) || 0 };
-      }
-    }
-    const data: PersistedCacheFile<T> = { version: PERSIST_FORMAT_VERSION, entries };
-    return { json: JSON.stringify(data), count: Object.keys(entries).length };
-  }
-
-  /**
-   * Delete temp files left by a server that was stopped mid-write (the real file is intact)
-   */
-  private async removeStaleTempFiles(): Promise<void> {
-    const cacheDir = path.dirname(this.persistPath);
-    const prefix = `${path.basename(this.persistPath)}.`;
-    try {
-      const files = await fs.readdir(cacheDir);
-      await Promise.all(
-        files
-          .filter(file => file.startsWith(prefix) && file.endsWith('.tmp'))
-          .map(file => fs.rm(path.join(cacheDir, file), { force: true }))
-      );
+      content = await fs.readFile(legacyPath, 'utf-8');
     } catch {
-      // No cache directory yet
+      return; // Nothing to import
     }
-  }
-
-  /**
-   * Restore cache from disk
-   * Note: Subclasses may override this to add custom restoration logic (e.g., rebuilding indexes)
-   */
-  async restore(): Promise<void> {
-    await this.removeStaleTempFiles();
 
     try {
-      // Check if file exists
-      try {
-        await fs.access(this.persistPath);
-      } catch {
-        console.log(`📝 No cache file found at ${this.persistPath}, starting with empty cache`);
-        return;
-      }
-
-      // Read and parse file
-      const fileContent = await fs.readFile(this.persistPath, 'utf-8');
-      const data: PersistedCacheFile<T> | Record<string, T> = JSON.parse(fileContent);
+      const entries = toLegacyEntries<T>(JSON.parse(content));
       const now = Date.now();
-
-      // Restore entries to cache with their remaining TTL, skipping expired ones
-      let restoredCount = 0;
-      let expiredCount = 0;
-      for (const [key, { value, expiresAt }] of Object.entries(toPersistedEntries(data))) {
-        // Never overwrite an entry written since startup with older data from disk
-        if (this.cache.has(key)) continue;
-
-        if (expiresAt === null) {
-          this.cache.set(key, value); // Unknown expiry (old file format): default TTL
-        } else if (expiresAt > now) {
-          this.cache.set(key, value, Math.ceil((expiresAt - now) / 1000));
-        } else {
-          expiredCount++;
-          continue;
+      const insert = this.db.prepare(
+        `INSERT OR IGNORE INTO cache_entries (cache, key, value, group_key, fetched_at, fresh_until)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      );
+      const ttlMs = this.ttlSeconds * 1000;
+      let imported = 0;
+      this.db.transaction(() => {
+        for (const [key, { value, expiresAt }] of Object.entries(entries)) {
+          const cachedAt = (value as { _cachedAt?: unknown })?._cachedAt;
+          const fetchedAt = typeof cachedAt === 'number' ? cachedAt : now;
+          // Short-lived entries (failed lookups) keep their expiry; the rest get this cache's
+          // jittered fresh time, so a collection loaded in one go does not go stale in one go
+          const freshUntil = expiresAt !== null && expiresAt - fetchedAt < ttlMs / 2
+            ? expiresAt
+            : fetchedAt + jitteredTtlMs(this.ttlSeconds);
+          imported += insert.run(this.name, key, JSON.stringify(value), this.groupKeyOf(value), fetchedAt, freshUntil).changes;
         }
-        restoredCount++;
-      }
-
-      console.log(`✅ Restored ${restoredCount} ${this.name} entries from ${this.persistPath}${expiredCount ? ` (${expiredCount} expired, skipped)` : ''}`);
+      })();
+      await fs.rename(legacyPath, `${legacyPath}.imported`);
+      console.log(`✅ Imported ${imported} ${this.name} entries from ${legacyPath} into ${path.join(getDataDir(), 'cache.db')}`);
     } catch (error) {
-      console.error(`❌ Failed to restore ${this.name} cache:`, error);
+      console.error(`❌ Failed to import ${legacyPath}:`, error);
     }
   }
 }

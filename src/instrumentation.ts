@@ -4,8 +4,8 @@
  * @ai-features
  * - Gives outgoing connections more time per IP address (Node's 250 ms default made slow
  *   MusicBrainz/Cover Art Archive connects fail with ETIMEDOUT on networks without IPv6)
- * - Restores the server caches from disk before the first request is handled, so no route
- *   writes into an empty cache that a later restore would overwrite with older data
+ * - Opens the SQLite cache database before the first request is handled, and imports the JSON
+ *   cache files of older versions once
  */
 
 // Per-address connect timeout for Node's "happy eyeballs" (IPv4/IPv6) connection attempts

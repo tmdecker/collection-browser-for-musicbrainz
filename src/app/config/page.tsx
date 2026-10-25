@@ -11,6 +11,7 @@ interface CacheStatsResponse {
   timestamp: string;
   releaseGroups: {
     cached: number;
+    stale: number;
     hits: number;
     misses: number;
     hitRate: number;
@@ -377,10 +378,11 @@ export default function ConfigPage() {
           <div className="text-sm text-text-secondary space-y-1">
             <p>
               Release Groups: {cacheStats.releaseGroups.cached} cached (
-              {Math.round(cacheStats.releaseGroups.hitRate * 100)}% hit rate)
+              {Math.round(cacheStats.releaseGroups.hitRate * 100)}% hit rate
+              {cacheStats.releaseGroups.stale > 0 && `, ${cacheStats.releaseGroups.stale} due for a background refresh`})
             </p>
             <p>Releases: {cacheStats.releases.cached} cached</p>
-            <p>Memory: {Math.round(cacheStats.overall.totalMemoryMB)} MB</p>
+            <p>Stored: {Math.round(cacheStats.overall.totalMemoryMB)} MB</p>
             {cacheStats.prefetch.total > 0 && (
               <p>
                 Prefetch: {cacheStats.prefetch.percentage}% complete (

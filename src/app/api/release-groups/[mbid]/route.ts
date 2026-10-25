@@ -8,11 +8,12 @@
  * - Fetches from MusicBrainz + caches if not cached (~10-15s)
  * - Respects the shared MusicBrainz rate limit (user requests go ahead of prefetch)
  * - Joins a prefetch that is loading the same album instead of fetching it twice
+ * - Stale albums (past 60 days) are served from the cache and refreshed in the background
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cacheManager } from '@/lib/cache/cache-manager';
-import { releaseGroupCache } from '@/lib/cache/release-group-cache';
+import { ALBUM_DATA_TTL_SECONDS, releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { releaseStore } from '@/lib/cache/release-store';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { waitForRateLimit } from '@/lib/rate-limiter';
@@ -21,6 +22,7 @@ import { extractTracksFromMedia, selectPreferredRelease } from '@/utils/release-
 import { isMbid } from '@/utils/mbid-validation';
 import { browseAllReleases, ReleaseBrowseError } from '@/lib/browse-releases';
 import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '@/lib/cache/release-group-fetches';
+import { queueReleaseGroupRefresh } from '@/lib/prefetch/prefetch-service';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -62,6 +64,9 @@ function cachedResponse(mbid: string): NextResponse | null {
     // Releases cached before browsing included url-rels have no relations: fetch them again once
     if (hydratedRG && hydratedRG.releases.every((release: Release) => release.relations)) {
       const rg = releaseGroupCache.get(mbid);
+      // Stale data is served right away and refreshed in the background
+      const stale = releaseGroupCache.isStale(mbid);
+      if (stale) queueReleaseGroupRefresh(mbid);
       return NextResponse.json({
         success: true,
         data: hydratedRG,
@@ -69,6 +74,7 @@ function cachedResponse(mbid: string): NextResponse | null {
           cached: true,
           cachedAt: rg?._cachedAt ? new Date(rg._cachedAt).toISOString() : null,
           source: 'cache',
+          stale,
         },
       });
     }
@@ -139,7 +145,7 @@ async function fetchReleaseGroup(mbid: string): Promise<NextResponse> {
       releaseMbids: [],
       cover: `/api/coverart/release-group/${mbid}/front`,
       _cachedAt: now,
-      _expiresAt: now + 30 * 24 * 60 * 60 * 1000,
+      _expiresAt: now + ALBUM_DATA_TTL_SECONDS * 1000,
     });
 
     return NextResponse.json({
@@ -172,7 +178,7 @@ async function fetchReleaseGroup(mbid: string): Promise<NextResponse> {
 
   // Step 5: Store in caches
   const now = Date.now();
-  const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+  const expiresAt = now + ALBUM_DATA_TTL_SECONDS * 1000;
 
   // Store each release in the release store
   for (const release of releases) {

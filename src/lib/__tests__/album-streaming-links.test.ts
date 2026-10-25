@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { candidateBarcodes, collectPlatformCandidates, getAlbumStreamingLinks } from '@/lib/album-streaming-links';
-import { getRgStreamingLinks, streamingLinksCache } from '@/lib/cache/streaming-links-cache';
+import { getRgStreamingLinks, isRgStreamingLinksStale, streamingLinksCache } from '@/lib/cache/streaming-links-cache';
 import { Media, Release } from '@/types/music';
 
 const release = (overrides: Partial<Release>): Release => ({ id: 'r', title: 'Album', ...overrides }) as Release;
@@ -114,5 +114,29 @@ describe('getAlbumStreamingLinks', () => {
     const cached = getRgStreamingLinks(RG, 'DE');
     expect(cached?.complete).toBe(false);
     expect(cached!._expiresAt - cached!._cachedAt).toBe(60 * 60 * 1000);
+  });
+
+  it('serves stale links right away and refreshes them in the background', async () => {
+    const releases = { releases: [release({ id: 'a', relations: streaming('https://open.spotify.com/album/live') })] };
+    const now = Date.now();
+    await getAlbumStreamingLinks(RG, 'DE', { releases });
+
+    // 40 days later (past 30 days + jitter) the entry is stale: a click gets the old links at once
+    vi.spyOn(Date, 'now').mockReturnValue(now + 40 * 24 * 60 * 60 * 1000);
+    expect(isRgStreamingLinksStale(RG, 'DE')).toBe(true);
+    fetchMock.mockClear();
+    const fallback = fetchMock.getMockImplementation() as (input: string | URL) => Promise<Response>;
+    fetchMock.mockImplementation(async (input: string | URL) =>
+      String(input).includes('musicbrainz.org/ws/2/release?')
+        ? json({ 'release-count': 1, releases: releases.releases })
+        : fallback(input)
+    );
+    const stale = await getAlbumStreamingLinks(RG, 'DE');
+    expect(stale.fromCache).toBe(true);
+    expect(stale.links.spotify).toBe('https://open.spotify.com/album/live');
+
+    // The background refresh loads the releases from MusicBrainz and stores a fresh entry
+    await vi.waitFor(() => expect(isRgStreamingLinksStale(RG, 'DE')).toBe(false), { timeout: 5000 });
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('musicbrainz.org/ws/2/release?'))).toBe(true);
   });
 });

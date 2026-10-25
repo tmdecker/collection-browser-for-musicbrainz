@@ -18,7 +18,7 @@ import { Release, ReleaseGroup, StreamingLinks, Genre, Tag, Rating, ArtistCredit
 export interface CachedRelease extends Release {
   releaseGroupId: string;  // Parent RG MBID for reverse lookups
   _cachedAt: number;        // Unix timestamp in milliseconds
-  _expiresAt: number;       // Unix timestamp in milliseconds (30-day TTL)
+  _expiresAt: number;       // Unix timestamp in milliseconds (end of the 60-day fresh time, informational)
 }
 
 /**
@@ -46,7 +46,7 @@ export interface CachedReleaseGroup {
 
   // Cache metadata
   _cachedAt: number;          // Unix timestamp in milliseconds
-  _expiresAt: number;         // Unix timestamp in milliseconds (30-day TTL)
+  _expiresAt: number;         // Unix timestamp in milliseconds (end of the 60-day fresh time, informational)
 }
 
 /**
@@ -66,10 +66,11 @@ export interface HydratedReleaseGroup extends Omit<CachedReleaseGroup, 'releaseM
  */
 export interface CacheStats {
   entries: number;      // Number of cached items
+  stale: number;        // Entries past their fresh time (still served, refreshed in the background)
   hits: number;         // Cache hit count
   misses: number;       // Cache miss count
   hitRate: number;      // Hit rate percentage (0-1)
-  memoryMB: number;     // Memory usage in MB
+  memoryMB: number;     // Stored size in MB (JSON of all values)
   oldestEntry?: string; // ISO timestamp of oldest cache entry
 }
 
@@ -82,7 +83,7 @@ export interface CachedStreamingLinks {
   userCountry: string;              // User country for region-specific links
   complete?: boolean;               // false when a provider failed (short TTL); missing on old entries
   _cachedAt: number;                // When the links were fetched, Unix timestamp in milliseconds
-  _expiresAt: number;               // Unix timestamp in milliseconds (7 days, 1 hour if incomplete)
+  _expiresAt: number;               // Unix timestamp in milliseconds (30 days, 1 hour if incomplete; informational)
 }
 
 /**

@@ -81,7 +81,7 @@ Runs on <http://localhost:3000>
 
 ## Deployment
 
-The app needs a long-running Node.js process and a writable folder for its caches (`.cache/`, `.image-cache/`), so serverless hosting is not a fit. Example with [PM2](https://pm2.keymetrics.io/) on a Linux server:
+The app needs a long-running Node.js process and a writable folder for its caches (the SQLite file `.cache/cache.db` and `.image-cache/`), so serverless hosting is not a fit. Example with [PM2](https://pm2.keymetrics.io/) on a Linux server:
 
 ```bash
 git pull
@@ -92,7 +92,7 @@ pm2 save
 ```
 
 - Use fork mode (the default above), not cluster mode: the caches and the rate limiter live in one process.
-- `--kill-timeout` gives the app time to save its cache on shutdown.
+- Every cache write goes to disk right away, so restarts and deploys lose nothing. `--kill-timeout` lets requests in progress finish.
 - After updates: `git pull && npm ci && npm run build && pm2 restart musicbrainz-collection`.
 - `MUSICBRAINZ_OAUTH_REDIRECT_URI` must match the address you open the app with (host and port), and be registered with your MusicBrainz application.
 
@@ -131,7 +131,8 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 **Optional:**
 
 - `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` and `TIDAL_CLIENT_ID` / `TIDAL_CLIENT_SECRET` - Find Spotify and Tidal links by the release barcode (server-only; Deezer and Apple Music are looked up by barcode without a key)
-- `PREFETCH_ENABLED=false` - Turns off the background prefetch. Useful for a dev server on the same network as production, since MusicBrainz allows about 1 request per second per IP. Albums still load when clicked
+- `DATA_DIR` - Folder for the cache database (default `.cache/` in the app folder). On a server, a folder outside the git checkout (e.g. `/var/lib/musicbrainz-collection`) survives a fresh clone. Back it up by copying `cache.db` while the app is stopped, or with `sqlite3 cache.db ".backup copy.db"`
+- `PREFETCH_ENABLED=false` - Turns off the background prefetch. Useful for a dev server on the same network as production, since MusicBrainz allows about 1 request per second per IP. Albums still load when clicked, and stale albums are not refreshed in the background
 
 ## Tech Stack
 

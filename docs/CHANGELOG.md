@@ -8,12 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Upgrade Notes
 
+- The server caches move from `.cache/*.json` into one SQLite file, `.cache/cache.db` (new dependency `better-sqlite3`; `npm ci` installs a prebuilt binary, otherwise it needs build tools). The JSON files are imported on first start and renamed to `*.imported`, so nothing is fetched again; delete them once the app runs fine. Optional `DATA_DIR` moves the database, e.g. outside the git checkout
 - `ODESLI_API_KEY` is no longer used and can be removed from the server's environment
 
 ### Changed
 
 - **Streaming links resolved on the server**: The details panel makes one request per album (`/api/streaming-links?releaseGroup=…`) instead of a chain of browser caches, one URL check per link and a barcode request. The server picks one live MusicBrainz link per service from all releases (a dead link falls back to another release's link), fills the rest by barcode and caches the result per album for 30 days, like the album data (before: 7 days). The prefetch fills the same cache entry, so prefetched albums show their links instantly; before, prefetched links never reached the panel
 - **Failed lookups retried soon**: A barcode lookup where a service timed out, was rate limited or answered with a server error is cached for 1 hour instead of 7 days as "nothing found". Real results, including "nothing found", are kept 30 days
+
+### Added
+
+- **Server caches in SQLite with background refresh**: Every cache write goes straight to disk instead of rewriting whole JSON files every 5 minutes, so a crash or deploy no longer loses recent work and the server no longer pauses to save. Entries are never deleted for age: an album past its fresh time is still shown at once and refreshed in the background at low priority. Before, everything loaded in one prefetch expired on the same day 30 days later and the whole collection was fetched again. Album data now stays fresh for 60 days, with ±15% random spread so refreshes trickle in (about 28 albums a day for 1,700 albums). Streaming URL checks are stored for 30 days instead of 24 hours in memory. Settings shows how many albums are due for a refresh
 
 ### Fixed
 

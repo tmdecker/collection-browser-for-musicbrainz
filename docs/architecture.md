@@ -34,22 +34,27 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 - `/api/streaming-links?releaseGroup=<mbid>&country=DE` returns one result per album, resolved on the server by `lib/album-streaming-links.ts` from two sources (earlier wins):
   1. URL relationships of every release (best release, then Digital Media, XW, the rest): one live link per platform, a dead link falls back to the next release's link for that platform. Liveness checks are cached per URL for 24 hours
   2. The release barcode at Deezer and Apple Music (no key) and Spotify and Tidal (with client credentials), `lib/barcode-links.ts`
-- The result is cached per album and country, 30 days like the album data (the prefetch skips cached albums, so a shorter TTL would leave links expired), or 1 hour when a barcode provider failed (timeouts and rate limits are retried, real "nothing found" is kept). The prefetch writes the same entry, so prefetched albums open with their links at once
+- The result is cached per album and country, fresh for 30 days (stale links are served and refreshed in the background), or 1 hour when a barcode provider failed (timeouts and rate limits are retried, real "nothing found" is kept). The prefetch writes the same entry, so prefetched albums open with their links at once
 - All cache access goes through `getRgStreamingLinks` / `setRgStreamingLinks` in `streaming-links-cache.ts`
 
 ## Server caches (`src/lib/cache/`)
 
-| Cache | Content | TTL |
+All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/cache.db`), table `cache_entries` (`database.ts`). Every write goes to disk at once (WAL mode), so there is no periodic save and nothing to lose on a crash or deploy.
+
+| Cache | Content | Fresh for |
 |---|---|---|
-| `release-group-cache` | Release group metadata + release MBIDs | 30 days |
-| `release-store` | Individual releases, shared across release groups | 30 days |
+| `release-group-cache` | Release group metadata + release MBIDs | 60 days |
+| `release-store` | Individual releases (group key: their release group) | 60 days |
 | `streaming-links-cache` | Album streaming links and barcode lookups | 30 days (1 hour after a failed lookup) |
+| `url-checks` (in `streaming-links-cache.ts`) | Whether a streaming URL is alive, per URL | 30 days |
 
-- Loaded from `.cache/*.json` at server start (`src/instrumentation.ts`), before the first request.
-- Saved every 5 minutes and on shutdown. Writes go to a temp file that is renamed into place, so an interrupted save never corrupts the file. Each entry keeps its real expiry across restarts.
-- Singletons live on `globalThis`, so every route bundle shares one instance.
+- Stale-while-revalidate: entries are never deleted for age. Past its fresh time an entry is still served; a stale album is queued for a low-priority refresh (click, or the next collection load), stale album links are refreshed in the background, and stale barcode results and URL checks are looked up again inside that refresh.
+- Fresh times of a day or more get ±15% random jitter (`jitteredTtlMs`), so albums loaded in one prefetch do not all go stale on the same day. At 60 days, a 1,700-album collection needs about 28 album refreshes a day.
+- On first start, the JSON files of older versions (`.cache/<name>.json`) are imported (expired entries as stale) and renamed to `*.imported`, so upgrading fetches nothing again.
+- Clicks and the prefetch share in-flight fetches (`release-group-fetches.ts`), so the same album is never fetched twice at once.
+- Singletons live on `globalThis`, so every route bundle shares one instance and one database connection.
 
-Client side, IndexedDB (`utils/db/`) keeps the collection and album details for offline-fast loading; preferences live in localStorage.
+Client side, IndexedDB (`utils/db/`) keeps the collection and album details for offline-fast loading (the daily collection refresh keeps stored details); preferences live in localStorage.
 
 ## Rate limiting
 
