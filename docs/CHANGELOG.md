@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- **Lint warnings resolved**: The last 11 React Compiler warnings are fixed and the rules are errors again. Syncing effects became state adjustments during render (year and rating inputs, streaming link reset, lazy card visibility), the details panel opens from the click handler, and the date slider computes its thumb order in the mouse handler
+- **Cover Art Archive requests** are spaced 250 ms apart. An album grid used to fire dozens at once at MetaBrainz servers (same as MusicBrainz), which may have contributed to the temporary IP blocks
 - **Albums with many releases (B13)**: The release-groups route and the prefetch load all releases page by page (up to 500) instead of only the first 100, so the oldest release and digital releases are no longer missed. Removed the unused client-side release group fetching in `utils/api.ts`
 - **Store country (B12)**: Settings has a "Store Country" choice (default Germany) used for Apple Music, Spotify and Tidal links and Odesli; the prefetch uses it too. Previously DE was hardcoded
 - **Stale data when switching (B11)**: A slow response for a collection you already left no longer replaces the new collection; the details panel no longer shows the previous album when its cached data or background refresh arrives late

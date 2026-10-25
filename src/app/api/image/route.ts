@@ -7,6 +7,7 @@
  * - Converts images to WebP at a fixed quality (80)
  * - Only fetches allowed hosts, checks every redirect hop, caps the download size
  * - Requests Cover Art Archive thumbnails (250/500/1200) instead of full-size originals
+ * - Requests to coverartarchive.org are spaced 250 ms apart (MetaBrainz servers)
  * - Disk-based caching with MD5 hash filenames
  * - Immutable cache headers for long-term caching
  * - Handles relative and absolute URLs with error handling
@@ -17,6 +18,7 @@ import sharp from 'sharp';
 import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { createRateLimiter } from '@/lib/rate-limiter';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -74,10 +76,17 @@ const toCoverArtThumbnail = (url: URL, size: number): URL => {
  * Fetch an image, following redirects manually so every hop is checked against the allowlist
  * (Cover Art Archive redirects to archive.org; anything else is refused)
  */
+// Cover Art Archive runs on MetaBrainz servers (same as MusicBrainz): an album grid fires dozens
+// of cover requests at once, so space requests to coverartarchive.org out (4 per second)
+const waitForCoverArtSlot = createRateLimiter('__coverArtRateLimiterQueue', 250).wait;
+
 const fetchAllowedImage = async (startUrl: URL): Promise<Response> => {
   let current = startUrl;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    if (current.hostname === 'coverartarchive.org') {
+      await waitForCoverArtSlot();
+    }
     const response = await fetch(current.toString(), {
       cache: 'no-store', // Disable Next.js fetch cache (we use disk cache instead)
       redirect: 'manual',
