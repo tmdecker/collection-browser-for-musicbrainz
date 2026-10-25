@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.35.1] - 2026-10-25
+
+### Fixed
+
+- **Streaming links from all releases**: Release browsing includes url-rels, so every release of an album arrives with its MusicBrainz links. The search now checks all of them (Digital Media first, then XW, then the rest) instead of the XW releases plus the five newest others, without one MusicBrainz request per release. The prefetch also looks at all releases instead of one
+- **Streaming links on cache hits**: Once an album had a cached streaming URL (e.g. its Bandcamp page), only that URL's links and the barcode lookup were shown, so Spotify or Tidal links on other releases never appeared. The panel now adds one checked MusicBrainz link per service from every release, on cache hits and full searches. Albums cached before this version are loaded again once when opened
+
 ## [0.35.0] - 2026-10-25
 
 ### Upgrade Notes
