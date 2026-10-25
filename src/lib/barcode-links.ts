@@ -205,7 +205,12 @@ export const getBarcodeLinksCached = async (
   country: string
 ): Promise<{ links: StreamingLinks; fromCache: boolean }> => {
   const { streamingLinksCache } = await import('@/lib/cache/streaming-links-cache');
-  const cacheKey = `barcode:${barcode}`;
+  // The key includes which optional providers are configured, so adding Spotify or Tidal
+  // credentials later is not hidden behind results cached without them
+  const providers = ['deezer', 'apple', process.env.SPOTIFY_CLIENT_ID && 'spotify', process.env.TIDAL_CLIENT_ID && 'tidal']
+    .filter(Boolean)
+    .join('+');
+  const cacheKey = `barcode:${providers}:${barcode}`;
   const cached = streamingLinksCache.getByUrl(cacheKey, country);
   if (cached) {
     return { links: cached.streamingLinks, fromCache: true };
