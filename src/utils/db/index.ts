@@ -1,29 +1,28 @@
 /**
  * @ai-file utility
  * @ai-description IndexedDB database manager for client-side data caching with memory fallback
- * @ai-dependencies ReleaseGroup, StreamingLinks types
+ * @ai-dependencies ReleaseGroup types
  * @ai-features
  * - Collection metadata storage with album IDs and collection names
  * - Individual album (release group) caching
- * - Streaming links caching with 7-day TTL
  * - Memory fallback when IndexedDB fails
  */
 
-import { ReleaseGroup, StreamingLinks, Genre, Tag, Rating } from '@/types/music';
+import { ReleaseGroup, Genre, Tag, Rating } from '@/types/music';
 
 // Constants
 const DB_NAME = 'musicLibraryDb';
-const DB_VERSION = 6; // Phase 2: Added STREAMING_LINKS_STORE for persistent streaming link caching
+const DB_VERSION = 7; // 7: removed the streaming links store (the server caches streaming links per album)
 const COLLECTION_STORE = 'collection';
 const ALBUM_STORE = 'albums';
 const META_STORE = 'meta';
-const STREAMING_LINKS_STORE = 'streamingLinks';
+// Store of earlier versions, deleted on upgrade
+const LEGACY_STREAMING_LINKS_STORE = 'streamingLinks';
 
 // Memory fallback when IndexedDB fails
 const memoryCache = {
   collections: new Map<string, CollectionMetadata>(),
   albums: new Map<string, ReleaseGroup>(),
-  streamingLinks: new Map<string, StreamingLinksCache>(),
   meta: {
     cacheStatus: {
       lastUpdated: null as Date | null,
@@ -43,15 +42,6 @@ export interface CollectionMetadata {
   lastUpdated: Date | null;
   itemCount: number;
   isComplete: boolean;
-}
-
-// Streaming links cache interface
-export interface StreamingLinksCache {
-  url: string;              // Primary key (source URL)
-  streamingLinks: StreamingLinks;
-  userCountry: string;
-  timestamp: number;
-  expiresAt: number;        // Calculated expiration (1 week)
 }
 
 // Cache status interface (for backward compatibility)
@@ -103,10 +93,9 @@ const openDatabase = (): Promise<IDBDatabase> => {
             db.createObjectStore(META_STORE, { keyPath: 'id' });
           }
 
-          // Create streaming links store (Phase 2: persistent caching)
-          if (!db.objectStoreNames.contains(STREAMING_LINKS_STORE)) {
-            db.createObjectStore(STREAMING_LINKS_STORE, { keyPath: 'url' });
-            console.log('🗃️ Created STREAMING_LINKS_STORE for persistent caching (1-week TTL)');
+          // Streaming links are cached on the server now; drop the old per-URL store
+          if (db.objectStoreNames.contains(LEGACY_STREAMING_LINKS_STORE)) {
+            db.deleteObjectStore(LEGACY_STREAMING_LINKS_STORE);
           }
         } catch (error) {
           console.error('Error during database upgrade:', error);
@@ -728,7 +717,6 @@ export const clearCache = async (): Promise<void> => {
   if (usingMemoryFallback) {
     memoryCache.collections.clear();
     memoryCache.albums.clear();
-    memoryCache.streamingLinks.clear();
     memoryCache.meta.cacheStatus = {
       lastUpdated: null,
       itemCount: 0,
@@ -744,7 +732,7 @@ export const clearCache = async (): Promise<void> => {
 
     return new Promise((resolve, reject) => {
       try {
-        const transaction = db.transaction([COLLECTION_STORE, ALBUM_STORE, META_STORE, STREAMING_LINKS_STORE], 'readwrite');
+        const transaction = db.transaction([COLLECTION_STORE, ALBUM_STORE, META_STORE], 'readwrite');
         transaction.onerror = (event) => {
           console.error('Transaction error:', transaction.error);
           reject(transaction.error);
@@ -752,7 +740,6 @@ export const clearCache = async (): Promise<void> => {
 
         transaction.objectStore(COLLECTION_STORE).clear();
         transaction.objectStore(ALBUM_STORE).clear();
-        transaction.objectStore(STREAMING_LINKS_STORE).clear();
 
         // Reset metadata
         const request = transaction.objectStore(META_STORE).put({
@@ -782,212 +769,5 @@ export const clearCache = async (): Promise<void> => {
     // Fall back to memory cache
     usingMemoryFallback = true;
     return clearCache();
-  }
-};
-
-/**
- * Store streaming links in IndexedDB cache with 1-week TTL
- */
-export const storeStreamingLinks = async (
-  url: string,
-  streamingLinks: StreamingLinks,
-  userCountry: string = 'DE'
-): Promise<void> => {
-  const now = Date.now();
-  const oneWeek = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
-
-  const cacheEntry: StreamingLinksCache = {
-    url,
-    streamingLinks,
-    userCountry,
-    timestamp: now,
-    expiresAt: now + oneWeek
-  };
-
-  // If using memory fallback, store in memory
-  if (usingMemoryFallback) {
-    memoryCache.streamingLinks.set(url, cacheEntry);
-    console.log(`📝 Stored streaming links for ${url} in memory cache (1-week TTL)`);
-    return;
-  }
-
-  try {
-    const db = await openDatabase();
-
-    return new Promise((resolve, reject) => {
-      try {
-        const transaction = db.transaction([STREAMING_LINKS_STORE], 'readwrite');
-        transaction.onerror = (event) => {
-          console.error('Transaction error:', transaction.error);
-          reject(transaction.error);
-        };
-
-        const store = transaction.objectStore(STREAMING_LINKS_STORE);
-        const request = store.put(cacheEntry);
-
-        request.onsuccess = () => {
-          console.log(`🗃️ Stored streaming links for ${url} in IndexedDB (expires in 1 week)`);
-        };
-
-        transaction.oncomplete = () => {
-          db.close();
-          resolve();
-        };
-      } catch (error) {
-        console.error('Error in transaction:', error);
-        db.close();
-        reject(error);
-      }
-    });
-  } catch (error) {
-    console.error('Failed to store streaming links in IndexedDB:', error);
-    // Fall back to memory cache
-    usingMemoryFallback = true;
-    return storeStreamingLinks(url, streamingLinks, userCountry);
-  }
-};
-
-/**
- * Retrieve streaming links from IndexedDB cache
- * Returns null if not found or expired
- */
-export const getStreamingLinks = async (
-  url: string,
-  userCountry: string = 'DE'
-): Promise<StreamingLinks | null> => {
-  // If using memory fallback, get from memory
-  if (usingMemoryFallback) {
-    const cached = memoryCache.streamingLinks.get(url);
-    if (cached) {
-      // Check expiration
-      if (Date.now() < cached.expiresAt) {
-        console.log(`📝 Cache hit for streaming links: ${url} (memory)`);
-        return cached.streamingLinks;
-      } else {
-        // Expired, remove from cache
-        memoryCache.streamingLinks.delete(url);
-        console.log(`📝 Cache expired for streaming links: ${url} (memory)`);
-      }
-    }
-    return null;
-  }
-
-  try {
-    const db = await openDatabase();
-
-    return new Promise((resolve, reject) => {
-      try {
-        const transaction = db.transaction([STREAMING_LINKS_STORE], 'readonly');
-        transaction.onerror = (event) => {
-          console.error('Transaction error:', transaction.error);
-          reject(transaction.error);
-        };
-
-        const store = transaction.objectStore(STREAMING_LINKS_STORE);
-        const request = store.get(url);
-
-        request.onsuccess = () => {
-          const cached = request.result as StreamingLinksCache | undefined;
-
-          if (cached) {
-            // Check expiration
-            if (Date.now() < cached.expiresAt) {
-              console.log(`🗃️ Cache hit for streaming links: ${url} (IndexedDB)`);
-              resolve(cached.streamingLinks);
-            } else {
-              // Expired, clean up
-              console.log(`🗃️ Cache expired for streaming links: ${url} (IndexedDB)`);
-              // Note: Cleanup happens in background, return null for now
-              resolve(null);
-            }
-          } else {
-            console.log(`🗃️ Cache miss for streaming links: ${url}`);
-            resolve(null);
-          }
-        };
-
-        transaction.oncomplete = () => {
-          db.close();
-        };
-      } catch (error) {
-        console.error('Error in transaction:', error);
-        db.close();
-        reject(error);
-      }
-    });
-  } catch (error) {
-    console.error('Failed to retrieve streaming links from IndexedDB:', error);
-    // Fall back to memory cache
-    usingMemoryFallback = true;
-    return getStreamingLinks(url, userCountry);
-  }
-};
-
-/**
- * Clean up expired streaming links from cache
- * Should be called periodically for housekeeping
- */
-export const cleanExpiredStreamingLinks = async (): Promise<number> => {
-  const now = Date.now();
-  let cleanedCount = 0;
-
-  // If using memory fallback, clean memory
-  if (usingMemoryFallback) {
-    for (const [url, cached] of Array.from(memoryCache.streamingLinks.entries())) {
-      if (now >= cached.expiresAt) {
-        memoryCache.streamingLinks.delete(url);
-        cleanedCount++;
-      }
-    }
-    if (cleanedCount > 0) {
-      console.log(`📝 Cleaned ${cleanedCount} expired streaming links from memory cache`);
-    }
-    return cleanedCount;
-  }
-
-  try {
-    const db = await openDatabase();
-
-    return new Promise((resolve, reject) => {
-      try {
-        const transaction = db.transaction([STREAMING_LINKS_STORE], 'readwrite');
-        transaction.onerror = (event) => {
-          console.error('Transaction error:', transaction.error);
-          reject(transaction.error);
-        };
-
-        const store = transaction.objectStore(STREAMING_LINKS_STORE);
-        const request = store.openCursor();
-
-        request.onsuccess = (event) => {
-          const cursor = (event.target as IDBRequest).result;
-          if (cursor) {
-            const cached = cursor.value as StreamingLinksCache;
-            if (now >= cached.expiresAt) {
-              cursor.delete();
-              cleanedCount++;
-            }
-            cursor.continue();
-          }
-        };
-
-        transaction.oncomplete = () => {
-          db.close();
-          if (cleanedCount > 0) {
-            console.log(`🗃️ Cleaned ${cleanedCount} expired streaming links from IndexedDB`);
-          }
-          resolve(cleanedCount);
-        };
-      } catch (error) {
-        console.error('Error in transaction:', error);
-        db.close();
-        reject(error);
-      }
-    });
-  } catch (error) {
-    console.error('Failed to clean expired streaming links:', error);
-    // Fall back to memory cache
-    usingMemoryFallback = true;
-    return cleanExpiredStreamingLinks();
   }
 };

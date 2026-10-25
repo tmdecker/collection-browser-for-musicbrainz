@@ -1,10 +1,10 @@
 /**
  * @ai-file prefetch
  * @ai-description Prefetch service for release groups and streaming links
- * @ai-dependencies cache-manager, release-group-cache, release-store, streaming-links-cache, prefetch-queue, rate-limiter, odesli-rate-limiter
+ * @ai-dependencies cache-manager, release-group-cache, release-store, album-streaming-links, prefetch-queue, rate-limiter
  * @ai-features
  * - Background prefetching of release groups after collection loads
- * - Streaming links prefetch via Odesli API
+ * - Streaming links prefetch (MusicBrainz links of all releases + barcode lookups)
  * - Filters already-cached RGs before queueing
  * - Retry logic with exponential backoff for network errors
  * - Progress logging every 60 seconds
@@ -13,16 +13,13 @@
 import { cacheManager } from '../cache/cache-manager';
 import { releaseGroupCache } from '../cache/release-group-cache';
 import { releaseStore } from '../cache/release-store';
-import { streamingLinksCache } from '../cache/streaming-links-cache';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
-import { getUserAgent, THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
-import { getBarcodeLinksCached, isLookupBarcode } from '../barcode-links';
+import { getUserAgent } from '@/utils/config/userAgent';
+import { getAlbumStreamingLinks } from '../album-streaming-links';
 import { browseAllReleases } from '../browse-releases';
 import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
-import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
-import { findStreamingUrl, extractAllStreamingUrls, isStreamingUrl, buildDirectLinksFromUrlsServer, validateStreamingUrlServer } from '@/utils/streaming-links';
 import { Release } from '@/types/music';
-import { extractTracksFromMedia, findBestStreamingRelease, orderReleasesForStreaming, selectPreferredRelease } from '@/utils/release-selection';
+import { selectPreferredRelease } from '@/utils/release-selection';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
@@ -159,118 +156,13 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
       ? await detailedReleaseResponse.json()
       : preferredRelease;
 
-    // Step 5: Fetch streaming links (direct MB URLs + Odesli cross-platform)
-    let streamingLinks = undefined;
+    // Step 5: Resolve streaming links (MusicBrainz links of all releases + barcode lookups) into the
+    // album's streaming links cache entry, so the details panel gets them instantly
     try {
-      // Releases are browsed with url-rels: take the first one (Digital Media, XW, rest) that has streaming URLs
-      const releaseWithInlineUrls = [detailedRelease, ...orderReleasesForStreaming(releases)]
-        .find(release => extractAllStreamingUrls(release).length > 0);
-      let releaseWithUrls: Release = releaseWithInlineUrls ?? detailedRelease;
-
-      // Releases without inline url-rels: look up the best streaming release
-      const streamingRelease = findBestStreamingRelease(releases);
-      if (!releaseWithInlineUrls && streamingRelease && !streamingRelease.relations && streamingRelease.id !== detailedRelease.id) {
-        const urlRelResponse = await fetchWithRetry(
-          `${MB_BASE_URL}/release/${streamingRelease.id}?fmt=json&inc=url-rels`,
-          {
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': getUserAgent(),
-            },
-          }
-        );
-        if (urlRelResponse.ok) {
-          releaseWithUrls = await urlRelResponse.json();
-        }
-      }
-
-      // Extract ALL streaming URLs from the release
-      const allStreamingUrls = extractAllStreamingUrls(releaseWithUrls);
-
-      // Build validated direct links from MusicBrainz URLs
-      const directLinks = allStreamingUrls.length > 0
-        ? await buildDirectLinksFromUrlsServer(allStreamingUrls)
-        : {};
-
-      // Try Odesli for cross-platform discovery using the first valid URL
-      const streamingUrl = findStreamingUrl([releaseWithUrls]);
-      let odesliLinks: Record<string, any> = {};
-
-      if (streamingUrl) {
-        // Check if already cached
-        const cached = streamingLinksCache.getByUrl(streamingUrl, country);
-        if (cached) {
-          console.log(`✅ Streaming links cached for ${mbid}: ${streamingUrl}`);
-          odesliLinks = cached.streamingLinks;
-        } else if (process.env.ODESLI_API_KEY) {
-          // Odesli requires an API key (keyless access was shut down); without one, only MusicBrainz links are used
-          // Fetch from Odesli API with rate limiting
-          await waitForOdesliRateLimit();
-          const odesliUrl = new URL('https://api.song.link/v1-alpha.1/links');
-          odesliUrl.searchParams.set('url', streamingUrl);
-          odesliUrl.searchParams.set('userCountry', country);
-          odesliUrl.searchParams.set('songIfSingle', 'true');
-          odesliUrl.searchParams.set('key', process.env.ODESLI_API_KEY); // Server-only env var
-
-          const odesliResponse = await fetch(odesliUrl.toString(), {
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': THIRD_PARTY_USER_AGENT,
-            },
-            signal: AbortSignal.timeout(30000),
-          });
-
-          if (odesliResponse.ok) {
-            const odesliData = await odesliResponse.json();
-            odesliLinks = odesliData.linksByPlatform || {};
-          }
-        }
-      }
-
-      // Merge: convert direct links to Odesli-compatible format, then merge
-      // Odesli format: { platformName: { url: "https://..." } }
-      // Direct links fill gaps for platforms Odesli missed
-      const mergedLinks: Record<string, any> = { ...odesliLinks };
-      for (const [platform, url] of Object.entries(directLinks)) {
-        if (platform === 'thumbnail') continue;
-        // Map our platform keys to Odesli platform keys (they're mostly the same)
-        if (url && !mergedLinks[platform]) {
-          mergedLinks[platform] = { url };
-        }
-      }
-
-      if (Object.keys(mergedLinks).length > 0) {
-        streamingLinks = mergedLinks;
-        const cacheUrl = streamingUrl || allStreamingUrls[0];
-        if (cacheUrl) {
-          const now = Date.now();
-          const sevenDays = 7 * 24 * 60 * 60 * 1000;
-          streamingLinksCache.setByUrl(cacheUrl, country, {
-            streamingLinks: mergedLinks,
-            sourceUrl: cacheUrl,
-            userCountry: country,
-            _cachedAt: now,
-            _expiresAt: now + sevenDays,
-          });
-          console.log(`💾 Prefetched streaming links for ${mbid}: ${cacheUrl} (merged: ${Object.keys(mergedLinks).length} platforms)`);
-        }
-      }
+      await getAlbumStreamingLinks(mbid, country, { releases: { releases, bestRelease: detailedRelease } });
     } catch (error) {
       // Non-critical: log and continue if streaming links fail
       console.warn(`⚠️  Failed to fetch streaming links for ${mbid}:`, error);
-    }
-
-    // Step 5b: Warm the barcode cache (Deezer, Apple Music, Spotify, Tidal), so the details panel
-    // gets those links instantly; the client merges them with the links above
-    try {
-      const barcode = [detailedRelease, ...releases]
-        .map(release => release.barcode?.trim())
-        .find(isLookupBarcode);
-      if (barcode) {
-        await getBarcodeLinksCached(barcode, country);
-      }
-    } catch (error) {
-      console.warn(`⚠️  Barcode lookup failed for ${mbid}:`, error);
     }
 
     // Step 6: Store in caches
@@ -295,13 +187,12 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
       _expiresAt: expiresAt,
     });
 
-    // Store release group with MBID references and streaming links
+    // Store release group with MBID references
     releaseGroupCache.set(mbid, {
       ...releaseGroup,
       releaseMbids: releases.map((r: Release) => r.id),
       bestReleaseMbid: preferredRelease.id,
       cover: `/api/coverart/release-group/${mbid}/front`,
-      streamingLinks, // Add streaming links if fetched
       _cachedAt: now,
       _expiresAt: expiresAt,
     });

@@ -46,7 +46,6 @@ export interface StreamingLinks {
   soundcloud?: string;
   pandora?: string;
   bandcamp?: string;
-  thumbnail?: string;
 }
 
 export interface ReleaseGroup {
@@ -64,7 +63,6 @@ export interface ReleaseGroup {
   tags?: string[] | Tag[];
   tracklist?: Track[];
   selectedReleaseId?: string;
-  streamingLinks?: StreamingLinks;
   releaseDetails?: Release;
   rating?: Rating;
   seriesOrder?: number;     // Position in series (1-based)

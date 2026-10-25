@@ -25,7 +25,7 @@ export const getUserAgent = (): string => {
 };
 
 /**
- * User-Agent for services other than MusicBrainz (Odesli, streaming platforms)
+ * User-Agent for services other than MusicBrainz (streaming platforms)
  * Identifies the app without the contact email, which only MusicBrainz asks for
  */
 export const THIRD_PARTY_USER_AGENT =

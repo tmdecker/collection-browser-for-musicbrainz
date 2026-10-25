@@ -47,7 +47,7 @@ interface PlatformConfig {
 }
 
 // Platform configuration with icons and styling
-const PLATFORM_CONFIGS: Record<keyof Omit<StreamingLinks, 'thumbnail'>, PlatformConfig> = {
+const PLATFORM_CONFIGS: Record<keyof StreamingLinks, PlatformConfig> = {
   spotify: {
     icon: BiLogoSpotify,
     name: 'Spotify',
@@ -294,17 +294,16 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
     return null;
   }
 
-  // Filter out thumbnail and get available platforms, then filter by enabled services
+  // Available platforms, filtered by the user's enabled services
   const availablePlatforms = Object.entries(streamingLinks || {})
     .filter(([key, url]) => {
-      if (key === 'thumbnail' || !url) return false;
+      if (!url) return false;
 
       // Check if this service is enabled in user preferences
-      const servicePlatform = key as keyof Omit<StreamingLinks, 'thumbnail'>;
-      return enabledServices[servicePlatform] !== false;
+      return enabledServices[key as keyof StreamingLinks] !== false;
     })
     .map(([platform, url]) => ({
-      platform: platform as keyof Omit<StreamingLinks, 'thumbnail'>,
+      platform: platform as keyof StreamingLinks,
       url: url as string,
     }));
 
@@ -375,20 +374,6 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
           );
         })}
       </div>
-      {/* Songlink's terms ask for attribution; only shown when the Odesli API key is configured */}
-      {process.env.NEXT_PUBLIC_SONGLINK_ENABLED === 'true' && (
-        <div className="text-xs text-text-tertiary mt-2">
-          Powered by{' '}
-          <a
-            href="https://odesli.co"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-text-secondary transition-colors duration-200"
-          >
-            Songlink
-          </a>
-        </div>
-      )}
     </div>
   );
 };

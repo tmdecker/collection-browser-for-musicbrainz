@@ -45,12 +45,13 @@ describe('lookupLinksByBarcode', () => {
   });
 
   it('finds Deezer (second barcode form) and Apple Music without keys, skips Spotify and Tidal', async () => {
-    const links = await lookupLinksByBarcode('886443927087', 'DE');
+    const { links, failed } = await lookupLinksByBarcode('886443927087', 'DE');
 
     expect(links).toEqual({
       deezer: 'https://www.deezer.com/album/6575789',
       appleMusic: 'https://music.apple.com/de/album/x/617154241',
     });
+    expect(failed).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('spotify'))).toBe(false);
   });
 
@@ -58,7 +59,7 @@ describe('lookupLinksByBarcode', () => {
     vi.stubEnv('SPOTIFY_CLIENT_ID', 'id');
     vi.stubEnv('SPOTIFY_CLIENT_SECRET', 'secret');
 
-    const links = await lookupLinksByBarcode('886443927087', 'DE');
+    const { links } = await lookupLinksByBarcode('886443927087', 'DE');
 
     expect(links.spotify).toBe('https://open.spotify.com/album/4m2880');
     const search = fetchMock.mock.calls.find(([url]) => String(url).startsWith('https://api.spotify.com'));
@@ -73,6 +74,29 @@ describe('lookupLinksByBarcode', () => {
     });
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(await lookupLinksByBarcode('886443927087', 'DE')).toEqual({ deezer: 'https://www.deezer.com/album/1' });
+    expect(await lookupLinksByBarcode('886443927087', 'DE')).toEqual({
+      links: { deezer: 'https://www.deezer.com/album/1' },
+      failed: true,
+    });
+  });
+
+  it('reports rate limits, server errors and Deezer quota errors as failures, not as "not found"', async () => {
+    fetchMock.mockImplementation(async (input: string | URL) => {
+      if (String(input).startsWith('https://itunes.apple.com')) return json({}, 503);
+      if (String(input).startsWith('https://api.deezer.com')) return json({ error: { code: 4, message: 'Quota limit exceeded' } });
+      return json({}, 404);
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(await lookupLinksByBarcode('886443927087', 'DE')).toEqual({ links: {}, failed: true });
+  });
+
+  it('treats 404 and Deezer "no data" as a clean miss', async () => {
+    fetchMock.mockImplementation(async (input: string | URL) => {
+      if (String(input).startsWith('https://api.deezer.com')) return json({ error: { code: 800 } });
+      return json({}, 404);
+    });
+
+    expect(await lookupLinksByBarcode('886443927087', 'DE')).toEqual({ links: {}, failed: false });
   });
 });

@@ -223,7 +223,6 @@ export async function GET(
       selectedReleaseId: preferredRelease.id,
       releaseDetails: detailedRelease,
       cover: `/api/coverart/release-group/${mbid}/front`,
-      streamingLinks: undefined, // Not fetched by this endpoint
     };
 
     return NextResponse.json({

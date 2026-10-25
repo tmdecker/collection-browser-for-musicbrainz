@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Upgrade Notes
+
+- `ODESLI_API_KEY` is no longer used and can be removed from the server's environment
+
+### Changed
+
+- **Streaming links resolved on the server**: The details panel makes one request per album (`/api/streaming-links?releaseGroup=…`) instead of a chain of browser caches, one URL check per link and a barcode request. The server picks one live MusicBrainz link per service from all releases (a dead link falls back to another release's link), fills the rest by barcode and caches the result per album for 30 days, like the album data (before: 7 days). The prefetch fills the same cache entry, so prefetched albums show their links instantly; before, prefetched links never reached the panel
+- **Failed lookups retried soon**: A barcode lookup where a service timed out, was rate limited or answered with a server error is cached for 1 hour instead of 7 days as "nothing found". Real results, including "nothing found", are kept 30 days
+
+### Removed
+
+- **Odesli (Songlink)**: The Odesli lookup, its 6-second rate limiter, the "Powered by Songlink" note and `ODESLI_API_KEY`. Odesli needs a key since keyless access was shut down, so without one it already added nothing. YouTube, Amazon, SoundCloud and Pandora links now appear only when MusicBrainz has them
+- **Browser streaming caches**: The localStorage album-to-URL map (`streamingUrlCache`, removed on first load) and the IndexedDB streaming links store (deleted on upgrade)
+- **`/api/validate-url` and `/api/barcode-links`**: No longer called; the server does both inside the album lookup
+
 ## [0.35.1] - 2026-10-25
 
 ### Fixed

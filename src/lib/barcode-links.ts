@@ -47,6 +47,10 @@ const getJson = async <T>(url: string, init: RequestInit = {}): Promise<T | null
   });
   if (!response.ok) {
     await response.body?.cancel();
+    // Rate limits and server errors are failures (retried soon), other statuses mean "not found"
+    if (response.status === 429 || response.status >= 500) {
+      throw new Error(`HTTP ${response.status}`);
+    }
     return null;
   }
   return (await response.json()) as T;
@@ -54,9 +58,15 @@ const getJson = async <T>(url: string, init: RequestInit = {}): Promise<T | null
 
 // --- Deezer (no key) ---
 
+const DEEZER_NOT_FOUND = 800;
+
 const findDeezer = async (barcode: string): Promise<string | undefined> => {
   for (const variant of barcodeVariants(barcode)) {
-    const album = await getJson<{ link?: string; error?: unknown }>(`https://api.deezer.com/album/upc:${variant}`);
+    const album = await getJson<{ link?: string; error?: { code?: number; message?: string } }>(`https://api.deezer.com/album/upc:${variant}`);
+    // Deezer answers 200 with an error object; 800 = no album, anything else (e.g. 4 = quota) is a failure
+    if (album?.error && album.error.code !== DEEZER_NOT_FOUND) {
+      throw new Error(`Deezer error ${album.error.code}: ${album.error.message ?? ''}`.trim());
+    }
     if (album?.link && !album.error) return album.link;
   }
   return undefined;
@@ -167,9 +177,12 @@ const findTidal = async (barcode: string, country: string): Promise<string | und
 /**
  * Look up a barcode at all configured platforms in parallel
  * @param country - Two-letter country code (store front / market)
- * @returns Links that were found; missing platforms are simply left out
+ * @returns Links that were found (missing platforms are left out), and whether any provider failed
  */
-export const lookupLinksByBarcode = async (barcode: string, country: string): Promise<BarcodeLinks> => {
+export const lookupLinksByBarcode = async (
+  barcode: string,
+  country: string
+): Promise<{ links: BarcodeLinks; failed: boolean }> => {
   const lookups: Array<[keyof BarcodeLinks, Promise<string | undefined>]> = [
     ['deezer', findDeezer(barcode)],
     ['appleMusic', findAppleMusic(barcode, country)],
@@ -179,31 +192,34 @@ export const lookupLinksByBarcode = async (barcode: string, country: string): Pr
 
   const results = await Promise.allSettled(lookups.map(([, lookup]) => lookup));
   const links: BarcodeLinks = {};
+  let failed = false;
   results.forEach((result, index) => {
     if (result.status === 'fulfilled' && result.value) {
       links[lookups[index][0]] = result.value;
     } else if (result.status === 'rejected') {
+      failed = true;
       const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
       console.warn(`⚠️ Barcode lookup at ${lookups[index][0]} failed for ${barcode}: ${reason}`);
     }
   });
-  return links;
+  return { links, failed };
 };
 
-// --- Cached lookup (shared by the API route and the prefetch) ---
-
-const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// --- Cached lookup (used by the album streaming links and the barcode route) ---
 
 // Lookups in flight, so a click and the prefetch never query the same barcode twice at once
-const pendingStore = globalThis as typeof globalThis & { __barcodeLookupsPending?: Map<string, Promise<BarcodeLinks>> };
+const pendingStore = globalThis as typeof globalThis & {
+  __barcodeLookupsPending?: Map<string, Promise<{ links: BarcodeLinks; failed: boolean }>>;
+};
 
 /**
- * Barcode lookup through the server cache (7 days, including "nothing found")
+ * Barcode lookup through the server cache: 30 days (including "nothing found"), 1 hour when a provider failed
+ * @returns failed - true when a provider failed, so the result may be missing a platform
  */
 export const getBarcodeLinksCached = async (
   barcode: string,
   country: string
-): Promise<{ links: StreamingLinks; fromCache: boolean }> => {
+): Promise<{ links: StreamingLinks; fromCache: boolean; failed: boolean }> => {
   const { streamingLinksCache } = await import('@/lib/cache/streaming-links-cache');
   // The key includes which optional providers are configured, so adding Spotify or Tidal
   // credentials later is not hidden behind results cached without them
@@ -213,7 +229,7 @@ export const getBarcodeLinksCached = async (
   const cacheKey = `barcode:${providers}:${barcode}`;
   const cached = streamingLinksCache.getByUrl(cacheKey, country);
   if (cached) {
-    return { links: cached.streamingLinks, fromCache: true };
+    return { links: cached.streamingLinks, fromCache: true, failed: cached.complete === false };
   }
 
   const pending = (pendingStore.__barcodeLookupsPending ??= new Map());
@@ -224,15 +240,8 @@ export const getBarcodeLinksCached = async (
     pending.set(pendingKey, lookup);
   }
 
-  const links = await lookup;
-  const now = Date.now();
-  streamingLinksCache.setByUrl(cacheKey, country, {
-    streamingLinks: links,
-    sourceUrl: cacheKey,
-    userCountry: country,
-    _cachedAt: now,
-    _expiresAt: now + CACHE_TTL_MS,
-  });
-  console.log(`🏷️ Barcode ${barcode}: ${Object.keys(links).join(', ') || 'no links found'}`);
-  return { links, fromCache: false };
+  const { links, failed } = await lookup;
+  streamingLinksCache.setByUrl(cacheKey, country, links, !failed);
+  console.log(`🏷️ Barcode ${barcode}: ${Object.keys(links).join(', ') || 'no links found'}${failed ? ' (a provider failed, retry in 1 hour)' : ''}`);
+  return { links, fromCache: false, failed };
 };

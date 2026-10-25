@@ -87,8 +87,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         console.log('🔗 Starting streaming links fetch in background');
         const { fetchStreamingLinksForAlbum } = await import('@/utils/streaming-links');
         const result = await fetchStreamingLinksForAlbum(
-          displayAlbum,
-          displayAlbum.releaseDetails!,
+          displayAlbum.id,
           streamingCountry,
           abortController.signal
         );

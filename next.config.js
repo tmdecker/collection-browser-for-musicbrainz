@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  env: {
-    // Only whether a Songlink (Odesli) key is set, never the key itself; read at build time
-    NEXT_PUBLIC_SONGLINK_ENABLED: process.env.ODESLI_API_KEY ? 'true' : '',
-  },
   images: {
     // Define device sizes for responsive images
     deviceSizes: [180, 360, 720, 1080],
@@ -66,7 +62,7 @@ const nextConfig = {
               `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`,
               "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline
               "img-src 'self' https://coverartarchive.org https://*.archive.org data: blob:",
-              "connect-src 'self' https://musicbrainz.org https://api.song.link https://music.apple.com",
+              "connect-src 'self' https://musicbrainz.org https://music.apple.com",
               "font-src 'self' data:",
               "object-src 'none'",
               "base-uri 'self'",

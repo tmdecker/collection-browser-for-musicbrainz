@@ -43,7 +43,6 @@ export interface CachedReleaseGroup {
   genres?: string[] | Genre[];
   tags?: string[] | Tag[];
   rating?: Rating;
-  streamingLinks?: StreamingLinks;
 
   // Cache metadata
   _cachedAt: number;          // Unix timestamp in milliseconds
@@ -75,14 +74,15 @@ export interface CacheStats {
 }
 
 /**
- * Cached streaming links from Odesli API with metadata
+ * Cached streaming links (album or barcode lookup) with metadata
  */
 export interface CachedStreamingLinks {
   streamingLinks: StreamingLinks;  // Platform links (spotify, appleMusic, etc.)
-  sourceUrl: string;                // Original streaming URL that worked
+  sourceUrl: string;                // What was looked up (rg:<mbid> or barcode:<providers>:<code>)
   userCountry: string;              // User country for region-specific links
-  _cachedAt: number;                // Unix timestamp in milliseconds
-  _expiresAt: number;               // Unix timestamp in milliseconds (7-day TTL)
+  complete?: boolean;               // false when a provider failed (short TTL); missing on old entries
+  _cachedAt: number;                // When the links were fetched, Unix timestamp in milliseconds
+  _expiresAt: number;               // Unix timestamp in milliseconds (7 days, 1 hour if incomplete)
 }
 
 /**

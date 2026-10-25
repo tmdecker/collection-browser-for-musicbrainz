@@ -108,9 +108,14 @@ export abstract class BaseCache<T> {
 
   /**
    * Store value in cache
+   * @param ttlSeconds - Overrides the cache's default TTL for this entry
    */
-  set(key: string, value: T): void {
-    this.cache.set(key, value);
+  set(key: string, value: T, ttlSeconds?: number): void {
+    if (ttlSeconds === undefined) {
+      this.cache.set(key, value);
+    } else {
+      this.cache.set(key, value, ttlSeconds);
+    }
   }
 
   /**
