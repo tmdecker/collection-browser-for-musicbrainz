@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.35.0] - 2026-10-25
+
+### Upgrade Notes
+
+- Run `npm ci` and `npm run build` after pulling
+- Optional new server-only variables: `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET` and `TIDAL_CLIENT_ID`/`TIDAL_CLIENT_SECRET` for barcode lookups, `PREFETCH_ENABLED=false` for a dev server on the same IP as production
+- `ODESLI_API_KEY` is read at build time for the "Powered by Songlink" note: rebuild after adding or removing it
+- The store country for streaming links is now a setting (Settings, Store Country; default Germany)
 
 ### Security
 
