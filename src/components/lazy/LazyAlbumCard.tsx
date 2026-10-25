@@ -22,14 +22,18 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Always render selected items and items in the initial viewport (first 20)
+  // Always render selected items and items in the initial viewport (first 20); once shown, stay shown
+  const forceVisible = selected || index < 20;
+  if (forceVisible && !isVisible) {
+    setIsVisible(true);
+  }
+
+  // Track initially visible elements for performance monitoring
   useEffect(() => {
-    if (selected || index < 20) {
-      setIsVisible(true);
-      // Track initially visible elements
+    if (forceVisible) {
       lazyLoadMonitor.trackElementVisible();
     }
-  }, [selected, index]);
+  }, [forceVisible]);
 
   useEffect(() => {
     // Skip observer setup if already visible

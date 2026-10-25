@@ -42,7 +42,6 @@ interface AlbumDetailsPanelProps {
 }
 
 const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], hasActiveFilters = false, spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false }) => {
-  const [tracklistLoading, setTracklistLoading] = useState(false);
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
   const [streamingLinksFromCache, setStreamingLinksFromCache] = useState(false);
@@ -52,24 +51,22 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   const displayAlbum = albumDetails || album;
   const streamingCountry = usePreferences().preferences.streaming.country;
 
-  // Monitor when tracklist becomes available
-  useEffect(() => {
-    if (displayAlbum) {
-      if (!displayAlbum.tracklist && !loading) {
-        setTracklistLoading(true);
-      } else if (displayAlbum.tracklist) {
-        setTracklistLoading(false);
-      }
-    }
-  }, [displayAlbum, loading]);
+  // Tracklist is still on its way when the album has none yet and no details request is running
+  const tracklistLoading = !!displayAlbum && !displayAlbum.tracklist && !loading;
 
-  // Fetch streaming links independently in the background
-  useEffect(() => {
-    // Clear streaming links immediately when album changes (prevents flashing old data)
+  // Clear streaming links as soon as the album, its release or the country changes, so old links
+  // never flash (adjusting state during render instead of in the fetch effect)
+  const streamingLinksKey = `${displayAlbum?.id ?? ''}|${displayAlbum?.releaseDetails?.id ?? ''}|${streamingCountry}`;
+  const [shownStreamingLinksKey, setShownStreamingLinksKey] = useState(streamingLinksKey);
+  if (streamingLinksKey !== shownStreamingLinksKey) {
+    setShownStreamingLinksKey(streamingLinksKey);
     setStreamingLinks(null);
     setStreamingLinksLoading(false);
     setStreamingLinksFromCache(false);
+  }
 
+  // Fetch streaming links independently in the background
+  useEffect(() => {
     // If no album, nothing to do
     if (!displayAlbum) {
       return;

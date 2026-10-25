@@ -124,14 +124,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                               activeCategory === 'tags' ? tagSearchQuery :
                               '';
 
-  // Initialize temp year values when date range or available range changes
-  useEffect(() => {
-    if (availableYearRange) {
-      const currentRange = releaseDateRange || availableYearRange;
-      setTempMinYear(currentRange.min.toString());
-      setTempMaxYear(currentRange.max.toString());
-    }
-  }, [releaseDateRange, availableYearRange]);
+  // Reset the year inputs when the date range or available range changes (adjusting state during
+  // render, React's recommended alternative to a syncing effect)
+  const yearSource = availableYearRange ? releaseDateRange || availableYearRange : null;
+  const yearSourceKey = yearSource ? `${yearSource.min}-${yearSource.max}` : '';
+  const [syncedYearSourceKey, setSyncedYearSourceKey] = useState('');
+  if (yearSource && yearSourceKey !== syncedYearSourceKey) {
+    setSyncedYearSourceKey(yearSourceKey);
+    setTempMinYear(yearSource.min.toString());
+    setTempMaxYear(yearSource.max.toString());
+  }
 
   // Handle slider changes
   const handleSliderChange = (min: number, max: number) => {
@@ -170,45 +172,31 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   };
 
   // Track mouse position for hover-based z-index switching
-  const [mouseX, setMouseX] = useState<number | null>(null);
-  const sliderContainerRef = useRef<HTMLDivElement>(null);
+  const DEFAULT_SLIDER_Z = { minZ: 3, maxZ: 4 }; // Normal case: max on top
+  const [hoverSliderZ, setHoverSliderZ] = useState(DEFAULT_SLIDER_Z);
 
   // Check if both sliders are at the same year (for z-index handling)
   const isSameYear = releaseDateRange?.min === releaseDateRange?.max;
 
-  // Calculate z-index based on mouse position when thumbs overlap
-  const getSliderZIndices = () => {
-    if (!isSameYear || mouseX === null || !sliderContainerRef.current) {
-      // Normal case: max on top
-      return { minZ: 3, maxZ: 4 };
-    }
+  // When both thumbs overlap, the one on the side the mouse is on goes on top; computed in the
+  // mouse handler (reading the container's position during render is not allowed)
+  const { minZ: minSliderZIndex, maxZ: maxSliderZIndex } = isSameYear ? hoverSliderZ : DEFAULT_SLIDER_Z;
 
-    // Get the position of the overlapping thumbs
-    const container = sliderContainerRef.current;
-    const rect = container.getBoundingClientRect();
+  // Track mouse movement over the slider container
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isSameYear) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
     const currentYear = releaseDateRange?.min || availableYearRange?.min || 0;
     const range = (availableYearRange?.max || 0) - (availableYearRange?.min || 0);
     const thumbPosition = ((currentYear - (availableYearRange?.min || 0)) / range) * rect.width;
 
     // If mouse is left of thumb center, bring min to top; if right, bring max to top
-    if (mouseX < rect.left + thumbPosition) {
-      return { minZ: 4, maxZ: 3 }; // Min on top (for dragging left)
-    } else {
-      return { minZ: 3, maxZ: 4 }; // Max on top (for dragging right)
-    }
-  };
-
-  const { minZ: minSliderZIndex, maxZ: maxSliderZIndex } = getSliderZIndices();
-
-  // Track mouse movement over the slider container
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isSameYear) {
-      setMouseX(e.clientX);
-    }
+    setHoverSliderZ(e.clientX < rect.left + thumbPosition ? { minZ: 4, maxZ: 3 } : { minZ: 3, maxZ: 4 });
   };
 
   const handleMouseLeave = () => {
-    setMouseX(null);
+    setHoverSliderZ(DEFAULT_SLIDER_Z);
   };
 
 
@@ -242,42 +230,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     }
   }, [isSearchOpen]);
 
-  // Close search when category changes
-  useEffect(() => {
+  // Switching categories closes search, resets "show all" and clears the other categories' searches
+  const selectCategory = (category: typeof activeCategory) => {
+    setActiveCategory(category);
     setIsSearchOpen(false);
-    // Reset "show all" state when switching categories
     setShowAllGenres(false);
     setShowAllLabels(false);
     setShowAllTags(false);
-    // Clear search query when switching categories
-    if (activeCategory === 'genres') {
-      onLabelSearchChange('');
-      onTagSearchChange('');
-    } else if (activeCategory === 'labels') {
-      onGenreSearchChange('');
-      onTagSearchChange('');
-    } else if (activeCategory === 'tags') {
-      onGenreSearchChange('');
-      onLabelSearchChange('');
-    } else if (activeCategory === 'dates') {
-      onGenreSearchChange('');
-      onLabelSearchChange('');
-      onTagSearchChange('');
-    }
-  }, [activeCategory, onGenreSearchChange, onLabelSearchChange, onTagSearchChange]);
+    if (category !== 'genres') onGenreSearchChange('');
+    if (category !== 'labels') onLabelSearchChange('');
+    if (category !== 'tags') onTagSearchChange('');
+  };
 
-  // Reset "show all" state when search query changes
-  useEffect(() => {
-    if (genreSearchQuery) setShowAllGenres(false);
-  }, [genreSearchQuery]);
-
-  useEffect(() => {
-    if (labelSearchQuery) setShowAllLabels(false);
-  }, [labelSearchQuery]);
-
-  useEffect(() => {
-    if (tagSearchQuery) setShowAllTags(false);
-  }, [tagSearchQuery]);
 
   // Calculate chevron button position based on filter panel height
   useEffect(() => {
@@ -308,10 +272,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                        activeCategory === 'tags' ? 'Tags' :
                        activeCategory === 'dates' ? 'Release Date' :
                        'Rating';
-  const handleSearchChange = activeCategory === 'genres' ? onGenreSearchChange :
-                             activeCategory === 'labels' ? onLabelSearchChange :
-                             activeCategory === 'tags' ? onTagSearchChange :
-                             () => {};
+  // Typing a search collapses the "show all" list of that category
+  const handleSearchChange = (query: string) => {
+    if (activeCategory === 'genres') {
+      if (query) setShowAllGenres(false);
+      onGenreSearchChange(query);
+    } else if (activeCategory === 'labels') {
+      if (query) setShowAllLabels(false);
+      onLabelSearchChange(query);
+    } else if (activeCategory === 'tags') {
+      if (query) setShowAllTags(false);
+      onTagSearchChange(query);
+    }
+  };
 
   // Calculate button position based on screen size
   // FilterPanel is always positioned at header + 48px (ActiveFiltersBar height)
@@ -378,7 +351,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           {/* Category selector bar */}
           <div className="flex items-center gap-1 p-1 rounded-full bg-[#2A2A2A]/60 backdrop-blur-md border border-white/10 flex-shrink-0">
             <button
-              onClick={() => setActiveCategory('genres')}
+              onClick={() => selectCategory('genres')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                 activeCategory === 'genres'
                   ? 'bg-primary text-white shadow-sm'
@@ -391,7 +364,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               <span className="hidden sm:inline">Genres</span>
             </button>
             <button
-              onClick={() => setActiveCategory('tags')}
+              onClick={() => selectCategory('tags')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                 activeCategory === 'tags'
                   ? 'bg-orange-400 text-white shadow-sm'
@@ -405,7 +378,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             </button>
             {enableLabelFilter && (
               <button
-                onClick={() => setActiveCategory('labels')}
+                onClick={() => selectCategory('labels')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                   activeCategory === 'labels'
                     ? 'bg-rose-400 text-white shadow-sm'
@@ -419,7 +392,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               </button>
             )}
             <button
-              onClick={() => setActiveCategory('dates')}
+              onClick={() => selectCategory('dates')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                 activeCategory === 'dates'
                   ? 'bg-fuchsia-400 text-white shadow-sm'
@@ -432,7 +405,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               <span className="hidden sm:inline">Date</span>
             </button>
             <button
-              onClick={() => setActiveCategory('rating')}
+              onClick={() => selectCategory('rating')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                 activeCategory === 'rating'
                   ? 'bg-amber-400 text-white shadow-sm'
@@ -680,7 +653,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                     {/* Slider container */}
                     <div className="relative flex-1 py-3 flex items-center">
                       <div
-                        ref={sliderContainerRef}
                         className="relative w-full h-2"
                         onMouseMove={handleMouseMove}
                         onMouseLeave={handleMouseLeave}

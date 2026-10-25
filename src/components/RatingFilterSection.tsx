@@ -9,7 +9,7 @@
  * - Consistent design with DateFilterSection
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { BiStar, BiX } from 'react-icons/bi';
 
 interface RatingFilterSectionProps {
@@ -42,11 +42,15 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
   const minRating = ratingRange?.min ?? defaultMin;
   const maxRating = ratingRange?.max ?? defaultMax;
 
-  // Update temp values when prop changes
-  useEffect(() => {
+  // Reset the input fields when the range changes from outside (adjusting state during render,
+  // React's recommended alternative to a syncing effect)
+  const ratingKey = `${minRating}-${maxRating}`;
+  const [syncedRatingKey, setSyncedRatingKey] = useState(ratingKey);
+  if (ratingKey !== syncedRatingKey) {
+    setSyncedRatingKey(ratingKey);
     setTempMinRating(minRating.toFixed(1));
     setTempMaxRating(maxRating.toFixed(1));
-  }, [minRating, maxRating]);
+  }
 
   // Handle slider change for min
   const handleMinSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {

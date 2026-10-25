@@ -24,6 +24,7 @@ import { useFilters } from '@/hooks/useFilters';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/usePreferences';
 import { albumMatchesGenreFilters } from '@/utils/genre-processor';
+import { ReleaseGroup } from '@/types/music';
 import { albumMatchesLabelFilters } from '@/utils/label-processor';
 import { albumMatchesTagFilters } from '@/utils/tag-processor';
 import { albumMatchesDateFilter } from '@/utils/date-processor';
@@ -157,15 +158,13 @@ export default function Home() {
   const [validatedEntityType, setValidatedEntityType] = useState<'collection' | 'series' | null>(null);
   const skipValidationRef = useRef(false);
 
-  // Open details panel when an album is selected and close other panels
-  useEffect(() => {
-    if (selectedAlbum) {
-      setDetailsPanelOpen(true);
-      // Close other panels when opening album details
-      setFilterPanelOpen(false);
-      setCollectionsPanelOpen(false);
-    }
-  }, [selectedAlbum, setFilterPanelOpen]);
+  // Selecting an album opens the details panel and closes the other panels
+  const handleAlbumClick = (album: ReleaseGroup) => {
+    handleSelectAlbum(album);
+    setDetailsPanelOpen(true);
+    setFilterPanelOpen(false);
+    setCollectionsPanelOpen(false);
+  };
 
   // Handle close details panel
   const handleCloseDetailsPanel = () => {
@@ -545,7 +544,7 @@ export default function Home() {
         <LazyAlbumGrid
           albums={albums}
           selectedAlbum={selectedAlbum}
-          onSelectAlbum={handleSelectAlbum}
+          onSelectAlbum={handleAlbumClick}
           loading={loading}
         />
       </div>
