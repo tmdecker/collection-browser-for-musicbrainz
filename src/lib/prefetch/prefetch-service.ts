@@ -17,6 +17,7 @@ import { streamingLinksCache } from '../cache/streaming-links-cache';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent, THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
 import { getBarcodeLinksCached, isLookupBarcode } from '../barcode-links';
+import { browseAllReleases } from '../browse-releases';
 import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
 import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
 import { findStreamingUrl, extractAllStreamingUrls, isStreamingUrl, buildDirectLinksFromUrlsServer, validateStreamingUrlServer } from '@/utils/streaming-links';
@@ -117,23 +118,15 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
 
     const releaseGroup = await rgResponse.json();
 
-    // Step 2: Fetch up to 100 releases using browse endpoint
-    const releasesResponse = await fetchWithRetry(
-      `${MB_BASE_URL}/release?fmt=json&release-group=${mbid}&inc=media&limit=100`,
-      {
+    // Step 2: Fetch all releases (browse returns 100 per page)
+    const releases = await browseAllReleases(mbid, url =>
+      fetchWithRetry(url, {
         headers: {
           'Accept': 'application/json',
           'User-Agent': getUserAgent(),
         },
-      }
+      })
     );
-
-    if (!releasesResponse.ok) {
-      throw new Error(`Failed to fetch releases: ${releasesResponse.statusText}`);
-    }
-
-    const releasesData = await releasesResponse.json();
-    const releases = releasesData.releases || [];
 
     // Step 3: Select the preferred release
     const preferredRelease = selectPreferredRelease(releases);

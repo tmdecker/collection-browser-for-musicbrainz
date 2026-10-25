@@ -18,6 +18,7 @@ import { waitForRateLimit } from '@/lib/rate-limiter';
 import { Release, Track } from '@/types/music';
 import { extractTracksFromMedia, selectPreferredRelease } from '@/utils/release-selection';
 import { isMbid } from '@/utils/mbid-validation';
+import { browseAllReleases, ReleaseBrowseError } from '@/lib/browse-releases';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -111,27 +112,24 @@ export async function GET(
 
     const releaseGroup = await rgResponse.json();
 
-    // Step 2: Fetch up to 100 releases using browse endpoint
-    await waitForRateLimit();
-    const releasesResponse = await fetch(
-      `${MB_BASE_URL}/release?fmt=json&release-group=${mbid}&inc=media&limit=100`,
-      {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': getUserAgent(),
-        },
+    // Step 2: Fetch all releases (browse returns 100 per page)
+    let releases: Release[];
+    try {
+      releases = await browseAllReleases(mbid, async url => {
+        await waitForRateLimit();
+        return fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': getUserAgent(),
+          },
+        });
+      });
+    } catch (error) {
+      if (error instanceof ReleaseBrowseError) {
+        return NextResponse.json({ error: error.message }, { status: error.status });
       }
-    );
-
-    if (!releasesResponse.ok) {
-      return NextResponse.json(
-        { error: `Failed to fetch releases: ${releasesResponse.statusText}` },
-        { status: releasesResponse.status }
-      );
+      throw error;
     }
-
-    const releasesData = await releasesResponse.json();
-    const releases = releasesData.releases || [];
 
     console.log(`📊 Fetched ${releases.length} releases for release group ${mbid}`);
 
