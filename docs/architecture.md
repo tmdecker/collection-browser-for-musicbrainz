@@ -17,7 +17,7 @@ AlbumDetailsPanel
   └─► /api/streaming-links ─► server cache, else MusicBrainz links + barcode lookups
                                (Deezer, Apple Music, Spotify*, Tidal*; * with credentials)
 
-CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .image-cache/ (WebP)
+CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .image-cache/ (WebP, plus .missing markers for covers that don't exist, 7 days)
 ```
 
 ## Loading a collection

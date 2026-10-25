@@ -16,6 +16,7 @@ import { releaseStore } from '../cache/release-store';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { getAlbumStreamingLinks } from '../album-streaming-links';
+import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '../cache/release-group-fetches';
 import { browseAllReleases } from '../browse-releases';
 import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
 import { Release } from '@/types/music';
@@ -93,10 +94,37 @@ export interface PrefetchStatus extends QueueStats {
 
 
 /**
- * Fetch and cache a single release group
+ * Fetch and cache a single release group, then resolve its streaming links
  * This is the core fetch function used by the prefetch queue
  */
 async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise<void> {
+  // A click is loading this album already: let it finish instead of fetching it a second time
+  const inFlight = releaseGroupFetchInFlight(mbid);
+  if (inFlight) {
+    await inFlight;
+    if (releaseGroupCache.isFullyCached(mbid)) return;
+  }
+
+  // Marked as in flight only while MusicBrainz is queried, so a click waits for the album data,
+  // not for the slower barcode lookups below
+  const fetched = await withReleaseGroupFetch(mbid, () => fetchReleaseGroupData(mbid));
+  if (!fetched) return;
+
+  // Resolve streaming links (MusicBrainz links of all releases + barcode lookups) into the
+  // album's streaming links cache entry, so the details panel gets them instantly
+  try {
+    await getAlbumStreamingLinks(mbid, country, { releases: fetched });
+  } catch (error) {
+    // Non-critical: log and continue if streaming links fail
+    console.warn(`⚠️  Failed to fetch streaming links for ${mbid}:`, error);
+  }
+}
+
+/**
+ * Fetch a release group with all its releases from MusicBrainz and store it in the caches
+ * @returns The releases for the streaming links lookup, or null when the group has no releases
+ */
+async function fetchReleaseGroupData(mbid: string): Promise<{ releases: Release[]; bestRelease: Release } | null> {
   try {
     // Step 1: Fetch release group basic info
     const rgResponse = await fetchWithRetry(
@@ -138,7 +166,7 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
         _cachedAt: now,
         _expiresAt: now + 30 * 24 * 60 * 60 * 1000,
       });
-      return;
+      return null;
     }
 
     // Step 4: Fetch detailed release information with tracks and labels
@@ -156,16 +184,7 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
       ? await detailedReleaseResponse.json()
       : preferredRelease;
 
-    // Step 5: Resolve streaming links (MusicBrainz links of all releases + barcode lookups) into the
-    // album's streaming links cache entry, so the details panel gets them instantly
-    try {
-      await getAlbumStreamingLinks(mbid, country, { releases: { releases, bestRelease: detailedRelease } });
-    } catch (error) {
-      // Non-critical: log and continue if streaming links fail
-      console.warn(`⚠️  Failed to fetch streaming links for ${mbid}:`, error);
-    }
-
-    // Step 6: Store in caches
+    // Step 5: Store in caches
     const now = Date.now();
     const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -197,6 +216,7 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
       _expiresAt: expiresAt,
     });
 
+    return { releases, bestRelease: detailedRelease };
   } catch (error) {
     console.error(`❌ Failed to prefetch ${mbid}:`, error);
     throw error; // Let queue handle retry logic

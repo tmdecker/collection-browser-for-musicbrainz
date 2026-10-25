@@ -15,6 +15,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Streaming links resolved on the server**: The details panel makes one request per album (`/api/streaming-links?releaseGroup=…`) instead of a chain of browser caches, one URL check per link and a barcode request. The server picks one live MusicBrainz link per service from all releases (a dead link falls back to another release's link), fills the rest by barcode and caches the result per album for 30 days, like the album data (before: 7 days). The prefetch fills the same cache entry, so prefetched albums show their links instantly; before, prefetched links never reached the panel
 - **Failed lookups retried soon**: A barcode lookup where a service timed out, was rate limited or answered with a server error is cached for 1 hour instead of 7 days as "nothing found". Real results, including "nothing found", are kept 30 days
 
+### Fixed
+
+- **Albums without cover art no longer requested again and again**: Cover Art Archive's "no cover" answer was never stored, so every grid load on every device asked again for every album without a cover. It is now remembered for 7 days (browsers reuse it for a day)
+- **One download per cover**: The grid (360 px) and the details panel (500 px) use the same Cover Art Archive thumbnail, which was downloaded once for each size. Both sizes are now made from one download, and simultaneous requests for the same cover share it
+- **No duplicate album fetch during the prefetch**: Opening an album the prefetch is loading waits for that fetch instead of sending the same MusicBrainz requests again, and the prefetch skips an album a click is loading
+- **Album details kept after the daily collection refresh**: The refresh overwrote the albums' stored details (releases, tracklist) in the browser with the plain collection entries, so every album loaded again from the server the next day
+
 ### Removed
 
 - **Odesli (Songlink)**: The Odesli lookup, its 6-second rate limiter, the "Powered by Songlink" note and `ODESLI_API_KEY`. Odesli needs a key since keyless access was shut down, so without one it already added nothing. YouTube, Amazon, SoundCloud and Pandora links now appear only when MusicBrainz has them

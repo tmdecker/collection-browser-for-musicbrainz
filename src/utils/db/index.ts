@@ -179,6 +179,13 @@ export const initDatabase = async (): Promise<void> => {
 /**
  * Store a collection and its release groups in the database using the new schema
  */
+/**
+ * Collection entry to store for an album: the fresh collection data (title, genres, ratings...)
+ * on top of what is already stored, so details loaded earlier (releases, tracklist) are kept
+ */
+export const mergeCollectionEntry = (existing: ReleaseGroup | undefined, fresh: ReleaseGroup): ReleaseGroup =>
+  existing ? { ...existing, ...fresh } : fresh;
+
 export const storeCollection = async (
   releaseGroups: ReleaseGroup[],
   collectionId: string,
@@ -202,7 +209,7 @@ export const storeCollection = async (
     // Store individual albums
     console.log(`📝 Storing ${releaseGroups.length} albums in memory cache`);
     releaseGroups.forEach(rg => {
-      memoryCache.albums.set(rg.id, rg);
+      memoryCache.albums.set(rg.id, mergeCollectionEntry(memoryCache.albums.get(rg.id), rg));
     });
 
     // Update legacy cache status for backward compatibility
@@ -250,24 +257,28 @@ export const storeCollection = async (
         console.log(`💾 Storing ${releaseGroups.length} individual albums in ALBUM_STORE`);
         let completed = 0;
         for (const releaseGroup of releaseGroups) {
-          const request = albumStore.put(releaseGroup);
-          request.onsuccess = () => {
-            completed++;
-            console.log(`💾 Stored album ${releaseGroup.id} (${completed}/${releaseGroups.length})`);
-            if (completed === releaseGroups.length) {
-              console.log('💾 All albums stored, updating legacy metadata...');
-              // Update legacy metadata for backward compatibility
-              metaStore.put({
-                id: 'cacheStatus',
-                lastUpdated: new Date().toISOString(),
-                itemCount: releaseGroups.length,
-                isComplete: true,
-                collectionId
-              });
-            }
-          };
-          request.onerror = () => {
-            console.error(`❌ Failed to store album ${releaseGroup.id}:`, request.error);
+          // Read first, so album details (releases, tracklist) stored earlier survive the refresh
+          const existingRequest = albumStore.get(releaseGroup.id);
+          existingRequest.onsuccess = () => {
+            const request = albumStore.put(mergeCollectionEntry(existingRequest.result, releaseGroup));
+            request.onsuccess = () => {
+              completed++;
+              console.log(`💾 Stored album ${releaseGroup.id} (${completed}/${releaseGroups.length})`);
+              if (completed === releaseGroups.length) {
+                console.log('💾 All albums stored, updating legacy metadata...');
+                // Update legacy metadata for backward compatibility
+                metaStore.put({
+                  id: 'cacheStatus',
+                  lastUpdated: new Date().toISOString(),
+                  itemCount: releaseGroups.length,
+                  isComplete: true,
+                  collectionId
+                });
+              }
+            };
+            request.onerror = () => {
+              console.error(`❌ Failed to store album ${releaseGroup.id}:`, request.error);
+            };
           };
         }
 
