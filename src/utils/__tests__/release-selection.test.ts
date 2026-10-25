@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractTracksFromMedia, findBestStreamingRelease, selectPreferredRelease } from '@/utils/release-selection';
+import { extractTracksFromMedia, findBestStreamingRelease, orderReleasesForStreaming, selectPreferredRelease } from '@/utils/release-selection';
 import { Media, Release } from '@/types/music';
 
 const release = (overrides: Partial<Release>): Release => ({ id: 'r', title: 'Album', ...overrides }) as Release;
@@ -44,5 +44,21 @@ describe('extractTracksFromMedia', () => {
       { format: 'CD' },
     ] as unknown as Media[];
     expect(extractTracksFromMedia(media).map(t => (t as { id: string }).id)).toEqual(['t1', 't2', 't3']);
+  });
+});
+
+describe('orderReleasesForStreaming', () => {
+  it('puts Digital Media first, then XW, then the rest, newest first and undated last', () => {
+    const releases = [
+      release({ id: 'cd-de-undated', country: 'DE', media: cd }),
+      release({ id: 'cd-de-old', country: 'DE', date: '1999', media: cd }),
+      release({ id: 'cd-xw', country: 'XW', date: '2001', media: cd }),
+      release({ id: 'digital-old', country: 'GB', date: '2010', media: digital }),
+      release({ id: 'cd-de-new', country: 'DE', date: '2020', media: cd }),
+      release({ id: 'digital-new', date: '2015', media: digital }),
+    ];
+    expect(orderReleasesForStreaming(releases).map(r => r.id)).toEqual([
+      'digital-new', 'digital-old', 'cd-xw', 'cd-de-new', 'cd-de-old', 'cd-de-undated',
+    ]);
   });
 });

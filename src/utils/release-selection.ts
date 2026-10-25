@@ -6,6 +6,7 @@
  * - Shared by the client (utils/api.ts), the release-groups route and the prefetch service
  * - Preferred release: official first, then oldest date
  * - Best streaming release: Digital Media + Worldwide first
+ * - Streaming search order over all releases: Digital Media, then Worldwide, then the rest
  */
 
 import { Media, Release, Track } from '@/types/music';
@@ -74,4 +75,20 @@ export const findBestStreamingRelease = (releases: Release[]): Release | null =>
   if (xw) return xw;
 
   return null;
+};
+
+/**
+ * Order releases for the streaming link search
+ * @ai Digital Media first, then Worldwide (XW), then the rest; newest first within each group, undated last
+ */
+export const orderReleasesForStreaming = (releases: Release[]): Release[] => {
+  const rank = (release: Release) => {
+    if (release.media?.some(m => m.format === 'Digital Media')) return 0;
+    if (release.country === 'XW') return 1;
+    return 2;
+  };
+
+  return [...releases].sort((a, b) =>
+    rank(a) - rank(b) || (b.date || '').localeCompare(a.date || '')
+  );
 };

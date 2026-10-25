@@ -10,7 +10,9 @@
  */
 
 import { ReleaseGroup, Release, StreamingLinks } from '@/types/music';
+import axios from 'axios';
 import { fetchReleaseUrlRels } from '@/utils/api';
+import { orderReleasesForStreaming } from '@/utils/release-selection';
 import { THIRD_PARTY_USER_AGENT } from '@/utils/config/userAgent';
 
 // Platform mapping from Odesli response to our StreamingLinks interface
@@ -641,6 +643,9 @@ const parseOdesliResponse = (odesliData: any): StreamingLinks => {
  * 4. Falls back to direct-only links if Odesli fails entirely
  * @param signal - Optional AbortSignal to cancel the operation
  */
+// Releases without inline url-rels (cached before browse included them) cost one MusicBrainz lookup each
+const MAX_FALLBACK_LOOKUPS = 5;
+
 const findStreamingUrlWithFallback = async (
   primaryRelease: Release | null,
   allReleases: Release[],
@@ -688,38 +693,19 @@ const findStreamingUrlWithFallback = async (
     return null;
   }
 
-  // Fallback: try other releases
+  // Fallback: try the other releases of the group
   console.log(`No working URLs in primary release, trying fallback releases for album: ${albumTitle}`);
 
-  const fallbackReleases = allReleases.filter(release =>
-    release.id !== primaryRelease?.id
+  // Releases browsed with url-rels already carry their links; older cached releases need one lookup each
+  const releasesToTry = orderReleasesForStreaming(
+    allReleases.filter(release => release.id !== primaryRelease?.id)
   );
-
-  // Priority 1: Worldwide (XW) releases — most likely to have streaming links
-  const worldwideReleases = fallbackReleases
-    .filter(release => release.country === 'XW')
-    .sort((a, b) => {
-      const aDate = a.date || '0000-00-00';
-      const bDate = b.date || '0000-00-00';
-      return bDate.localeCompare(aDate);
-    });
-
-  // Priority 2: Other country-specific releases (limit to 5, newest first)
-  const otherReleases = fallbackReleases
-    .filter(release => release.country !== 'XW')
-    .sort((a, b) => {
-      const aDate = a.date || '0000-00-00';
-      const bDate = b.date || '0000-00-00';
-      return bDate.localeCompare(aDate);
-    })
-    .slice(0, 5);
-
-  const releasesToTry = [...worldwideReleases, ...otherReleases];
-  console.log(`Will try ${worldwideReleases.length} XW releases and ${otherReleases.length} other releases`);
+  console.log(`Will try ${releasesToTry.length} releases (Digital Media, then XW, then the rest)`);
 
   // Accumulate direct links across all fallback releases
   let accumulatedDirectLinks: StreamingLinks = {};
   let firstDirectUrl: string | null = null;
+  let lookups = 0;
 
   for (const release of releasesToTry) {
     if (signal?.aborted) {
@@ -727,10 +713,20 @@ const findStreamingUrlWithFallback = async (
     }
 
     try {
-      console.log(`Fetching URL relationships for fallback release ${release.id} (${release.country || 'Unknown'})`);
-
-      const releaseWithUrls = await fetchReleaseUrlRels(release.id, signal);
-      const urls = extractAllStreamingUrls(releaseWithUrls);
+      let urls: string[];
+      if (release.relations) {
+        urls = extractAllStreamingUrls(release);
+      } else {
+        if (lookups >= MAX_FALLBACK_LOOKUPS) continue;
+        // Rate limit delay between MusicBrainz lookups
+        if (lookups > 0) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        lookups++;
+        console.log(`Fetching URL relationships for fallback release ${release.id} (${release.country || 'Unknown'})`);
+        const releaseWithUrls = await fetchReleaseUrlRels(release.id, signal);
+        urls = extractAllStreamingUrls(releaseWithUrls);
+      }
 
       if (urls.length > 0) {
         console.log(`Found ${urls.length} streaming URLs in fallback release ${release.id}`);
@@ -751,13 +747,11 @@ const findStreamingUrlWithFallback = async (
         }
       }
 
-      // Rate limit delay between fallback release attempts
-      if (releasesToTry.indexOf(release) < releasesToTry.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
+        return null;
+      }
+      if (axios.isAxiosError(error) && error.code === 'ERR_CANCELED') {
         return null;
       }
       console.warn(`Failed to fetch URL relationships for release ${release.id}:`, error);
@@ -771,7 +765,7 @@ const findStreamingUrlWithFallback = async (
     return { streamingLinks: accumulatedDirectLinks, successfulUrl: firstDirectUrl, fromCache: false };
   }
 
-  console.log(`No working streaming URLs found after checking ${releasesToTry.length} fallback releases`);
+  console.log(`No working streaming URLs found in ${releasesToTry.length} fallback releases (${lookups} lookups)`);
   return null;
 };
 

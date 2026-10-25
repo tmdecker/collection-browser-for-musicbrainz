@@ -22,7 +22,7 @@ import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
 import { waitForOdesliRateLimit } from '../odesli-rate-limiter';
 import { findStreamingUrl, extractAllStreamingUrls, isStreamingUrl, buildDirectLinksFromUrlsServer, validateStreamingUrlServer } from '@/utils/streaming-links';
 import { Release } from '@/types/music';
-import { extractTracksFromMedia, findBestStreamingRelease, selectPreferredRelease } from '@/utils/release-selection';
+import { extractTracksFromMedia, findBestStreamingRelease, orderReleasesForStreaming, selectPreferredRelease } from '@/utils/release-selection';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
@@ -162,12 +162,14 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
     // Step 5: Fetch streaming links (direct MB URLs + Odesli cross-platform)
     let streamingLinks = undefined;
     try {
-      // Find best release for streaming (Digital Media + XW preferred)
-      const streamingRelease = findBestStreamingRelease(releases);
-      let releaseWithUrls = detailedRelease;
+      // Releases are browsed with url-rels: take the first one (Digital Media, XW, rest) that has streaming URLs
+      const releaseWithInlineUrls = [detailedRelease, ...orderReleasesForStreaming(releases)]
+        .find(release => extractAllStreamingUrls(release).length > 0);
+      let releaseWithUrls: Release = releaseWithInlineUrls ?? detailedRelease;
 
-      // If streaming release is different, fetch its URL relationships
-      if (streamingRelease && streamingRelease.id !== detailedRelease.id) {
+      // Releases without inline url-rels: look up the best streaming release
+      const streamingRelease = findBestStreamingRelease(releases);
+      if (!releaseWithInlineUrls && streamingRelease && !streamingRelease.relations && streamingRelease.id !== detailedRelease.id) {
         const urlRelResponse = await fetchWithRetry(
           `${MB_BASE_URL}/release/${streamingRelease.id}?fmt=json&inc=url-rels`,
           {

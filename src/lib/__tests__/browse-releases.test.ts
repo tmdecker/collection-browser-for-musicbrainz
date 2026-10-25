@@ -22,6 +22,7 @@ describe('browseAllReleases (B13)', () => {
 
     expect(releases).toHaveLength(250);
     expect(fetchPage.mock.calls.map(([url]) => offsetOf(url))).toEqual([0, 100, 200]);
+    expect(new URL(fetchPage.mock.calls[0][0]).searchParams.get('inc')).toBe('media url-rels');
   });
 
   it('needs a single request for small release groups', async () => {
