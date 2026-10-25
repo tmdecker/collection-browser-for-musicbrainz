@@ -41,6 +41,7 @@ export interface StreamingPreferences {
   tidalUseDesktopApp: boolean;
   appleMusicUseDesktopApp: boolean;
   enabledServices: StreamingServicePreferences;
+  country: string; // Two-letter store country for streaming links (Apple storefront, Spotify market, Tidal)
 }
 
 export interface ApiConfiguration {
@@ -102,7 +103,33 @@ export const DEFAULT_STREAMING_PREFERENCES: StreamingPreferences = {
   tidalUseDesktopApp: false,
   appleMusicUseDesktopApp: false,
   enabledServices: DEFAULT_STREAMING_SERVICES,
+  country: 'DE',
 };
+
+// Countries offered in settings (any two-letter code works in the APIs)
+export const STREAMING_COUNTRIES: { code: string; name: string }[] = [
+  { code: 'AT', name: 'Austria' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'BE', name: 'Belgium' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'CH', name: 'Switzerland' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'FR', name: 'France' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'IE', name: 'Ireland' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'NO', name: 'Norway' },
+  { code: 'NZ', name: 'New Zealand' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'SE', name: 'Sweden' },
+  { code: 'US', name: 'United States' },
+];
 
 export const DEFAULT_API_CONFIGURATION: ApiConfiguration = {
   collectionId: '',

@@ -18,6 +18,7 @@ import StreamingLinksSection from './StreamingLinksSection';
 import StarRating from './StarRating';
 import { ReleaseGroup, StreamingLinks } from '@/types/music';
 import { StreamingServicePreferences, RatingDisplayMode } from '@/types/preferences';
+import { usePreferences } from '@/hooks/usePreferences';
 
 interface AlbumDetailsPanelProps {
   album: ReleaseGroup | null;
@@ -49,6 +50,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   // Use the detailed album data if available, otherwise fall back to basic album data
   const displayAlbum = albumDetails || album;
+  const streamingCountry = usePreferences().preferences.streaming.country;
 
   // Monitor when tracklist becomes available
   useEffect(() => {
@@ -90,7 +92,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         const result = await fetchStreamingLinksForAlbum(
           displayAlbum,
           displayAlbum.releaseDetails!,
-          undefined,
+          streamingCountry,
           abortController.signal
         );
 
@@ -121,7 +123,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
     };
   // Refetch only when the album or its release changes, not on every metadata update to displayAlbum
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayAlbum?.id, displayAlbum?.releaseDetails]);
+  }, [displayAlbum?.id, displayAlbum?.releaseDetails, streamingCountry]);
 
   if (!isOpen || !displayAlbum) return null;
 

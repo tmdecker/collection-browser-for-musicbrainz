@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { rgMbids } = body;
+    const { rgMbids, country } = body;
 
     // Validate input
     if (!Array.isArray(rgMbids)) {
@@ -56,12 +56,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (country !== undefined && (typeof country !== 'string' || !/^[A-Z]{2}$/.test(country))) {
+      return NextResponse.json({ error: 'country must be a two-letter code' }, { status: 400 });
+    }
+
     if (rgMbids.length === 0) {
       return NextResponse.json({ queued: 0, alreadyCached: 0 });
     }
 
     // Start prefetch (non-blocking)
-    const result = await startPrefetchForCollection(rgMbids);
+    const result = await startPrefetchForCollection(rgMbids, country);
 
     return NextResponse.json(result);
 

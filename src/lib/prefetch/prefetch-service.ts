@@ -98,7 +98,7 @@ export interface PrefetchStatus extends QueueStats {
  * Fetch and cache a single release group
  * This is the core fetch function used by the prefetch queue
  */
-async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
+async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise<void> {
   try {
     // Step 1: Fetch release group basic info
     const rgResponse = await fetchWithRetry(
@@ -203,7 +203,7 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
 
       if (streamingUrl) {
         // Check if already cached
-        const cached = streamingLinksCache.getByUrl(streamingUrl, 'DE');
+        const cached = streamingLinksCache.getByUrl(streamingUrl, country);
         if (cached) {
           console.log(`✅ Streaming links cached for ${mbid}: ${streamingUrl}`);
           odesliLinks = cached.streamingLinks;
@@ -213,7 +213,7 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
           await waitForOdesliRateLimit();
           const odesliUrl = new URL('https://api.song.link/v1-alpha.1/links');
           odesliUrl.searchParams.set('url', streamingUrl);
-          odesliUrl.searchParams.set('userCountry', 'DE');
+          odesliUrl.searchParams.set('userCountry', country);
           odesliUrl.searchParams.set('songIfSingle', 'true');
           odesliUrl.searchParams.set('key', process.env.ODESLI_API_KEY); // Server-only env var
 
@@ -250,10 +250,10 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
         if (cacheUrl) {
           const now = Date.now();
           const sevenDays = 7 * 24 * 60 * 60 * 1000;
-          streamingLinksCache.setByUrl(cacheUrl, 'DE', {
+          streamingLinksCache.setByUrl(cacheUrl, country, {
             streamingLinks: mergedLinks,
             sourceUrl: cacheUrl,
-            userCountry: 'DE',
+            userCountry: country,
             _cachedAt: now,
             _expiresAt: now + sevenDays,
           });
@@ -272,7 +272,7 @@ async function fetchAndCacheReleaseGroup(mbid: string): Promise<void> {
         .map(release => release.barcode?.trim())
         .find(isLookupBarcode);
       if (barcode) {
-        await getBarcodeLinksCached(barcode, 'DE');
+        await getBarcodeLinksCached(barcode, country);
       }
     } catch (error) {
       console.warn(`⚠️  Barcode lookup failed for ${mbid}:`, error);
@@ -337,7 +337,15 @@ function logProgress(stats: QueueStats): void {
  * Start prefetch for a collection of release groups
  * Filters out already-cached RGs and adds uncached ones to the queue
  */
-export async function startPrefetchForCollection(rgMbids: string[]): Promise<{ queued: number; alreadyCached: number }> {
+// Store country of the latest prefetch request (the queue holds MBIDs only)
+let prefetchCountry = 'DE';
+
+export async function startPrefetchForCollection(
+  rgMbids: string[],
+  country: string = 'DE'
+): Promise<{ queued: number; alreadyCached: number }> {
+  prefetchCountry = country;
+
   // Initialize cache manager if needed
   if (!cacheManager.isInitialized()) {
     await cacheManager.initialize();
@@ -370,7 +378,7 @@ export async function startPrefetchForCollection(rgMbids: string[]): Promise<{ q
 
     // Start queue in background (non-blocking)
     prefetchQueue.start(async (mbid: string) => {
-      await fetchAndCacheReleaseGroup(mbid);
+      await fetchAndCacheReleaseGroup(mbid, prefetchCountry);
 
       // Log progress periodically
       const stats = prefetchQueue.getStats();

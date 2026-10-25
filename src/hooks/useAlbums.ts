@@ -46,6 +46,12 @@ export const useAlbums = (externalCollectionId?: string) => {
     setCollectionId,
   } = usePreferences();
 
+  // Read by the prefetch request; a ref, so changing the country does not reload the collection
+  const streamingCountryRef = useRef(preferences.streaming.country);
+  useEffect(() => {
+    streamingCountryRef.current = preferences.streaming.country;
+  }, [preferences.streaming.country]);
+
   // Extract commonly used values
   const sortOption = preferences.display.sortOption;
   const useGenresOnly = preferences.display.useGenresOnly;
@@ -92,7 +98,7 @@ export const useAlbums = (externalCollectionId?: string) => {
         fetch('/api/prefetch/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rgMbids: data.map(a => a.id) })
+          body: JSON.stringify({ rgMbids: data.map(a => a.id), country: streamingCountryRef.current })
         }).catch(() => {}); // Fire and forget
       }
     } catch (err) {

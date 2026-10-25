@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useAuth } from '@/hooks/useAuth';
-import { StreamingServicePreferences } from '@/types/preferences';
+import { StreamingServicePreferences, STREAMING_COUNTRIES } from '@/types/preferences';
 import { BiInfoCircle } from 'react-icons/bi';
 import { useEffect, useState } from 'react';
 
@@ -258,6 +258,25 @@ export default function ConfigPage() {
                   When enabled, Apple Music links will open in the desktop app instead of the web browser.
                 </p>
               </div>
+            </div>
+
+            {/* Store country */}
+            <div>
+              <h4 className="text-md font-medium text-text-primary mb-2">Store Country</h4>
+              <p className="text-sm text-text-tertiary mb-3">
+                Country used to find streaming links (Apple Music store, Spotify market, Tidal). Albums can be available in one country but not another.
+              </p>
+              <select
+                value={preferences.streaming.country}
+                onChange={(e) => updateStreaming({ country: e.target.value })}
+                className="px-3 py-2 rounded-lg bg-background-tertiary text-sm text-text-primary border border-white/10 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {STREAMING_COUNTRIES.map(({ code, name }) => (
+                  <option key={code} value={code}>
+                    {name} ({code})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Enabled Services */}
