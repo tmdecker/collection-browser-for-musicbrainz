@@ -33,6 +33,8 @@ export const useAlbums = (externalCollectionId?: string) => {
 
   // Ref to store AbortController for cancelling album details fetch
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Increments with every collection load; results of older loads are ignored (fast collection switches)
+  const loadIdRef = useRef(0);
 
   // Get preferences from centralized hook
   const {
@@ -65,12 +67,18 @@ export const useAlbums = (externalCollectionId?: string) => {
       return;
     }
 
+    const loadId = ++loadIdRef.current;
+    const isCurrentLoad = () => loadId === loadIdRef.current;
+
     try {
       setLoading(true);
       setError(null);
 
       // Use the progressive loader for IndexedDB caching
       const data = await getBasicData(collectionId, entityType);
+
+      // Another collection was selected meanwhile: drop this result instead of overwriting the new one
+      if (!isCurrentLoad()) return;
 
       // Verify data integrity before setting state
       if (!Array.isArray(data)) {
@@ -88,11 +96,14 @@ export const useAlbums = (externalCollectionId?: string) => {
         }).catch(() => {}); // Fire and forget
       }
     } catch (err) {
+      if (!isCurrentLoad()) return;
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to load albums: ${errorMessage}`);
       setAlbums([]);
     } finally {
-      setLoading(false);
+      if (isCurrentLoad()) {
+        setLoading(false);
+      }
     }
   }, [collectionId, entityType]);
 
@@ -107,6 +118,8 @@ export const useAlbums = (externalCollectionId?: string) => {
 
       try {
         const cachedAlbum = await getReleaseGroup(albumId);
+        // The user may have picked another album while IndexedDB was read
+        if (signal?.aborted) return;
         if (cachedAlbum) {
           // Immediately show the cached data (whether basic or detailed)
           setSelectedAlbumDetails(cachedAlbum);
@@ -131,8 +144,8 @@ export const useAlbums = (externalCollectionId?: string) => {
                   if (!json.success) return;
                   const freshDetails = json.data;
 
-                  // Only update if data changed (compare release count)
-                  if (freshDetails.releases?.length !== cachedAlbum.releases?.length) {
+                  // Only update if data changed (compare release count) and this album is still selected
+                  if (!signal?.aborted && freshDetails.releases?.length !== cachedAlbum.releases?.length) {
                     console.log(`🔄 Background refresh found updated data for ${albumId}`);
                     setSelectedAlbumDetails(freshDetails);
                   }

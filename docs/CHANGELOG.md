@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stale data when switching (B11)**: A slow response for a collection you already left no longer replaces the new collection; the details panel no longer shows the previous album when its cached data or background refresh arrives late
+
 ### Changed
 
 - The "Powered by Songlink" note under the streaming links only appears when `ODESLI_API_KEY` is set (read at build time, so rebuild after adding the key)
