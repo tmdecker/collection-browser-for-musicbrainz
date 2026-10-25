@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    // Only whether a Songlink (Odesli) key is set, never the key itself; read at build time
+    NEXT_PUBLIC_SONGLINK_ENABLED: process.env.ODESLI_API_KEY ? 'true' : '',
+  },
   images: {
     // Define device sizes for responsive images
     deviceSizes: [180, 360, 720, 1080],

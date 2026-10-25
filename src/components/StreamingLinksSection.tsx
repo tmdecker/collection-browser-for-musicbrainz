@@ -375,18 +375,20 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
           );
         })}
       </div>
-      <div className="text-xs text-text-tertiary mt-2">
-        Links via{' '}
-        <a
-          href="https://musicbrainz.org"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-text-secondary transition-colors duration-200"
-        >
-          MusicBrainz
-        </a>
-        {' & barcode lookup'}
-      </div>
+      {/* Songlink's terms ask for attribution; only shown when the Odesli API key is configured */}
+      {process.env.NEXT_PUBLIC_SONGLINK_ENABLED === 'true' && (
+        <div className="text-xs text-text-tertiary mt-2">
+          Powered by{' '}
+          <a
+            href="https://odesli.co"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-text-secondary transition-colors duration-200"
+          >
+            Songlink
+          </a>
+        </div>
+      )}
     </div>
   );
 };

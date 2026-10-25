@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
-- The streaming links footer reads "Links via MusicBrainz & barcode lookup" instead of crediting Songlink (Odesli), which is only used with an API key
+- The "Powered by Songlink" note under the streaming links only appears when `ODESLI_API_KEY` is set (read at build time, so rebuild after adding the key)
 - **Documentation**: Removed `api.md`, `components.md`, `indexeddb.md`, `configuration.md` and the lazy-loading README, which repeated the code and had gone stale (Odesli as main source, 2 s rate limit, 30-minute reload, deleted files). `architecture.md` is now a one-page overview; the README gained a deployment section (replacing the link to an untracked guide), the settings overview and development commands
 
 ### Added
