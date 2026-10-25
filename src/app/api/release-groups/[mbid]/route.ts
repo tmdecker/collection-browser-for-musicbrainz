@@ -74,7 +74,8 @@ export async function GET(
     if (releaseGroupCache.isFullyCached(mbid)) {
       const hydratedRG = releaseGroupCache.getWithReleases(mbid);
 
-      if (hydratedRG) {
+      // Releases cached before browsing included url-rels have no relations: fetch them again once
+      if (hydratedRG && hydratedRG.releases.every((release: Release) => release.relations)) {
         const rg = releaseGroupCache.get(mbid);
         return NextResponse.json({
           success: true,

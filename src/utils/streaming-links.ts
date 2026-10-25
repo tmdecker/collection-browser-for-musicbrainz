@@ -865,6 +865,38 @@ const addBarcodeLinks = async (
   return merged && Object.keys(merged).length > 0 ? merged : null;
 };
 
+/**
+ * Fill platforms the other sources missed with the MusicBrainz links of every release that carries
+ * inline url-rels (no extra MusicBrainz requests). One URL per platform, Digital Media releases first.
+ */
+const addReleaseGroupLinks = async (
+  links: StreamingLinks | null,
+  primaryRelease: Release | undefined,
+  releases: Release[],
+  signal?: AbortSignal
+): Promise<StreamingLinks | null> => {
+  const urlByPlatform = new Map<string, string>();
+  const candidates = [primaryRelease, ...orderReleasesForStreaming(releases)]
+    .filter((release): release is Release => !!release?.relations);
+  for (const release of candidates) {
+    for (const url of extractAllStreamingUrls(release)) {
+      const platform = getPlatformFromUrl(url);
+      if (platform && !links?.[platform as keyof StreamingLinks] && !urlByPlatform.has(platform)) {
+        urlByPlatform.set(platform, url);
+      }
+    }
+  }
+
+  if (urlByPlatform.size === 0) return links;
+
+  const directLinks = await buildDirectLinksFromUrls([...urlByPlatform.values()], signal);
+  const added = ALL_PLATFORM_KEYS.filter(k => directLinks[k]);
+  if (added.length === 0) return links;
+
+  console.log(`🔗 Other releases added: ${added.join(', ')}`);
+  return mergeStreamingLinks(links ?? {}, directLinks);
+};
+
 export const fetchStreamingLinksForAlbum = async (
   releaseGroup: ReleaseGroup,
   primaryRelease?: Release,
@@ -892,7 +924,8 @@ export const fetchStreamingLinksForAlbum = async (
         console.log(`✅ Instant cache hit! Streaming links loaded instantly for: ${releaseGroup.title}`);
 
         // Platform filtering by the user's enabled services happens in StreamingLinksSection
-        const links = await addBarcodeLinks(cachedResult.links, primaryRelease, releaseGroup.releases || [], country, signal);
+        const withReleaseLinks = await addReleaseGroupLinks(cachedResult.links, primaryRelease, releaseGroup.releases || [], signal);
+        const links = await addBarcodeLinks(withReleaseLinks, primaryRelease, releaseGroup.releases || [], country, signal);
         return { links, fromCache: true };
       } else {
         console.log(`⚠️ Cached URL no longer valid, falling back to full discovery`);
@@ -929,7 +962,8 @@ export const fetchStreamingLinksForAlbum = async (
     // Cache the successful URL for future instant lookups
     setCachedStreamingUrl(releaseGroup.id, successfulUrl);
 
-    const links = (await addBarcodeLinks(streamingLinks, primaryRelease, releaseGroup.releases || [], country, signal)) ?? streamingLinks;
+    const withReleaseLinks = (await addReleaseGroupLinks(streamingLinks, primaryRelease, releaseGroup.releases || [], signal)) ?? streamingLinks;
+    const links = (await addBarcodeLinks(withReleaseLinks, primaryRelease, releaseGroup.releases || [], country, signal)) ?? withReleaseLinks;
     const platformCount = Object.keys(links).length - (links.thumbnail ? 1 : 0);
     console.log(`✓ Album "${releaseGroup.title}" linked via ${successfulUrl} → ${platformCount} platforms available`);
 

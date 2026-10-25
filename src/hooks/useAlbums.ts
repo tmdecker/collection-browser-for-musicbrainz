@@ -131,8 +131,10 @@ export const useAlbums = (externalCollectionId?: string) => {
           setSelectedAlbumDetails(cachedAlbum);
           shouldShowLoading = false; // Don't show loading since we have cached data
 
-          // Check if this already has detailed data by looking for release details
-          const hasDetailedData = cachedAlbum.releases && cachedAlbum.releases.length > 0;
+          // Check if this already has detailed data by looking for release details;
+          // releases cached before browsing included url-rels have no relations and are fetched again
+          const hasDetailedData = cachedAlbum.releases && cachedAlbum.releases.length > 0
+            && cachedAlbum.releases.every(release => release.relations);
 
           if (hasDetailedData) {
             // Check if cache is stale (older than 24 hours)
