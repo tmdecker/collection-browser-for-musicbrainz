@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **Login callback (S5)**: The redirect after login uses the origin of `MUSICBRAINZ_OAUTH_REDIRECT_URI` instead of trusting the `X-Forwarded-Host` header (which a client could point at another site); the OAuth state is no longer written to the log
+- **CSP (S6)**: `unsafe-eval` is only allowed for the dev server, not in production
+
 ### Fixed
 
 - **Albums with many releases (B13)**: The release-groups route and the prefetch load all releases page by page (up to 500) instead of only the first 100, so the oldest release and digital releases are no longer missed. Removed the unused client-side release group fetching in `utils/api.ts`

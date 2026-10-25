@@ -62,7 +62,8 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires unsafe-eval and unsafe-inline
+              // unsafe-eval only for the dev server (hot reload); production bundles don't need it
+              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`,
               "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline
               "img-src 'self' https://coverartarchive.org https://*.archive.org data: blob:",
               "connect-src 'self' https://musicbrainz.org https://api.song.link https://music.apple.com",

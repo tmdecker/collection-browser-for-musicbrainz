@@ -12,11 +12,21 @@ import { setAuthCookies } from '@/utils/auth-cookies';
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
 
-/** @ai-helper Workaround for Next.js returning localhost in request.url */
+/**
+ * Where to send the browser after login
+ * Security: taken from the configured redirect URI (MusicBrainz only ever calls back to that exact
+ * address), never from X-Forwarded-Host or Host, which any client can set to an attacker's site
+ */
 function getBaseUrl(request: NextRequest): string {
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
-  const proto = request.headers.get('x-forwarded-proto') || 'http';
-  return `${proto}://${host}`;
+  const redirectUri = process.env.MUSICBRAINZ_OAUTH_REDIRECT_URI;
+  if (redirectUri) {
+    try {
+      return new URL(redirectUri).origin;
+    } catch {
+      // Invalid configuration, fall back below
+    }
+  }
+  return request.nextUrl.origin;
 }
 
 export async function GET(request: NextRequest) {
@@ -47,7 +57,8 @@ export async function GET(request: NextRequest) {
     // Retrieve and verify state from cookie (CSRF protection)
     const storedState = request.cookies.get('mb_oauth_state')?.value;
     if (!storedState || storedState !== state) {
-      console.error('❌ State mismatch:', { storedState, receivedState: state });
+      // Security: never log the state values themselves
+      console.error(`❌ OAuth state mismatch (${storedState ? 'cookie differs' : 'no state cookie, check redirect URI host/port and COOKIE_SECURE'})`);
       return NextResponse.redirect(
         new URL('/?auth_error=Invalid state parameter', baseUrl)
       );
