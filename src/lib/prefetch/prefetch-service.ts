@@ -5,7 +5,9 @@
  * @ai-features
  * - Background prefetching of release groups after collection loads
  * - Streaming links prefetch (MusicBrainz links of all releases + barcode lookups)
- * - Filters already-cached RGs before queueing; stale ones are queued after uncached ones for a refresh
+ * - Filters already-cached RGs before queueing; albums cached without url-rels count as uncached
+ * - Albums without streaming links for the country get them from the cached releases
+ * - Stale albums are queued last for a refresh
  * - Retry logic with exponential backoff for network errors
  * - Progress logging every 60 seconds
  */
@@ -16,6 +18,7 @@ import { releaseStore } from '../cache/release-store';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { getAlbumStreamingLinks } from '../album-streaming-links';
+import { getRgStreamingLinks } from '../cache/streaming-links-cache';
 import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '../cache/release-group-fetches';
 import { browseAllReleases } from '../browse-releases';
 import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
@@ -102,7 +105,19 @@ async function fetchAndCacheReleaseGroup(mbid: string, country: string): Promise
   const inFlight = releaseGroupFetchInFlight(mbid);
   if (inFlight) {
     await inFlight;
-    if (releaseGroupCache.isFullyCached(mbid)) return;
+  }
+
+  // Album data complete and fresh (a click may just have loaded it): at most the streaming links of
+  // this country are missing, resolved from the cached releases; stale albums are fetched again below
+  if (releaseGroupCache.isComplete(mbid) && !releaseGroupCache.isStale(mbid)) {
+    if (!getRgStreamingLinks(mbid, country)) {
+      try {
+        await getAlbumStreamingLinks(mbid, country, { priority: 'low' });
+      } catch (error) {
+        console.warn(`⚠️  Failed to fetch streaming links for ${mbid}:`, error);
+      }
+    }
+    return;
   }
 
   // Marked as in flight only while MusicBrainz is queried, so a click waits for the album data,
@@ -257,16 +272,20 @@ export async function startPrefetchForCollection(
     await cacheManager.initialize();
   }
 
-  // Uncached RGs first; stale ones (still served) after them, oldest first
+  // Uncached RGs first (including albums cached without url-rels, which a click would fetch again),
+  // then albums without streaming links for this country, then stale ones (still served), oldest first
   const uncached: string[] = [];
+  const missingLinks: string[] = [];
   const stale: { mbid: string; freshUntil: number }[] = [];
   let alreadyCached = 0;
 
   for (const mbid of rgMbids) {
-    if (!releaseGroupCache.isFullyCached(mbid)) {
+    if (!releaseGroupCache.isComplete(mbid)) {
       uncached.push(mbid);
     } else if (releaseGroupCache.isStale(mbid)) {
       stale.push({ mbid, freshUntil: releaseGroupCache.freshUntil(mbid) ?? 0 });
+    } else if (!getRgStreamingLinks(mbid, country)) {
+      missingLinks.push(mbid);
     } else {
       alreadyCached++;
     }
@@ -275,7 +294,7 @@ export async function startPrefetchForCollection(
 
   // Add to queue with low priority
   let queued = 0;
-  for (const mbid of [...uncached, ...stale.map(item => item.mbid)]) {
+  for (const mbid of [...uncached, ...missingLinks, ...stale.map(item => item.mbid)]) {
     const added = prefetchQueue.add(mbid, 'low');
     if (added) {
       queued++;
@@ -283,7 +302,7 @@ export async function startPrefetchForCollection(
   }
 
   if (queued > 0) {
-    console.log(`🚀 Starting prefetch queue with ${queued} items (${uncached.length} new, ${stale.length} to refresh)`);
+    console.log(`🚀 Starting prefetch queue with ${queued} items (${uncached.length} new, ${missingLinks.length} without streaming links, ${stale.length} to refresh)`);
     startQueue();
   }
 

@@ -68,6 +68,16 @@ class ReleaseGroupCache extends BaseCache<CachedReleaseGroup> {
   }
 
   /**
+   * Fully cached and usable for the details panel and streaming links: releases cached before
+   * browsing included url-rels have no relations, so those albums are fetched again once
+   */
+  isComplete(rgMbid: string): boolean {
+    const rg = this.get(rgMbid);
+    if (!rg) return false;
+    return rg.releaseMbids.every(mbid => releaseStore.get(mbid)?.relations);
+  }
+
+  /**
    * Get cache status for a release group
    * Returns: { cached: boolean, missingReleases: string[] }
    */
