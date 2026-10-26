@@ -24,8 +24,6 @@ const LazyAlbumGrid: React.FC<LazyAlbumGridProps> = ({
   onSelectAlbum,
   loading 
 }) => {
-  console.log(`🟥 LazyAlbumGrid received ${albums.length} albums from parent`);
-
   // Albums are already normalized by useAlbums, no need to normalize again
   const normalizedAlbums = albums;
   
