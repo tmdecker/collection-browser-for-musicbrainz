@@ -7,11 +7,12 @@
  * - Genre/tag display with optional ratings
  * - Streaming links integration
  * - Progressive loading support
+ * - Manual refresh of the album from MusicBrainz (after editing it there)
  */
 
 import React, { useState, useEffect } from 'react';
 import { SiMusicbrainz } from 'react-icons/si';
-import { BiLock } from 'react-icons/bi';
+import { BiLock, BiRefresh } from 'react-icons/bi';
 import CoverArtImage from './CoverArtImage';
 import TrackList from './TrackList';
 import StreamingLinksSection from './StreamingLinksSection';
@@ -39,13 +40,16 @@ interface AlbumDetailsPanelProps {
   showRatings?: boolean;
   ratingDisplayMode?: RatingDisplayMode;
   isAuthenticated?: boolean;
+  onRefreshAlbum?: (albumId: string) => Promise<boolean>;
 }
 
-const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], hasActiveFilters = false, spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false }) => {
+const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], hasActiveFilters = false, spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum }) => {
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
   const [streamingLinksFromCache, setStreamingLinksFromCache] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  // Manual refresh from MusicBrainz, per album, so switching albums never shows another album's state
+  const [refresh, setRefresh] = useState<{ albumId: string; status: 'running' | 'done' | 'failed' } | null>(null);
 
   // Use the detailed album data if available, otherwise fall back to basic album data
   const displayAlbum = albumDetails || album;
@@ -122,6 +126,15 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   }, [displayAlbum?.id, displayAlbum?.releaseDetails, streamingCountry]);
 
   if (!isOpen || !displayAlbum) return null;
+
+  const refreshStatus = refresh?.albumId === displayAlbum.id ? refresh.status : null;
+  const handleRefresh = async () => {
+    if (!onRefreshAlbum || refreshStatus === 'running') return;
+    const albumId = displayAlbum.id;
+    setRefresh({ albumId, status: 'running' });
+    const ok = await onRefreshAlbum(albumId);
+    setRefresh(current => (current?.albumId === albumId ? { albumId, status: ok ? 'done' : 'failed' } : current));
+  };
 
   // Helper function to extract artist name regardless of data structure
   const getArtistName = () => {
@@ -430,6 +443,24 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                     <SiMusicbrainz className="w-6 h-6 text-white drop-shadow-lg" />
                   </div>
                 </a>
+                {onRefreshAlbum && (
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={refreshStatus === 'running'}
+                    title="Fetch this album again from MusicBrainz (after editing it there)"
+                    className="mt-2 w-64 flex items-center justify-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-colors disabled:cursor-wait"
+                  >
+                    <BiRefresh className={`text-base ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
+                    {refreshStatus === 'running'
+                      ? 'Refreshing from MusicBrainz…'
+                      : refreshStatus === 'done'
+                        ? 'Updated from MusicBrainz'
+                        : refreshStatus === 'failed'
+                          ? 'Refresh failed, try again'
+                          : 'Refresh from MusicBrainz'}
+                  </button>
+                )}
               </div>
 
               {/* Metadata Section */}

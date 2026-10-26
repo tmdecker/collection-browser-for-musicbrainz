@@ -49,6 +49,7 @@ export default function Home() {
     selectedAlbumDetails,
     selectedAlbumLoading,
     handleSelectAlbum,
+    refreshAlbum,
     refreshAlbums,
     collectionName,
     collectionId,
@@ -406,6 +407,7 @@ export default function Home() {
         showRatings={preferences.display.showRatings}
         ratingDisplayMode={preferences.display.ratingDisplayMode}
         isAuthenticated={isAuthenticated}
+        onRefreshAlbum={refreshAlbum}
       />
 
       {/* Collections Browse Panel */}

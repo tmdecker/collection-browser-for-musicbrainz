@@ -109,6 +109,16 @@ export const setRgStreamingLinks = (
   complete: boolean
 ): CachedStreamingLinks => streamingLinksCache.setByUrl(rgSource(releaseGroupMbid), country, links, complete);
 
+/**
+ * Drop the cached streaming links of an album for every country (manual album refresh)
+ */
+export const deleteRgStreamingLinks = (releaseGroupMbid: string): void => {
+  const prefix = `${rgSource(releaseGroupMbid)}:`;
+  for (const key of streamingLinksCache.keys()) {
+    if (key.startsWith(prefix)) streamingLinksCache.delete(key);
+  }
+};
+
 // --- URL liveness checks ---
 
 const URL_CHECK_TTL_SECONDS = 30 * 24 * 60 * 60;

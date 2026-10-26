@@ -4,6 +4,8 @@ import { getBasicData } from '@/utils/progressive-loader';
 import { albumMatchesGenreFilters } from '@/utils/genre-processor';
 import { albumMatchesLabelFilters } from '@/utils/label-processor';
 import { usePreferences } from './usePreferences';
+import { normalizeReleaseGroup } from '@/utils/normalize-mb-data';
+import { bumpCoverVersion } from '@/utils/cover-versions';
 
 /**
  * @ai-file hook
@@ -12,6 +14,7 @@ import { usePreferences } from './usePreferences';
  * @ai-features
  * - Album fetching with IndexedDB caching
  * - Album details with server-side cache and request cancellation
+ * - Manual refresh of one album from MusicBrainz (after editing it there)
  * - Sorting and search functionality
  */
 
@@ -30,6 +33,12 @@ export const useAlbums = (externalCollectionId?: string) => {
   const [selectedAlbum, setSelectedAlbum] = useState<ReleaseGroup | null>(null);
   const [selectedAlbumDetails, setSelectedAlbumDetails] = useState<ReleaseGroup | null>(null);
   const [selectedAlbumLoading, setSelectedAlbumLoading] = useState<boolean>(false);
+
+  // The selected album for callbacks that finish later (manual refresh)
+  const selectedAlbumRef = useRef<ReleaseGroup | null>(null);
+  useEffect(() => {
+    selectedAlbumRef.current = selectedAlbum;
+  }, [selectedAlbum]);
 
   // Ref to store AbortController for cancelling album details fetch
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -242,6 +251,45 @@ export const useAlbums = (externalCollectionId?: string) => {
     }
   }, [albums, selectedAlbumDetails]);
 
+  // Fetch one album from MusicBrainz again, bypassing every cache (after editing it on MusicBrainz)
+  const refreshAlbum = useCallback(async (albumId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/release-groups/${albumId}`, { method: 'POST' });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.error || `HTTP ${response.status}`);
+      const details = json.data;
+
+      // The server dropped its cover images: load the cover again instead of the browser's copy
+      bumpCoverVersion(albumId);
+
+      // Still selected: show the new data (new releaseDetails make the panel ask for streaming links again)
+      if (selectedAlbumRef.current?.id === albumId) {
+        setSelectedAlbumDetails(details);
+      }
+
+      // Grid entry: new title, genres, tags and rating; the personal rating only comes with the collection
+      const fresh = normalizeReleaseGroup(details);
+      setAlbums(prev => prev.map(album => album.id !== albumId ? album : {
+        ...album,
+        title: fresh.title,
+        artist_credit: fresh.artist_credit,
+        first_release_date: fresh.first_release_date,
+        primary_type: fresh.primary_type,
+        secondary_types: fresh.secondary_types,
+        genres: fresh.genres,
+        tags: fresh.tags,
+        rating: fresh.rating ? { ...fresh.rating, personal: album.rating?.personal ?? null } : album.rating,
+      }));
+
+      const { storeReleaseGroup } = await import('@/utils/db');
+      await storeReleaseGroup({ ...details, cover: details.cover || `/api/coverart/release-group/${albumId}/front` });
+      return true;
+    } catch (err) {
+      console.warn(`❌ Refresh of album ${albumId} failed:`, err);
+      return false;
+    }
+  }, []);
+
   // Handle selecting an album
   const handleSelectAlbum = useCallback((album: ReleaseGroup | null) => {
     // Abort any in-flight album details request
@@ -364,6 +412,7 @@ export const useAlbums = (externalCollectionId?: string) => {
     selectedAlbumDetails,
     selectedAlbumLoading,
     handleSelectAlbum,
+    refreshAlbum,
     refreshAlbums: fetchAlbums,
     collectionName,
     collectionId,

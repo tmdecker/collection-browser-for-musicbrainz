@@ -9,6 +9,8 @@
  * - Respects the shared MusicBrainz rate limit (user requests go ahead of prefetch)
  * - Joins a prefetch that is loading the same album instead of fetching it twice
  * - Stale albums (past 60 days) are served from the cache and refreshed in the background
+ * - POST fetches the album again right away (after an edit on MusicBrainz) and drops its cached
+ *   streaming links and cover images
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,6 +25,8 @@ import { isMbid } from '@/utils/mbid-validation';
 import { browseAllReleases, ReleaseBrowseError } from '@/lib/browse-releases';
 import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '@/lib/cache/release-group-fetches';
 import { queueReleaseGroupRefresh } from '@/lib/prefetch/prefetch-service';
+import { deleteRgStreamingLinks } from '@/lib/cache/streaming-links-cache';
+import { forgetCachedImage } from '@/lib/image-cache';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -274,5 +278,51 @@ export async function GET(
       { error: 'Internal server error' },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * POST handler for /api/release-groups/[mbid]: fetch the album from MusicBrainz again, ignoring the cache
+ * Used after editing the album on MusicBrainz (new cover art, new streaming links)
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ mbid: string }> }
+) {
+  try {
+    const { mbid } = await params;
+
+    // Security: only real MBIDs become cache keys, file names and MusicBrainz URL paths
+    if (!isMbid(mbid)) {
+      return NextResponse.json({ error: 'Invalid release group ID' }, { status: 400 });
+    }
+
+    if (!cacheManager.isInitialized()) {
+      await cacheManager.initialize();
+    }
+
+    // A fetch that started before the edit may finish after this refresh: let it finish first
+    await releaseGroupFetchInFlight(mbid);
+
+    console.log(`🔄 Manual refresh of release group ${mbid}`);
+    const previousReleaseMbids = releaseGroupCache.get(mbid)?.releaseMbids ?? [];
+    const response = await withReleaseGroupFetch(mbid, () => fetchReleaseGroup(mbid));
+    if (!response.ok) return response;
+
+    // Releases that were removed or merged on MusicBrainz no longer belong to this album
+    const currentReleaseMbids = new Set(releaseGroupCache.get(mbid)?.releaseMbids ?? []);
+    for (const releaseMbid of previousReleaseMbids) {
+      if (!currentReleaseMbids.has(releaseMbid)) releaseStore.delete(releaseMbid);
+    }
+
+    // Streaming links are resolved again from the new releases on the next request; the cover is
+    // downloaded again (the "no cover" marker is dropped too)
+    deleteRgStreamingLinks(mbid);
+    forgetCachedImage(`https://coverartarchive.org/release-group/${mbid}/front`);
+
+    return response;
+  } catch (error) {
+    console.error('❌ Error refreshing release group:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

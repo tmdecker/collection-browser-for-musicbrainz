@@ -109,7 +109,10 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
           alt={`${album.title} by ${artistNames}`}
           priority={index < 20 || selected}
           className={`object-cover transition-opacity duration-300 ${imageLoaded && !imageError ? 'opacity-100' : 'opacity-0'}`}
-          onLoad={() => setImageLoaded(true)}
+          onLoad={() => {
+            setImageLoaded(true);
+            setImageError(false); // A cover added on MusicBrainz and refreshed by hand replaces the fallback
+          }}
           onError={() => {
             console.log(`Error loading image for ${album.id}: ${album.title}`);
             setImageError(true);

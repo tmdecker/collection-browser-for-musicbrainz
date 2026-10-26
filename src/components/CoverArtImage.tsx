@@ -7,6 +7,7 @@
  * - Error handling with fallback content
  * - Priority loading support
  * - Skips Next.js optimization for coverartarchive.org URLs
+ * - Loads the new cover after a manual album refresh (cover version in the URL)
  */
 
 import React, { useState } from 'react';
@@ -24,6 +25,7 @@ if (typeof window !== 'undefined' && !window.mbImageCache) {
   window.mbImageCache = {} as ImageCache;
 }
 import NextImage from 'next/image';
+import { useCoverVersion } from '@/utils/cover-versions';
 
 interface CoverArtImageProps {
   src?: string;
@@ -56,18 +58,21 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
   const actualSrc = src || (mbid ? `/api/coverart/release-group/${mbid}/front` : undefined);
   // Use provided alt text or fallback to title
   const altText = alt || (title ? `Cover art for ${title}` : 'Album cover art');
-  // Remember which source failed, so a new source automatically starts without an error
+  // Set when the album was refreshed by hand: a new URL, so the browser cache cannot answer with the old cover
+  const coverVersion = useCoverVersion(actualSrc?.match(/^\/api\/coverart\/release-group\/([a-f0-9-]+)\//)?.[1]);
+  // Remember which source failed, so a new source (or cover version) automatically starts without an error
   const [failedSrc, setFailedSrc] = useState<string | undefined>(undefined);
-  const error = failedSrc === (actualSrc ?? '');
+  const sourceKey = `${actualSrc ?? ''}#${coverVersion ?? ''}`;
+  const error = failedSrc === sourceKey;
   
   // Generate a stable cache key regardless of size
   const generateCacheKey = (url: string | undefined): string => {
     if (!url) return '';
     
-    // For CoverArt API, use the MusicBrainz ID as the cache key
+    // For CoverArt API, use the MusicBrainz ID (and cover version) as the cache key
     if (url.startsWith('/api/coverart/')) {
       const match = url.match(/release-group\/([a-f0-9-]+)\//);
-      if (match && match[1]) return `mbid:${match[1]}`;
+      if (match && match[1]) return `mbid:${match[1]}${coverVersion ? `@${coverVersion}` : ''}`;
     }
     
     // For HTTP URLs, create a key without size parameters
@@ -116,7 +121,8 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
       // Use the custom image optimization API for all external images
       if (normalizedUrl.startsWith('http')) {
         // Make sure to encode the URL properly
-        return `/api/image?url=${encodeURIComponent(normalizedUrl)}&w=${requestedSize}&h=${requestedSize}&q=80`;
+        const version = coverVersion ? `&v=${coverVersion}` : '';
+        return `/api/image?url=${encodeURIComponent(normalizedUrl)}&w=${requestedSize}&h=${requestedSize}&q=80${version}`;
       }
       
       return normalizedUrl;
@@ -130,7 +136,7 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
   
   const handleError = () => {
     console.log(`Error loading cover art: ${imageUrl}`);
-    setFailedSrc(actualSrc ?? '');
+    setFailedSrc(sourceKey);
     if (onError) onError();
   };
   

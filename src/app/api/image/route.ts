@@ -8,7 +8,7 @@
  * - Only fetches allowed hosts, checks every redirect hop, caps the download size
  * - Requests Cover Art Archive thumbnails (250/500/1200) instead of full-size originals
  * - Requests to coverartarchive.org are spaced 250 ms apart (MetaBrainz servers)
- * - Disk-based caching with MD5 hash filenames
+ * - Disk-based caching with MD5 hash filenames (lib/image-cache)
  * - Remembers covers that don't exist (7 days), so they are not requested again on every grid load
  * - One download per Cover Art Archive thumbnail: every size made from it is stored at once
  * - Concurrent requests for the same thumbnail share one download
@@ -18,10 +18,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
-import { createHash } from 'crypto';
 import fs from 'fs';
-import path from 'path';
 import { createRateLimiter } from '@/lib/rate-limiter';
+import { ALLOWED_SIZES, cachePathFor, missingMarkerFor, QUALITY } from '@/lib/image-cache';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -35,11 +34,7 @@ const ALLOWED_IMAGE_HOSTS = [
   'ia900900.us.archive.org',
 ];
 
-// Security: Only a few output sizes and one quality, so the disk cache cannot be filled with
-// millions of variants of the same image (2000 × 2000 × 100 combinations were possible before)
-const ALLOWED_SIZES = [180, 250, 360, 500, 720, 1080];
 const DEFAULT_SIZE = 180;
-const QUALITY = 80;
 
 // Security: Limits on what is downloaded and decoded
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
@@ -142,25 +137,10 @@ const readLimitedBody = async (response: Response): Promise<Buffer | null> => {
   return Buffer.concat(chunks);
 };
 
-// Create cache directory if it doesn't exist
-const cacheDir = path.join(process.cwd(), '.image-cache');
-if (!fs.existsSync(cacheDir)) {
-  fs.mkdirSync(cacheDir, { recursive: true });
-}
-
 // A cover that Cover Art Archive answered 404 for is not asked for again for this long
 const MISSING_COVER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // Browsers may reuse the 404 for a day (the grid shows its fallback without asking the server)
 const MISSING_COVER_MAX_AGE_SECONDS = 24 * 60 * 60;
-
-const cachePathFor = (imageUrl: string, width: number, height: number): string => {
-  const hash = createHash('md5').update(`${imageUrl}_${width}x${height}_q${QUALITY}`).digest('hex');
-  return path.join(cacheDir, `${hash}.webp`);
-};
-
-// One marker per image URL, whatever size was asked for
-const missingMarkerFor = (imageUrl: string): string =>
-  path.join(cacheDir, `${createHash('md5').update(imageUrl).digest('hex')}.missing`);
 
 const isKnownMissing = (imageUrl: string): boolean => {
   try {
