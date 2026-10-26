@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - **Albums open instantly again after the upgrade**: Albums cached before 0.35.1 have releases without their MusicBrainz links (url-rels). Opening one fetched it again live (tracklist and streaming links took seconds), but the prefetch counted it as cached and never updated it. The prefetch now fetches these albums once in the background, and fills in the streaming links of cached albums that have none for the selected country (the 0.35 cache stored them per streaming URL, which 0.36 no longer reads). Until then, opening such an album shows the cached tracklist at once and queues it for the background update instead of fetching it live (live as before when `PREFETCH_ENABLED=false`, since nothing would update it)
+- **"MusicBrainz unreachable" instead of a blank error**: When MusicBrainz cannot be reached (network error, timeout), opening or refreshing an album answers 502 "MusicBrainz is unreachable, please try again in a moment" and logs the album and the error, instead of a generic 500. Other errors stay 500
 
 ## [0.36.0] - 2026-10-26
 

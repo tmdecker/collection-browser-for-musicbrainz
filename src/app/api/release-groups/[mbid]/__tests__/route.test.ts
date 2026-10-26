@@ -4,7 +4,7 @@ import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { releaseStore } from '@/lib/cache/release-store';
 import { CachedReleaseGroup } from '@/lib/types/cache';
 import { queueReleaseGroupRefresh } from '@/lib/prefetch/prefetch-service';
-import { GET } from '../route';
+import { GET, POST } from '../route';
 
 // Hoisted above the imports: the route gets the mocked refresh queue
 vi.mock('@/lib/prefetch/prefetch-service', () => ({ queueReleaseGroupRefresh: vi.fn() }));
@@ -29,6 +29,8 @@ describe('GET /api/release-groups/[mbid]', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    releaseGroupCache.clear();
+    releaseStore.clear();
     vi.spyOn(console, 'log').mockImplementation(() => {});
     fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -70,5 +72,26 @@ describe('GET /api/release-groups/[mbid]', () => {
 
     expect(fetchMock).toHaveBeenCalled();
     expect(response.status).toBe(503);
+  });
+
+  it('answers 502 with a "try again" message when MusicBrainz is unreachable', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+
+    const response = await get();
+
+    expect(response.status).toBe(502);
+    expect((await response.json()).error).toBe('MusicBrainz is unreachable, please try again in a moment');
+  });
+
+  it('keeps 500 for errors that are not network failures', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock.mockRejectedValue(new Error('unexpected bug'));
+
+    const response = await POST(new NextRequest(`http://localhost/api/release-groups/${RG}`, { method: 'POST' }), {
+      params: Promise.resolve({ mbid: RG }),
+    });
+
+    expect(response.status).toBe(500);
   });
 });

@@ -23,6 +23,7 @@ import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '../cache/relea
 import { browseAllReleases } from '../browse-releases';
 import { waitForRateLimit, backOffMusicBrainz } from '../rate-limiter';
 import { Release } from '@/types/music';
+import { isNetworkError } from '../network-errors';
 import { selectPreferredRelease } from '@/utils/release-selection';
 
 const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
@@ -35,22 +36,6 @@ const LOG_INTERVAL_MS = 60000; // 60 seconds
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 4000;
-
-/**
- * Check if error is retryable (network errors, not API errors)
- */
-function isRetryableError(error: unknown): boolean {
-  if (error instanceof TypeError && error.message === 'fetch failed') {
-    return true;
-  }
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    return message.includes('econnreset') ||
-           message.includes('econnrefused') ||
-           message.includes('timeout');
-  }
-  return false;
-}
 
 /**
  * Fetch with retry logic for transient network errors
@@ -73,7 +58,7 @@ async function fetchWithRetry(
     }
     return response;
   } catch (error) {
-    if (isRetryableError(error) && retryCount < MAX_RETRIES) {
+    if (isNetworkError(error) && retryCount < MAX_RETRIES) {
       const delay = Math.min(
         INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCount),
         MAX_RETRY_DELAY_MS

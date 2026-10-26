@@ -10,6 +10,7 @@
  * - Joins a prefetch that is loading the same album instead of fetching it twice
  * - Stale albums (past 60 days) are served from the cache and refreshed in the background
  * - Albums cached without url-rels (before 0.35.1) are served too and fetched again in the background
+ * - MusicBrainz unreachable (network error, timeout): 502 with a "try again" message instead of a 500
  * - POST fetches the album again right away (after an edit on MusicBrainz) and drops its cached
  *   streaming links and cover images
  */
@@ -28,6 +29,7 @@ import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '@/lib/cache/re
 import { queueReleaseGroupRefresh } from '@/lib/prefetch/prefetch-service';
 import { deleteRgStreamingLinks } from '@/lib/cache/streaming-links-cache';
 import { forgetCachedImage } from '@/lib/image-cache';
+import { isNetworkError } from '@/lib/network-errors';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -89,6 +91,15 @@ function cachedResponse(mbid: string): NextResponse | null {
   }
 
   return null;
+}
+
+/**
+ * 502 for a network failure to MusicBrainz (worth trying again), null for anything else (a bug: 500)
+ */
+function unreachableResponse(mbid: string, error: unknown): NextResponse | null {
+  if (!isNetworkError(error)) return null;
+  console.warn(`⚠️ MusicBrainz unreachable for release group ${mbid}:`, error instanceof Error ? error.message : error);
+  return NextResponse.json({ error: 'MusicBrainz is unreachable, please try again in a moment' }, { status: 502 });
 }
 
 /**
@@ -249,8 +260,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ mbid: string }> }
 ) {
+  const { mbid } = await params;
   try {
-    const { mbid } = await params;
 
     // Security: only real MBIDs become cache keys and MusicBrainz URL paths
     if (!isMbid(mbid)) {
@@ -277,6 +288,8 @@ export async function GET(
     return await withReleaseGroupFetch(mbid, () => fetchReleaseGroup(mbid));
 
   } catch (error) {
+    const unreachable = unreachableResponse(mbid, error);
+    if (unreachable) return unreachable;
     console.error('❌ Error in release group endpoint:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -293,8 +306,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ mbid: string }> }
 ) {
+  const { mbid } = await params;
   try {
-    const { mbid } = await params;
 
     // Security: only real MBIDs become cache keys, file names and MusicBrainz URL paths
     if (!isMbid(mbid)) {
@@ -326,6 +339,8 @@ export async function POST(
 
     return response;
   } catch (error) {
+    const unreachable = unreachableResponse(mbid, error);
+    if (unreachable) return unreachable;
     console.error('❌ Error refreshing release group:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
