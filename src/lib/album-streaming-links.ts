@@ -15,6 +15,7 @@ import { Release, StreamingLinks } from '@/types/music';
 import { getRgStreamingLinks, isRgStreamingLinksStale, setRgStreamingLinks, urlCheckCache } from '@/lib/cache/streaming-links-cache';
 import { cacheManager } from '@/lib/cache/cache-manager';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
+import { releaseGroupFetchInFlight } from '@/lib/cache/release-group-fetches';
 import { getBarcodeLinksCached, isLookupBarcode } from '@/lib/barcode-links';
 import { browseAllReleases } from '@/lib/browse-releases';
 import { backOffMusicBrainz, waitForRateLimit, type RateLimitPriority } from '@/lib/rate-limiter';
@@ -106,6 +107,11 @@ const loadAlbumReleases = async (releaseGroupMbid: string, priority: RateLimitPr
   if (!cacheManager.isInitialized()) {
     await cacheManager.initialize();
   }
+
+  // The details route or the prefetch is loading this album right now: use its releases instead
+  // of browsing them a second time (the panel asks for links and details at the same moment)
+  const inFlight = releaseGroupFetchInFlight(releaseGroupMbid);
+  if (inFlight) await inFlight;
 
   if (releaseGroupCache.isFullyCached(releaseGroupMbid)) {
     const cached = releaseGroupCache.getWithReleases(releaseGroupMbid);
