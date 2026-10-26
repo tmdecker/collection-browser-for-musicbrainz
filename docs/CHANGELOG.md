@@ -4,11 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.36.0] - 2026-10-26
 
 ### Upgrade Notes
 
-- The server caches move from `.cache/*.json` into one SQLite file, `.cache/cache.db` (new dependency `better-sqlite3`; `npm ci` installs a prebuilt binary, otherwise it needs build tools). The JSON files are imported on first start and renamed to `*.imported`, so nothing is fetched again; delete them once the app runs fine. Optional `DATA_DIR` moves the database, e.g. outside the git checkout
+- The server caches move from `.cache/*.json` into one SQLite file, `.cache/cache.db` (new dependency `better-sqlite3`; `npm ci` installs a prebuilt binary, otherwise it needs build tools; its install script is approved in `package.json` `allowScripts`, which npm 11 requires). The JSON files are imported on first start and renamed to `*.imported`, so nothing is fetched again; delete them once the app runs fine. Optional `DATA_DIR` moves the database, e.g. outside the git checkout
 - `ODESLI_API_KEY` is no longer used and can be removed from the server's environment
 
 ### Changed
