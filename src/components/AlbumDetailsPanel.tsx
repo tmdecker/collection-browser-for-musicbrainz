@@ -449,7 +449,9 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                     onClick={handleRefresh}
                     disabled={refreshStatus === 'running'}
                     title="Fetch this album again from MusicBrainz (after editing it there)"
-                    className="mt-2 w-64 flex items-center justify-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-colors disabled:cursor-wait"
+                    // Shown while the panel is hovered, focused by keyboard, or a refresh is running or reporting;
+                    // always shown on touch devices (no hover), so it stays reachable there
+                    className={`mt-2 w-64 flex items-center justify-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-[color,opacity] disabled:cursor-wait focus-visible:opacity-100 ${isHovered || refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
                   >
                     <BiRefresh className={`text-base ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
                     {refreshStatus === 'running'
