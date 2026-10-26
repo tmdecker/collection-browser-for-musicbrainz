@@ -9,6 +9,7 @@
  * - Respects the shared MusicBrainz rate limit (user requests go ahead of prefetch)
  * - Joins a prefetch that is loading the same album instead of fetching it twice
  * - Stale albums (past 60 days) are served from the cache and refreshed in the background
+ * - Albums cached without url-rels (before 0.35.1) are served too and fetched again in the background
  * - POST fetches the album again right away (after an edit on MusicBrainz) and drops its cached
  *   streaming links and cover images
  */
@@ -65,11 +66,14 @@ function cachedResponse(mbid: string): NextResponse | null {
   if (releaseGroupCache.isFullyCached(mbid)) {
     const hydratedRG = releaseGroupCache.getWithReleases(mbid);
 
-    // Releases cached before browsing included url-rels have no relations: fetch them again once
-    if (hydratedRG && hydratedRG.releases.every((release: Release) => release.relations)) {
+    // Releases cached before browsing included url-rels have no relations: still shown right away
+    // (the tracklist is there) and fetched again in the background; without prefetch nothing would
+    // ever refresh them, so they are fetched live then
+    const missingLinks = !!hydratedRG && !hydratedRG.releases.every((release: Release) => release.relations);
+    if (hydratedRG && !(missingLinks && process.env.PREFETCH_ENABLED === 'false')) {
       const rg = releaseGroupCache.get(mbid);
       // Stale data is served right away and refreshed in the background
-      const stale = releaseGroupCache.isStale(mbid);
+      const stale = missingLinks || releaseGroupCache.isStale(mbid);
       if (stale) queueReleaseGroupRefresh(mbid);
       return NextResponse.json({
         success: true,
