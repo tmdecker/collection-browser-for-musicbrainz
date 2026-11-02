@@ -314,7 +314,7 @@ export default function CollectionBrowsePanel({
               {onLogin && (
                 <button
                   onClick={onLogin}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Login with MusicBrainz
                   <BiLinkExternal size={14} />
@@ -360,7 +360,7 @@ export default function CollectionBrowsePanel({
               </p>
               <button
                 onClick={() => window.open('https://musicbrainz.org/collections', '_blank')}
-                className="px-6 py-3 bg-primary text-white rounded-full hover:bg-primary-dark transition-colors inline-flex items-center gap-2"
+                className="px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors inline-flex items-center gap-2"
               >
                 <span>Create Collection</span>
                 <BiLinkExternal size={16} />

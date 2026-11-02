@@ -364,7 +364,7 @@ export default function ConfigPage() {
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
+              className="px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
             >
               Done
             </button>

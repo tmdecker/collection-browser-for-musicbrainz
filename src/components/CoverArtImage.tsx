@@ -10,7 +10,7 @@
  * - Loads the new cover after a manual album refresh (cover version in the URL)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Define the type for our global image cache
 interface ImageCache {
@@ -81,7 +81,8 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
 
   // Function to transform cover art URLs for better compatibility and optimization
   const transformImageUrl = (url: string | undefined, requestedSize: number = size): string => {
-    if (!url) return '/placeholder.svg';
+    // No cover: normalized data marks a missing cover with '/placeholder.svg'
+    if (!url || url === '/placeholder.svg') return '';
     
     try {
       // Generate a cache key for this image
@@ -128,12 +129,17 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
       return normalizedUrl;
     } catch (error) {
       console.error('Error transforming image URL:', error);
-      return '/placeholder.svg';
+      return '';
     }
   };
   
   const imageUrl = transformImageUrl(actualSrc);
   
+  // Nothing to load: tell the parent right away so it stops showing its loading state
+  useEffect(() => {
+    if (!imageUrl && onError) onError();
+  }, [imageUrl, onError]);
+
   const handleError = () => {
     console.log(`Error loading cover art: ${imageUrl}`);
     setFailedSrc(sourceKey);
@@ -163,7 +169,7 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
     if (onLoad) onLoad();
   };
   
-  if (error) {
+  if (error || !imageUrl) {
     return (
       <div className="flex items-center justify-center h-full w-full bg-background-tertiary text-text-tertiary text-sm">
         No Cover Available

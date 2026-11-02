@@ -119,7 +119,7 @@ const SortDropdown = forwardRef<SortDropdownRef, SortDropdownProps>(({ value, on
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div role="menu" aria-label="Sort by" className="absolute right-0 mt-2 w-48 rounded-lg bg-background-secondary/95 backdrop-blur-md border border-white/10 shadow-lg overflow-hidden z-50 animate-fade-in">
+        <div role="menu" aria-label="Sort by" className="absolute right-0 mt-2 w-48 rounded-3xl bg-background-secondary/95 backdrop-blur-md border border-white/10 shadow-lg overflow-hidden z-50 animate-fade-in">
           {sortOptions.map((option) => (
             <button
               key={option.value}

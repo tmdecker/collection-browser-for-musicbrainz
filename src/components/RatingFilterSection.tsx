@@ -156,7 +156,8 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
               min={defaultMin}
               max={defaultMax}
               step={0.5}
-              className="w-16 px-2 py-1 text-sm text-center rounded bg-background-tertiary text-text-primary border border-white/10 hover:bg-background focus:outline-none focus:ring-1 focus:ring-amber-400"
+              aria-label="Minimum rating"
+              className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary/90 backdrop-blur-md text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary/90 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-all flex-shrink-0"
             />
           </div>
 
@@ -174,7 +175,8 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
               min={defaultMin}
               max={defaultMax}
               step={0.5}
-              className="w-16 px-2 py-1 text-sm text-center rounded bg-background-tertiary text-text-primary border border-white/10 hover:bg-background focus:outline-none focus:ring-1 focus:ring-amber-400"
+              aria-label="Maximum rating"
+              className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary/90 backdrop-blur-md text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary/90 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-all flex-shrink-0"
             />
             <BiStar className="text-amber-400 text-lg" style={{ fill: 'currentColor' }} />
           </div>
@@ -183,11 +185,11 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
         {/* Double range slider */}
         <div className="relative h-10">
           {/* Background track */}
-          <div className="absolute top-1/2 left-0 right-0 h-1 bg-neutral-700 rounded-full transform -translate-y-1/2" />
+          <div className="absolute top-1/2 left-0 right-0 h-2 bg-background-tertiary/80 rounded-full border border-white/10 transform -translate-y-1/2" />
 
           {/* Active track highlight */}
           <div
-            className="absolute top-1/2 h-1 bg-amber-400 rounded-full transform -translate-y-1/2"
+            className="absolute top-1/2 h-2 bg-amber-400/60 rounded-full transform -translate-y-1/2"
             style={{
               left: `${minPercent}%`,
               right: `${100 - maxPercent}%`,
@@ -204,7 +206,7 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
             onChange={handleMinSliderChange}
             onMouseEnter={() => setActiveThumb('min')}
             onMouseLeave={() => setActiveThumb(null)}
-            className="absolute top-0 left-0 w-full h-full appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto"
+            className="absolute top-0 left-0 w-full h-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-transparent [&::-webkit-slider-thumb]:hover:border-amber-300 [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-all [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-transparent [&::-moz-range-thumb]:hover:border-amber-300"
             style={{
               zIndex: thumbsOverlap && activeThumb !== 'max' ? 2 : 1,
             }}
@@ -220,46 +222,11 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
             onChange={handleMaxSliderChange}
             onMouseEnter={() => setActiveThumb('max')}
             onMouseLeave={() => setActiveThumb(null)}
-            className="absolute top-0 left-0 w-full h-full appearance-none bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto"
+            className="absolute top-0 left-0 w-full h-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-transparent [&::-webkit-slider-thumb]:hover:border-amber-300 [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-all [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-transparent [&::-moz-range-thumb]:hover:border-amber-300"
             style={{
               zIndex: thumbsOverlap && activeThumb === 'max' ? 2 : 1,
             }}
           />
-
-          <style jsx>{`
-            input[type='range']::-webkit-slider-thumb {
-              appearance: none;
-              width: 20px;
-              height: 20px;
-              border-radius: 50%;
-              background: rgb(251, 191, 36);
-              border: 2px solid rgb(18, 18, 18);
-              cursor: pointer;
-              transition: all 0.15s ease;
-            }
-
-            input[type='range']::-webkit-slider-thumb:hover {
-              background: rgb(252, 211, 77);
-              border-color: rgb(252, 211, 77);
-              box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
-            }
-
-            input[type='range']::-moz-range-thumb {
-              width: 20px;
-              height: 20px;
-              border-radius: 50%;
-              background: rgb(251, 191, 36);
-              border: 2px solid rgb(18, 18, 18);
-              cursor: pointer;
-              transition: all 0.15s ease;
-            }
-
-            input[type='range']::-moz-range-thumb:hover {
-              background: rgb(252, 211, 77);
-              border-color: rgb(252, 211, 77);
-              box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
-            }
-          `}</style>
         </div>
 
         {/* Range display */}
