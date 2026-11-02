@@ -152,7 +152,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
                 <button
                   key={`label-${label}`}
                   onClick={() => onToggleLabel(label)}
-                  className="inline-flex items-center px-3 py-1 backdrop-blur-md bg-rose-400/90 text-white text-sm rounded-full hover:bg-rose-300 transition-colors shadow-sm"
+                  className="inline-flex items-center px-3 py-1 backdrop-blur-md bg-category-label/90 text-white text-sm rounded-full hover:bg-category-label transition-colors shadow-sm"
                   title={`Remove ${label} label filter`}
                   aria-label={`Remove ${label} label filter`}
                 >
@@ -164,7 +164,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
                 <button
                   key={`tag-${tag}`}
                   onClick={() => onToggleTag(tag)}
-                  className="inline-flex items-center px-3 py-1 backdrop-blur-md bg-orange-400/90 text-white text-sm rounded-full hover:bg-orange-400 transition-colors capitalize shadow-sm"
+                  className="inline-flex items-center px-3 py-1 backdrop-blur-md bg-category-tag/90 text-white text-sm rounded-full hover:bg-category-tag transition-colors capitalize shadow-sm"
                   title={`Remove ${tag} tag filter`}
                   aria-label={`Remove ${tag} tag filter`}
                 >
@@ -175,7 +175,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
               {hasDateFilter && releaseDateRange && (
                 <button
                   onClick={onClearDateFilter}
-                  className="inline-flex items-center px-3 py-1 backdrop-blur-md bg-fuchsia-400/90 text-white text-sm rounded-full hover:bg-fuchsia-400 transition-colors shadow-sm"
+                  className="inline-flex items-center px-3 py-1 backdrop-blur-md bg-category-date/90 text-white text-sm rounded-full hover:bg-category-date transition-colors shadow-sm"
                   title="Remove release date filter"
                   aria-label="Remove release date filter"
                 >
@@ -190,7 +190,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
               {hasRatingFilter && ratingRange && (
                 <button
                   onClick={onClearRatingFilter}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 backdrop-blur-md bg-amber-400/90 text-white text-sm rounded-full hover:bg-amber-400 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 backdrop-blur-md bg-category-rating/90 text-white text-sm rounded-full hover:bg-category-rating transition-colors shadow-sm"
                   title="Remove rating filter"
                   aria-label="Remove rating filter"
                 >

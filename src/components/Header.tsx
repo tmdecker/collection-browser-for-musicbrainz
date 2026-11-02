@@ -200,7 +200,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             </button>
           </h1>
           {entityType && (
-            <span className="hidden md:inline ml-2 bg-gray-700/50 text-gray-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
+            <span className="hidden md:inline ml-2 bg-neutral-700/50 text-neutral-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
               {entityType}
             </span>
           )}
@@ -245,7 +245,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             <BiCollection className="text-white/70 flex-shrink-0" size={20} />
             <span className="text-white font-medium truncate">{displayName}</span>
             {entityType && (
-              <span className="bg-gray-700/50 text-gray-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
+              <span className="bg-neutral-700/50 text-neutral-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
                 {entityType}
               </span>
             )}

@@ -78,17 +78,17 @@ const StarRating: React.FC<StarRatingProps> = ({
       <div className="flex items-center gap-0.5">
         {/* Full stars */}
         {Array.from({ length: fullStars }).map((_, i) => (
-          <BiSolidStar key={`full-${i}`} className="text-gray-400" />
+          <BiSolidStar key={`full-${i}`} className="text-neutral-400" />
         ))}
 
         {/* Half star */}
         {hasHalfStar && (
-          <BiSolidStarHalf className="text-gray-400" />
+          <BiSolidStarHalf className="text-neutral-400" />
         )}
 
         {/* Empty stars */}
         {Array.from({ length: emptyStars }).map((_, i) => (
-          <BiStar key={`empty-${i}`} className="text-gray-600" />
+          <BiStar key={`empty-${i}`} className="text-neutral-600" />
         ))}
       </div>
 

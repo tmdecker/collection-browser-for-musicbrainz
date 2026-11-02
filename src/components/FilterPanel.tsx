@@ -362,7 +362,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onClick={() => selectCategory('tags')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                 activeCategory === 'tags'
-                  ? 'bg-orange-400 text-white shadow-sm'
+                  ? 'bg-category-tag text-white shadow-sm'
                   : 'text-white/70 hover:text-white hover:bg-white/[0.07]'
               }`}
               aria-label="Filter by tags"
@@ -376,7 +376,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 onClick={() => selectCategory('labels')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                   activeCategory === 'labels'
-                    ? 'bg-rose-400 text-white shadow-sm'
+                    ? 'bg-category-label text-white shadow-sm'
                     : 'text-white/70 hover:text-white hover:bg-white/[0.07]'
                 }`}
                 aria-label="Filter by record labels"
@@ -390,7 +390,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onClick={() => selectCategory('dates')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                 activeCategory === 'dates'
-                  ? 'bg-fuchsia-400 text-white shadow-sm'
+                  ? 'bg-category-date text-white shadow-sm'
                   : 'text-white/70 hover:text-white hover:bg-white/[0.07]'
               }`}
               aria-label="Filter by release date"
@@ -403,7 +403,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               onClick={() => selectCategory('rating')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
                 activeCategory === 'rating'
-                  ? 'bg-amber-400 text-white shadow-sm'
+                  ? 'bg-category-rating text-white shadow-sm'
                   : 'text-white/70 hover:text-white hover:bg-white/[0.07]'
               }`}
               aria-label="Filter by rating"
@@ -537,7 +537,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                         onClick={() => onToggleLabel(label.name)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 backdrop-blur-md ${
                           isSelected
-                            ? 'bg-rose-400/90 hover:bg-rose-400 text-white shadow-sm'
+                            ? 'bg-category-label/90 hover:bg-category-label text-white shadow-sm'
                             : 'bg-background-tertiary/80 hover:bg-background-tertiary/95 text-white'
                         }`}
                         role="option"
@@ -587,7 +587,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                         onClick={() => onToggleTag(tag.name)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 backdrop-blur-md ${
                           isSelected
-                            ? 'bg-orange-400/90 hover:bg-orange-400 text-white shadow-sm'
+                            ? 'bg-category-tag/90 hover:bg-category-tag text-white shadow-sm'
                             : 'bg-background-tertiary/80 hover:bg-background-tertiary/95 text-white'
                         }`}
                         role="option"

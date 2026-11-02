@@ -183,7 +183,7 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
         {/* Double range slider */}
         <div className="relative h-10">
           {/* Background track */}
-          <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-700 rounded-full transform -translate-y-1/2" />
+          <div className="absolute top-1/2 left-0 right-0 h-1 bg-neutral-700 rounded-full transform -translate-y-1/2" />
 
           {/* Active track highlight */}
           <div

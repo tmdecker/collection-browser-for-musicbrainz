@@ -17,10 +17,17 @@ module.exports = {
           light: '#A78BFA',
           dark: '#7C3AED',
         },
+        // Selected filter chips and the active filter tab, one per category; dark enough for white text (4.5:1+)
+        category: {
+          label: '#E11D48', // rose-600
+          tag: '#C2410C', // orange-700
+          date: '#C026D3', // fuchsia-600
+          rating: '#B45309', // amber-700
+        },
         text: {
           primary: '#FFFFFF',
           secondary: '#B3B3B3',
-          tertiary: '#727272',
+          tertiary: '#8A8A8A',
         },
       },
       gridTemplateColumns: {

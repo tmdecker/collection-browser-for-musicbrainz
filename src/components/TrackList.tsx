@@ -225,7 +225,7 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
                         onClick={() => onToggleLabel(labelName)}
                         className={`px-2 py-0.5 text-xs rounded cursor-pointer transition-colors ${
                           isSelected
-                            ? 'bg-rose-400 text-white hover:bg-rose-400/80'
+                            ? 'bg-category-label text-white hover:bg-category-label/80'
                             : 'bg-background-tertiary text-text-primary hover:bg-background'
                         }`}
                         title={isSelected ? `Remove ${labelName} filter` : `Add ${labelName} filter`}

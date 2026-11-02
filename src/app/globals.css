@@ -11,7 +11,7 @@
   --primary-dark: #7C3AED;
   --text-primary: #FFFFFF;
   --text-secondary: #B3B3B3;
-  --text-tertiary: #727272;
+  --text-tertiary: #8A8A8A;
   --header-height: 64px; /* Desktop header height */
   color-scheme: dark; /* Native controls (checkboxes, selects, scrollbars) follow the dark UI */
   accent-color: var(--primary);
@@ -71,7 +71,7 @@ input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;
   height: 24px;
   width: 24px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23727272'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238A8A8A'><path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/></svg>");
   background-size: contain;
   cursor: pointer;
   margin-left: 0.5rem;
