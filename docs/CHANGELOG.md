@@ -6,9 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Readable filter colours**: Selected label, tag, date and rating chips and the active filter tab use deeper colours (rose, orange, fuchsia and amber at 600/700) so their white text is readable; before it was 1.7 to 2.7:1 against the 4.5:1 minimum. The colours live in `tailwind.config.js` as `category-*`
+- **Lighter metadata grey**: Years, durations, counts, helper text and empty states (`text-tertiary`) go from #727272 to #8A8A8A, readable on every background
+- **Consistent shapes**: Primary buttons share one size (`px-6 py-2 rounded-lg`); the Sort menu is rounded like the main menu and the panels; the rating slider looks like the release-date slider; rating stars, badges and the slider track use neutral greys instead of the blue-tinted ones
+- **One "no cover" look**: Albums without cover art always show the "No Cover Available" tile; `placeholder.svg` and the unused `placeholder-album.svg` are removed
+- **Inter no longer loaded**: The app always rendered in the system font because Tailwind never used the Inter font it downloaded; the download is gone and the look is unchanged
+
 ### Fixed
 
+- **Keyboard use**: Albums in the grid and collections in the browser open with Enter or Space, every control shows a focus ring, and close buttons that appear on hover also appear when tabbed to. Settings checkboxes toggle when you click their label, the Sort menu is a proper menu, toasts are announced to screen readers, and headings are in order
+- **Dark native controls**: Checkboxes, selects and scrollbars follow the dark theme (`color-scheme: dark`, `accent-color`)
+- **Header rendered twice**: The header mounted its desktop and mobile layouts at once (two search fields with the same id, two Sort and Filter buttons); it is now one responsive row
+- **Missing animations**: Menus and the filter search used animation classes from a Tailwind plugin that was never installed; they now use the app's own fade-in. Streaming icons on phones no longer overflow their tap area
 - **Streaming links from the digital release's barcode**: The barcode lookup (Deezer, Apple Music, Spotify, Tidal) stopped after the first barcode that found anything, so when the CD barcode found only Apple Music, the digital release's barcode was never tried at the other services. It now tries the next barcode (at most two per album) while a service is still missing, and digital releases' barcodes come right after the best release's. Albums pick this up when their streaming links are next refreshed (after 30 days, or with "Refresh from MusicBrainz")
+- **Dead link**: The sample-data notice no longer links to a `/debug` page that doesn't exist
+
+### Removed
+
+- Unused `AlbumGrid` component, dead CSS helpers and the Tailwind safelist
 
 ## [0.37.0] - 2026-11-02
 

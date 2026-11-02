@@ -1,7 +1,7 @@
 /**
  * @ai-file page
  * @ai-description Main application page integrating all components
- * @ai-dependencies Next.js, React, useAlbums, useFilters, usePreferences, Header, FilterPanel, AlbumGrid, AlbumDetailsPanel
+ * @ai-dependencies Next.js, React, useAlbums, useFilters, usePreferences, Header, FilterPanel, LazyAlbumGrid, AlbumDetailsPanel
  * @ai-features
  * - Responsive layout with collapsible filter panel and album details panel
  * - Multi-category filtering (genres, tags, labels, dates, ratings)
