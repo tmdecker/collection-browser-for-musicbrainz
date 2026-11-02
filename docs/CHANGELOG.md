@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Streaming links from the digital release's barcode**: The barcode lookup (Deezer, Apple Music, Spotify, Tidal) stopped after the first barcode that found anything, so when the CD barcode found only Apple Music, the digital release's barcode was never tried at the other services. It now tries the next barcode (at most two per album) while a service is still missing, and digital releases' barcodes come right after the best release's. Albums pick this up when their streaming links are next refreshed (after 30 days, or with "Refresh from MusicBrainz")
+
 ## [0.37.0] - 2026-11-02
 
 ### Added

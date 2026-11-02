@@ -205,6 +205,16 @@ export const lookupLinksByBarcode = async (
   return { links, failed };
 };
 
+/**
+ * Platforms a barcode lookup can find with the configured credentials
+ */
+export const barcodeProviders = (): (keyof StreamingLinks)[] => [
+  'deezer',
+  'appleMusic',
+  ...(process.env.SPOTIFY_CLIENT_ID ? (['spotify'] as const) : []),
+  ...(process.env.TIDAL_CLIENT_ID ? (['tidal'] as const) : []),
+];
+
 // --- Cached lookup (used by the album streaming links and the barcode route) ---
 
 // Lookups in flight, so a click and the prefetch never query the same barcode twice at once

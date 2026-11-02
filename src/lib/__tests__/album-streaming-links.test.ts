@@ -49,6 +49,13 @@ describe('candidateBarcodes', () => {
     ];
     expect(candidateBarcodes({ releases, bestRelease: releases[2] })).toEqual(['4006381333931', '886443927087']);
   });
+
+  it('tries the digital release barcode right after the best release', () => {
+    const cd = release({ id: 'cd', barcode: '817949039127' });
+    const other = release({ id: 'other', barcode: '5099749994324' });
+    const digitalRelease = release({ id: 'digital', media: digital, barcode: '817949039134' });
+    expect(candidateBarcodes({ releases: [cd, other, digitalRelease], bestRelease: cd })).toEqual(['817949039127', '817949039134']);
+  });
 });
 
 describe('getAlbumStreamingLinks', () => {
@@ -99,6 +106,31 @@ describe('getAlbumStreamingLinks', () => {
     const again = await getAlbumStreamingLinks(RG, 'DE', { releases: { releases: [] } });
     expect(again).toEqual({ links: result.links, fromCache: true });
   });
+
+  it('tries the next barcode while a barcode platform is still missing', async () => {
+    fetchMock.mockImplementation(async (input: string | URL) => {
+      const url = String(input);
+      if (url.startsWith('https://api.deezer.com')) {
+        return url.includes('817949039134') ? json({ link: 'https://www.deezer.com/album/2' }) : json({ error: { code: 800 } });
+      }
+      if (url.startsWith('https://itunes.apple.com')) {
+        return url.includes('817949039127')
+          ? json({ results: [{ collectionViewUrl: 'https://music.apple.com/de/album/roses/1' }] })
+          : json({ results: [] });
+      }
+      return json({}, 404);
+    });
+    const cd = release({ id: 'cd', barcode: '817949039127' });
+    const digitalRelease = release({ id: 'digital', media: digital, barcode: '817949039134' });
+
+    // Two iTunes lookups are 3.1 s apart (iTunes rate limit)
+    const result = await getAlbumStreamingLinks('02798d4a-3539-40c9-9acc-f590eea89b01', 'DE', {
+      releases: { releases: [cd, digitalRelease], bestRelease: cd },
+    });
+
+    expect(result.links.appleMusic).toBe('https://music.apple.com/de/album/roses/1');
+    expect(result.links.deezer).toBe('https://www.deezer.com/album/2');
+  }, 15000);
 
   it('keeps a result with a failed barcode provider for 1 hour only', async () => {
     fetchMock.mockImplementation(async (input: string | URL) => {

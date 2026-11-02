@@ -16,7 +16,7 @@ import { getRgStreamingLinks, isRgStreamingLinksStale, setRgStreamingLinks, urlC
 import { cacheManager } from '@/lib/cache/cache-manager';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { releaseGroupFetchInFlight } from '@/lib/cache/release-group-fetches';
-import { getBarcodeLinksCached, isLookupBarcode } from '@/lib/barcode-links';
+import { barcodeProviders, getBarcodeLinksCached, isLookupBarcode } from '@/lib/barcode-links';
 import { browseAllReleases } from '@/lib/browse-releases';
 import { backOffMusicBrainz, waitForRateLimit, type RateLimitPriority } from '@/lib/rate-limiter';
 import { extractAllStreamingUrls, getPlatformFromUrl, validateStreamingUrlServer } from '@/utils/streaming-links';
@@ -54,11 +54,13 @@ export const collectPlatformCandidates = ({ releases, bestRelease }: AlbumReleas
 };
 
 /**
- * Barcodes to try for an album: the best release first, then other releases (distinct, valid only)
+ * Barcodes to try for an album: the best release first, then Digital Media, XW and the rest (distinct, valid only)
+ * Digital releases come early because streaming services list the digital barcode, which often differs from the CD's
  */
 export const candidateBarcodes = ({ releases, bestRelease }: AlbumReleases): string[] => {
   const barcodes: string[] = [];
-  for (const release of [bestRelease, ...releases]) {
+  const ordered = [bestRelease, ...orderReleasesForStreaming(releases.filter(release => release.id !== bestRelease?.id))];
+  for (const release of ordered) {
     const barcode = release?.barcode?.trim();
     if (isLookupBarcode(barcode) && !barcodes.includes(barcode)) {
       barcodes.push(barcode);
@@ -140,15 +142,15 @@ const resolveAlbumStreamingLinks = async (
   const links = await pickLiveLinks(collectPlatformCandidates(albumReleases));
   let complete = true;
 
-  // Barcode lookups only fill platforms MusicBrainz has no live link for
+  // Barcode lookups only fill platforms MusicBrainz has no live link for. The next barcode is
+  // tried while a barcode platform is still missing (one service may only know the digital barcode)
   for (const barcode of candidateBarcodes(albumReleases)) {
     const { links: barcodeLinks, failed } = await getBarcodeLinksCached(barcode, country);
     if (failed) complete = false;
-    const found = Object.keys(barcodeLinks).length > 0;
     for (const [platform, url] of Object.entries(barcodeLinks) as [keyof StreamingLinks, string][]) {
       links[platform] ??= url;
     }
-    if (found) break;
+    if (barcodeProviders().every(platform => links[platform])) break;
   }
 
   const platforms = Object.keys(links);
