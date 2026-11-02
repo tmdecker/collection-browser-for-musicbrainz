@@ -21,7 +21,7 @@ import StarRating from './StarRating';
 import { ReleaseGroup, StreamingLinks } from '@/types/music';
 import { StreamingServicePreferences, RatingDisplayMode } from '@/types/preferences';
 import { usePreferences } from '@/hooks/usePreferences';
-import { usePlexAlbums } from '@/hooks/usePlexAlbums';
+import { recheckPlexLink, usePlexAlbums } from '@/hooks/usePlexAlbums';
 
 interface AlbumDetailsPanelProps {
   album: ReleaseGroup | null;
@@ -58,6 +58,13 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   const streamingCountry = usePreferences().preferences.streaming.country;
   const plexLinks = usePlexAlbums();
   const plexUrl = displayAlbum ? plexLinks[displayAlbum.id] : undefined;
+
+  // An album's releases are cached once its details have loaded, so the server may only now be able
+  // to link it to Plex: ask once more (no-op when Plex is off or the album already has a link)
+  const detailsLoadedId = !loading && albumDetails?.tracklist ? albumDetails.id : null;
+  useEffect(() => {
+    if (detailsLoadedId) recheckPlexLink(detailsLoadedId);
+  }, [detailsLoadedId]);
 
   // Tracklist is still on its way when the album has none yet and no details request is running
   const tracklistLoading = !!displayAlbum && !displayAlbum.tracklist && !loading;

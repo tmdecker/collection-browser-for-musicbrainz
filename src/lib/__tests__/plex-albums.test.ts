@@ -150,3 +150,34 @@ describe('getPlexAlbumLinks', () => {
     expect(body).not.toContain(TOKEN);
   });
 });
+
+describe('getPlexAlbumLinks with albums cached later', () => {
+  const LATE_RELEASE = '94d28b64-3cad-42c8-b0fd-f04cd1465319';
+  const LATE_GROUP = 'da4462e7-4225-42e5-af2d-d076f7a474a9';
+
+  beforeEach(() => {
+    resetPlexAlbumLinks();
+    vi.stubEnv('PLEX_TOKEN', TOKEN);
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.endsWith('/identity')) return json({ MediaContainer: { machineIdentifier: 'machine1' } });
+      if (url.endsWith('/library/sections')) return json({ MediaContainer: { Directory: [{ key: '3', type: 'artist' }] } });
+      return json({ MediaContainer: { Metadata: [{ ratingKey: '12', title: 'Spiral', Guid: [{ id: `mbid://${LATE_RELEASE}` }] }] } });
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('links an album as soon as its release is cached, without reading Plex again', async () => {
+    expect((await getPlexAlbumLinks()).albums[LATE_GROUP]).toBeUndefined();
+    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    releaseStore.set(LATE_RELEASE, { id: LATE_RELEASE, title: 'Spiral', releaseGroupId: LATE_GROUP } as never);
+
+    expect((await getPlexAlbumLinks()).albums[LATE_GROUP]).toContain('%2Flibrary%2Fmetadata%2F12');
+    expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls);
+  });
+});

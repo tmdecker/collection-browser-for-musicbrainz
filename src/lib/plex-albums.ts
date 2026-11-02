@@ -7,7 +7,8 @@
  * - Reads every album of every Plex music library with its MusicBrainz release ID (mbid:// guid)
  * - Maps each release to its release group through the release cache, so no MusicBrainz requests
  * - Builds Plex Web links (https://app.plex.tv/desktop/ by default, PLEX_WEB_URL to change)
- * - Result kept in memory for 10 minutes (1 minute after an error), one Plex read at a time
+ * - Plex album list kept in memory for 10 minutes (1 minute after an error), one Plex read at a time;
+ *   matched against the release cache on every call, so newly cached albums get their link at once
  */
 
 import { releaseStore } from '@/lib/cache/release-store';
@@ -130,59 +131,71 @@ export function matchReleaseGroups(
  */
 const cachedReleaseGroupOf = (releaseMbid: string): string | undefined => releaseStore.get(releaseMbid)?.releaseGroupId;
 
-async function buildPlexAlbumLinks(config: PlexConfig): Promise<PlexAlbumLinks> {
-  const { machineIdentifier, albums } = await fetchPlexAlbums(config);
-  const matches = matchReleaseGroups(albums, cachedReleaseGroupOf);
-  const links: Record<string, string> = {};
-  for (const [releaseGroupId, album] of Object.entries(matches)) {
-    links[releaseGroupId] = plexAlbumUrl(config.webUrl, machineIdentifier, album.ratingKey);
-  }
-  console.log(`🎞️ Plex: ${albums.length} albums with a MusicBrainz ID, ${Object.keys(links).length} linked to cached albums`);
-  return { enabled: true, albums: links };
+interface PlexListing {
+  machineIdentifier: string;
+  albums: PlexAlbum[];
 }
 
-interface LinksState {
-  result?: PlexAlbumLinks;
+interface ListingState {
+  listing?: PlexListing;
+  error?: boolean;
   validUntil: number;
-  pending?: Promise<PlexAlbumLinks>;
+  pending?: Promise<void>;
 }
 
-const store = globalThis as typeof globalThis & { __plexAlbumLinks?: LinksState };
-const state = (): LinksState => (store.__plexAlbumLinks ??= { validUntil: 0 });
+const store = globalThis as typeof globalThis & { __plexListing?: ListingState };
+const state = (): ListingState => (store.__plexListing ??= { validUntil: 0 });
 
 /**
- * Plex links for all linked albums; read from Plex at most every 10 minutes, never throws
+ * The Plex album list, read from Plex at most every 10 minutes (1 minute after an error)
+ */
+async function getPlexListing(config: PlexConfig, now: number): Promise<ListingState> {
+  const current = state();
+  if (now < current.validUntil) return current;
+
+  current.pending ??= fetchPlexAlbums(config)
+    .then(listing => {
+      current.listing = listing;
+      current.error = false;
+      current.validUntil = Date.now() + PLEX_LINKS_TTL_MS;
+      console.log(`🎞️ Plex: ${listing.albums.length} albums with a MusicBrainz ID`);
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Plex albums could not be read: ${message}`);
+      current.listing = undefined;
+      current.error = true;
+      current.validUntil = Date.now() + PLEX_ERROR_TTL_MS;
+    })
+    .finally(() => {
+      current.pending = undefined;
+    });
+  await current.pending;
+  return current;
+}
+
+/**
+ * Plex links for all linked albums, never throws. The Plex list is reused for 10 minutes, but it is
+ * matched against the release cache on every call, so an album gets its link as soon as its releases
+ * are cached (a few dozen local lookups, no MusicBrainz or Plex requests)
  */
 export async function getPlexAlbumLinks(now: number = Date.now()): Promise<PlexAlbumLinks> {
   const config = getPlexConfig();
   if (!config) return { enabled: false, albums: {} };
 
-  const current = state();
-  if (current.result && now < current.validUntil) return current.result;
+  const { listing, error } = await getPlexListing(config, now);
+  if (error || !listing) return { enabled: true, albums: {}, error: 'Plex could not be reached' };
 
-  current.pending ??= buildPlexAlbumLinks(config)
-    .then(result => {
-      current.result = result;
-      current.validUntil = Date.now() + PLEX_LINKS_TTL_MS;
-      return result;
-    })
-    .catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`❌ Plex albums could not be read: ${message}`);
-      const result: PlexAlbumLinks = { enabled: true, albums: {}, error: 'Plex could not be reached' };
-      current.result = result;
-      current.validUntil = Date.now() + PLEX_ERROR_TTL_MS;
-      return result;
-    })
-    .finally(() => {
-      current.pending = undefined;
-    });
-  return current.pending;
+  const links: Record<string, string> = {};
+  for (const [releaseGroupId, album] of Object.entries(matchReleaseGroups(listing.albums, cachedReleaseGroupOf))) {
+    links[releaseGroupId] = plexAlbumUrl(config.webUrl, listing.machineIdentifier, album.ratingKey);
+  }
+  return { enabled: true, albums: links };
 }
 
 /**
  * Forget the stored links (tests)
  */
 export function resetPlexAlbumLinks(): void {
-  store.__plexAlbumLinks = undefined;
+  store.__plexListing = undefined;
 }
