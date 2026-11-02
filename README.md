@@ -133,6 +133,7 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 - `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` and `TIDAL_CLIENT_ID` / `TIDAL_CLIENT_SECRET` - Find Spotify and Tidal links by the release barcode (server-only; Deezer and Apple Music are looked up by barcode without a key)
 - `DATA_DIR` - Folder for the cache database (default `.cache/` in the app folder). On a server, a folder outside the git checkout (e.g. `/var/lib/musicbrainz-collection`) survives a fresh clone. Back it up by copying `cache.db` while the app is stopped, or with `sqlite3 cache.db ".backup copy.db"`
 - `PREFETCH_ENABLED=false` - Turns off the background prefetch. Useful for a dev server on the same network as production, since MusicBrainz allows about 1 request per second per IP. Albums still load when clicked, and stale albums are not refreshed in the background
+- `PLEX_TOKEN` (optional `PLEX_URL`, `PLEX_WEB_URL`) - Shows an "Open in Plex" link for albums that are in your Plex library. Plex must have matched them (MusicBrainz IDs). Server-only; defaults: Plex at `http://localhost:32400`, links to `https://app.plex.tv/desktop/`
 
 ## Tech Stack
 

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.0] - 2026-11-02
+
+### Added
+
+- **Open in Plex**: Albums that are in your Plex library get a Plex icon next to the streaming links in the details panel. It opens the album in Plex Web (`https://app.plex.tv/desktop/`, or `PLEX_WEB_URL`). The server reads all albums of your Plex music libraries with their MusicBrainz release IDs, which Plex stores for matched albums, and finds each album's release group in the release cache, so no MusicBrainz requests are made. Plex albums without a MusicBrainz ID (unmatched in Plex) and albums whose releases are not cached yet get no link. The list is read from Plex at most every 10 minutes. Off unless `PLEX_TOKEN` is set; the token stays on the server
+
 ## [0.36.1] - 2026-10-26
 
 ### Fixed

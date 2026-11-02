@@ -14,8 +14,9 @@ useAlbums ─► progressive-loader ─► /api/musicbrainz/[...path] ─► rat
   │
 AlbumDetailsPanel
   ├─► /api/release-groups/[mbid] ─► server cache, else MusicBrainz ('high' priority)
-  └─► /api/streaming-links ─► server cache, else MusicBrainz links + barcode lookups
-                               (Deezer, Apple Music, Spotify*, Tidal*; * with credentials)
+  ├─► /api/streaming-links ─► server cache, else MusicBrainz links + barcode lookups
+  │                            (Deezer, Apple Music, Spotify*, Tidal*; * with credentials)
+  └─► /api/plex/albums ─► Plex Media Server (PLEX_TOKEN), releases matched via the release cache
 
 CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .image-cache/ (WebP, plus .missing markers for covers that don't exist, 7 days)
 ```

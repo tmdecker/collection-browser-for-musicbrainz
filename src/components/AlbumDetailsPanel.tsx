@@ -1,17 +1,18 @@
 /**
  * @ai-file component
  * @ai-description Collapsible album details panel with cover art, metadata, genres, ratings, and tracklist
- * @ai-dependencies React, CoverArtImage, TrackList, StreamingLinksSection, StarRating
+ * @ai-dependencies React, CoverArtImage, TrackList, StreamingLinksSection, StarRating, usePlexAlbums
  * @ai-features
  * - Three-column layout (cover, metadata, tracklist) - responsive stacking on mobile
  * - Genre/tag display with optional ratings
  * - Streaming links integration
+ * - "Open in Plex" link for albums in the user's Plex library (when Plex is configured)
  * - Progressive loading support
  * - Manual refresh of the album from MusicBrainz (after editing it there)
  */
 
 import React, { useState, useEffect } from 'react';
-import { SiMusicbrainz } from 'react-icons/si';
+import { SiMusicbrainz, SiPlex } from 'react-icons/si';
 import { BiLock, BiRefresh } from 'react-icons/bi';
 import CoverArtImage from './CoverArtImage';
 import TrackList from './TrackList';
@@ -20,6 +21,7 @@ import StarRating from './StarRating';
 import { ReleaseGroup, StreamingLinks } from '@/types/music';
 import { StreamingServicePreferences, RatingDisplayMode } from '@/types/preferences';
 import { usePreferences } from '@/hooks/usePreferences';
+import { usePlexAlbums } from '@/hooks/usePlexAlbums';
 
 interface AlbumDetailsPanelProps {
   album: ReleaseGroup | null;
@@ -54,6 +56,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   // Use the detailed album data if available, otherwise fall back to basic album data
   const displayAlbum = albumDetails || album;
   const streamingCountry = usePreferences().preferences.streaming.country;
+  const plexLinks = usePlexAlbums();
+  const plexUrl = displayAlbum ? plexLinks[displayAlbum.id] : undefined;
 
   // Tracklist is still on its way when the album has none yet and no details request is running
   const tracklistLoading = !!displayAlbum && !displayAlbum.tracklist && !loading;
@@ -566,8 +570,21 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                   )}
                 </div>
 
-                {/* Bottom section with streaming links*/}
-                <div className="flex justify-center md:justify-start">
+                {/* Bottom section with the Plex link and streaming links */}
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                  {/* Plex link, only for albums in the user's Plex library */}
+                  {plexUrl && (
+                    <a
+                      href={plexUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center w-6 h-6 text-text-secondary hover:text-white transition-colors duration-200"
+                      title="Open in Plex"
+                      aria-label="Open in Plex"
+                    >
+                      <SiPlex className="w-[34px] h-[34px] md:w-6 md:h-6" />
+                    </a>
+                  )}
                   {/* Streaming Links */}
                   <StreamingLinksSection
                     streamingLinks={streamingLinks}
