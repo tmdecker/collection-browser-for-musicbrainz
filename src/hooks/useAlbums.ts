@@ -19,6 +19,22 @@ import { bumpCoverVersion } from '@/utils/cover-versions';
  */
 
 /**
+ * Album details from /api/release-groups or IndexedDB come in MusicBrainz's raw shape
+ * (rating.value, 'primary-type', ...), while the details panel reads the normalized fields
+ * (rating.average, primary_type, ...). Normalize them and keep the personal rating, which only
+ * comes with the collection (the grid entry), not with the server's unauthenticated lookup.
+ */
+export const toPanelDetails = (details: any, gridAlbum?: ReleaseGroup | null): ReleaseGroup => {
+  const normalized = normalizeReleaseGroup(details);
+  const personal = normalized.rating?.personal ?? gridAlbum?.rating?.personal ?? null;
+  return {
+    ...normalized,
+    cover: details.cover,
+    rating: normalized.rating ? { ...normalized.rating, personal } : gridAlbum?.rating,
+  };
+};
+
+/**
  * Central data management hook - Focused on album data fetching and management
  *
  * @param externalCollectionId - Optional collection ID to override preferences (for direct prop passing)
@@ -137,7 +153,7 @@ export const useAlbums = (externalCollectionId?: string) => {
         if (signal?.aborted) return;
         if (cachedAlbum) {
           // Immediately show the cached data (whether basic or detailed)
-          setSelectedAlbumDetails(cachedAlbum);
+          setSelectedAlbumDetails(toPanelDetails(cachedAlbum, albums.find(a => a.id === albumId)));
           shouldShowLoading = false; // Don't show loading since we have cached data
 
           // Check if this already has detailed data by looking for release details;
@@ -164,7 +180,7 @@ export const useAlbums = (externalCollectionId?: string) => {
                   // Only update if data changed (compare release count) and this album is still selected
                   if (!signal?.aborted && freshDetails.releases?.length !== cachedAlbum.releases?.length) {
                     console.log(`🔄 Background refresh found updated data for ${albumId}`);
-                    setSelectedAlbumDetails(freshDetails);
+                    setSelectedAlbumDetails(toPanelDetails(freshDetails, albums.find(a => a.id === albumId)));
                   }
                   // Always update cache with fresh data
                   const existingAlbum = albums.find(a => a.id === albumId);
@@ -209,7 +225,7 @@ export const useAlbums = (externalCollectionId?: string) => {
         // Only update state if not aborted
         if (!signal?.aborted) {
           // Update with detailed information
-          setSelectedAlbumDetails(details);
+          setSelectedAlbumDetails(toPanelDetails(details, albums.find(a => a.id === albumId)));
 
           // Store the detailed information in IndexedDB, preserving existing data like cover URL
           try {
@@ -264,7 +280,7 @@ export const useAlbums = (externalCollectionId?: string) => {
 
       // Still selected: show the new data (new releaseDetails make the panel ask for streaming links again)
       if (selectedAlbumRef.current?.id === albumId) {
-        setSelectedAlbumDetails(details);
+        setSelectedAlbumDetails(toPanelDetails(details, selectedAlbumRef.current));
       }
 
       // Grid entry: new title, genres, tags and rating; the personal rating only comes with the collection
