@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-02
+
 ### Changed
 
 - **Readable filter colours**: Selected label, tag, date and rating chips and the active filter tab use deeper colours (rose, orange, fuchsia and amber at 600/700) so their white text is readable; before it was 1.7 to 2.7:1 against the 4.5:1 minimum. The colours live in `tailwind.config.js` as `category-*`
