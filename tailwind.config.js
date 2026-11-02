@@ -1,18 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  safelist: [
-    'bg-background',
-    'bg-background-secondary',
-    'bg-background-tertiary',
-    'text-text-primary',
-    'text-text-secondary',
-    'text-text-tertiary',
-    'ring-primary',
-  ],
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
@@ -22,6 +10,7 @@ module.exports = {
           DEFAULT: '#121212',
           secondary: '#1A1A1A',
           tertiary: '#2A2A2A',
+          control: '#1E1E1E', // Resting fill of the round header controls and the search field (used at /75)
         },
         primary: {
           DEFAULT: '#8B5CF6',  // Violet-500 color

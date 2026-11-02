@@ -13,6 +13,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo, useCallback, Suspense } from 'react';
+import Toast from '@/components/Toast';
 import Header, { HeaderRef } from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import ActiveFiltersBar from '@/components/ActiveFiltersBar';
@@ -426,29 +427,13 @@ export default function Home() {
 
       {/* Validation Toast Notification */}
       {validationState.message && validationState.status !== 'idle' && validationState.status !== 'validating' && (
-        <div className="fixed top-4 right-4 z-50 animate-fade-in">
-          <div className={`px-4 py-3 rounded-lg shadow-lg backdrop-blur-md border ${
-            validationState.status === 'valid'
-              ? 'bg-green-900/90 text-green-100 border-green-500/30'
-              : 'bg-red-900/90 text-red-100 border-red-500/30'
-          }`}>
-            <div className="flex items-center space-x-2">
-              {validationState.status === 'valid' && (
-                <BiCheck className="flex-shrink-0" size={20} />
-              )}
-              {validationState.status === 'error' && (
-                <BiError className="flex-shrink-0" size={20} />
-              )}
-              <span className="text-sm font-medium">{validationState.message}</span>
-            </div>
-          </div>
-        </div>
+        <Toast type={validationState.status === 'valid' ? 'success' : 'error'} message={validationState.message} />
       )}
 
       {error && (
         <div className="p-6">
           <div className="p-4 bg-background-tertiary border border-background-secondary rounded-md">
-            <h2 className="text-lg font-medium mb-2 text-primary">
+            <h2 className={`text-lg font-medium mb-2 ${error.includes('No collection configured') || error.includes('Using sample data') ? 'text-primary' : 'text-red-500'}`}>
               {error.includes('No collection configured') ? 'Welcome to Music Library Viewer' : error.includes('Using sample data') ? 'Notice' : 'Error'}
             </h2>
             <p className="text-text-secondary">{error}</p>
@@ -472,7 +457,7 @@ export default function Home() {
                           }
                         }}
                         placeholder="Enter collection or series ID/URL"
-                        className="w-full px-3 py-2 pr-10 bg-[#2A2A2A] text-text-primary text-sm rounded-lg border border-white/10 focus:border-primary focus:outline-none placeholder:text-white/40"
+                        className="w-full px-3 py-2 pr-10 bg-background-tertiary text-text-primary text-sm rounded-lg border border-white/10 focus:border-primary focus:outline-none placeholder:text-white/40"
                       />
 
                       {/* Clear button */}
@@ -535,7 +520,6 @@ export default function Home() {
             {error.includes('Using sample data') && (
               <div className="mt-4">
                 <p className="text-text-secondary">You&apos;re seeing sample album data because we couldn&apos;t connect to MusicBrainz.</p>
-                <p className="text-text-secondary mt-2">Visit <a href="/debug" className="text-primary hover:underline">the debug page</a> to troubleshoot.</p>
               </div>
             )}
           </div>

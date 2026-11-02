@@ -103,7 +103,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
       >
         <div className="px-4 sm:px-6 pt-2 pb-3">
           <div className="flex items-center h-8">
-            <span className="text-white/50 text-sm backdrop-blur-md bg-[#1A1A1A]/70 rounded-lg px-3 py-2">No Active Filters</span>
+            <span className="text-white/50 text-sm backdrop-blur-md bg-background-secondary/70 rounded-lg px-3 py-2">No Active Filters</span>
           </div>
         </div>
       </div>
@@ -125,7 +125,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
           {/* Round X button for clear all */}
           <button
             onClick={onClearAll}
-            className="flex-shrink-0 w-7 h-7 rounded-full backdrop-blur-md bg-[#1A1A1A]/70 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors mr-3 border border-white/10 hover:border-white/30"
+            className="flex-shrink-0 w-7 h-7 rounded-full backdrop-blur-md bg-background-secondary/70 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors mr-3 border border-white/10 hover:border-white/30"
             title="Clear All"
             aria-label={`Clear all ${totalActiveFilters} active filters`}
           >

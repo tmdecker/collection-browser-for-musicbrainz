@@ -335,7 +335,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         onClick={onClose}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`absolute right-6 sm:right-6 top-[30px] md:top-3 z-30 p-1.5 rounded-full bg-background-tertiary/90 text-text-secondary transition-all shadow-lg backdrop-blur-sm lg:opacity-0 lg:pointer-events-none hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
+        className={`absolute right-6 sm:right-6 top-[30px] md:top-3 z-30 p-1.5 rounded-full bg-background-tertiary/90 text-text-secondary transition-all shadow-lg backdrop-blur-sm lg:opacity-0 lg:pointer-events-none lg:focus-visible:!opacity-100 lg:focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
         aria-label="Close album details"
       >
         <svg
@@ -356,16 +356,11 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
 
         <div
-          className="max-h-[calc(100vh-var(--header-height)-2rem)] sm:max-h-none overflow-y-auto sm:overflow-visible rounded-3xl border border-white/10"
+          className="max-h-[calc(100vh-var(--header-height)-2rem)] sm:max-h-none overflow-y-auto sm:overflow-visible rounded-3xl border border-white/10 panel-surface"
           role="region"
           aria-label="Album details panel"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          style={{
-            background: 'linear-gradient(180deg, rgba(26,26,26,0.98) 0%, rgba(26,26,26,0.95) 100%)',
-            backdropFilter: 'blur(8px) saturate(1.2)',
-            boxShadow: '0 1px 3px rgba(18,18,18,0.12), 0 1px 2px rgba(18,18,18,0.24)'
-          }}
         >
         <div className="px-4 sm:px-6 pt-6 md:pt-[50px] pb-6 md:pb-[50px] relative">
 
@@ -489,7 +484,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                     {releaseYear && <span> • {releaseYear}</span>}
                   </div>
 
-                  <h4 className="text-xl md:text-2xl font-bold text-text-primary mb-1 line-clamp-2">{displayAlbum.title}</h4>
+                  <h2 className="text-xl md:text-2xl font-bold text-text-primary mb-1 line-clamp-2">{displayAlbum.title}</h2>
                   <p className="text-text-secondary text-lg md:text-xl mb-2">{artistName}</p>
 
                   {/* @ai Rating display with spacer to maintain genre position consistency
@@ -571,7 +566,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
                   {trackCount && (
                     <div className="mb-4">
-                      <h5 className="text-xs font-semibold text-text-tertiary uppercase mb-1">Tracks</h5>
+                      <h3 className="text-xs font-semibold text-text-tertiary uppercase mb-1">Tracks</h3>
                       <p className="text-text-primary text-sm">{trackCount}</p>
                     </div>
                   )}

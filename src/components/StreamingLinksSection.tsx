@@ -315,19 +315,7 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
   const shouldAnimate = !fromCache;
 
   return (
-    <div className={shouldAnimate ? 'animate-fade-in' : ''} style={shouldAnimate ? { animation: 'fadeIn 0.4s ease-in' } : {}}>
-      {shouldAnimate && (
-        <style jsx>{`
-          @keyframes fadeIn {
-            from {
-              opacity: 0;
-            }
-            to {
-              opacity: 1;
-            }
-          }
-        `}</style>
-      )}
+    <div className={shouldAnimate ? 'animate-fade-in' : ''}>
       <div className="flex flex-wrap gap-2">
         {availablePlatforms.map(({ platform, url }) => {
           const config = PLATFORM_CONFIGS[platform];
@@ -350,8 +338,9 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
                 href={finalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center w-6 h-6 md:w-6 md:h-6 text-text-secondary hover:text-white transition-colors duration-200"
+                className="flex items-center justify-center w-[34px] h-[34px] md:w-6 md:h-6 text-text-secondary hover:text-white transition-colors duration-200"
                 title={`Open on ${platform}`}
+                aria-label={`Open on ${platform}`}
               >
                 <BiMusic className="w-[34px] h-[34px] md:w-6 md:h-6" />
               </Link>
@@ -366,8 +355,9 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
               href={finalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={`flex items-center justify-center w-6 h-6 md:w-6 md:h-6 text-text-secondary transition-colors duration-200 ${config.color}`}
+              className={`flex items-center justify-center w-[34px] h-[34px] md:w-6 md:h-6 text-text-secondary transition-colors duration-200 ${config.color}`}
               title={`Open on ${config.name}`}
+              aria-label={`Open on ${config.name}`}
             >
               <IconComponent className="w-[34px] h-[34px] md:w-6 md:h-6" />
             </Link>

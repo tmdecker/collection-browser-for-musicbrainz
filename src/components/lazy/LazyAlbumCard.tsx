@@ -76,15 +76,25 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
 
     return (
       <div 
-        className="flex flex-col cursor-pointer transition-all duration-200 ease-in-out rounded-md overflow-hidden hover:bg-background-secondary p-3"
+        className="flex flex-col cursor-pointer transition-all duration-200 ease-in-out rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-3"
         onClick={() => {
           // When clicking on placeholder, make it visible immediately and trigger the onClick
           setIsVisible(true);
           onClick(album);
         }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsVisible(true);
+            onClick(album);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`${album.title} by ${artistNames}`}
         data-album-id={album.id} // Add data attribute for scroll position tracking
       >
-        <div className="relative aspect-square mb-3 rounded-md overflow-hidden bg-background-tertiary">
+        <div className="relative aspect-square mb-2 md:mb-3 rounded-md overflow-hidden bg-background-tertiary">
           <div 
             className="absolute inset-0 flex items-center justify-center transition-opacity duration-300 bg-background-tertiary animate-pulse"
           ></div>
@@ -92,14 +102,14 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
         
         <div className="flex flex-col flex-grow">
           {/* Use actual text but with placeholder styling for better accessibility */}
-          <h3 className="font-medium text-text-primary text-sm line-clamp-1 opacity-30" title={album.title}>
+          <h3 className="font-medium text-text-primary text-xs md:text-sm line-clamp-1 opacity-30" title={album.title}>
             {album.title}
           </h3>
-          <p className="text-text-secondary text-xs line-clamp-1 opacity-30" title={artistNames}>
+          <p className="text-text-secondary text-xs md:text-sm line-clamp-1 opacity-30" title={artistNames}>
             {artistNames}
           </p>
           {album.first_release_date && (
-            <p className="text-text-tertiary text-xs mt-1 opacity-30">
+            <p className="text-text-tertiary text-[10px] md:text-xs mt-0.5 md:mt-1 opacity-30">
               {album.first_release_date.split('-')[0]}
             </p>
           )}

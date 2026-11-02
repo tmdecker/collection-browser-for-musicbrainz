@@ -33,7 +33,7 @@ const FilterButton: React.FC<FilterButtonProps> = ({
         className={`p-2 rounded-full backdrop-blur-md transition-colors flex items-center space-x-1 relative border ${
           isFilterPanelOpen
             ? 'bg-white/20 text-white border-white/35'
-            : 'bg-[#1E1E1E]/75 hover:bg-white/20 text-white/75 hover:text-white border-white/15 hover:border-white/35'
+            : 'bg-background-control/75 hover:bg-white/20 text-white/75 hover:text-white border-white/15 hover:border-white/35'
         }`}
         title={`Filter albums${hasActiveFilters ? ` (${activeFilterCount} active)` : ''}`}
         aria-label={`Filter albums${hasActiveFilters ? `, ${activeFilterCount} filters active` : ''}`}

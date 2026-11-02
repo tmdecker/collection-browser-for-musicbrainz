@@ -3,11 +3,11 @@
  * @ai-description Application header with menu, collection name, search, sort, and filter
  * @ai-dependencies React, SearchBar, SortDropdown, FilterButton, useAuth
  * @ai-features
- * - Responsive layout: desktop single-row, mobile two-row stacked
+ * - Responsive single row: menu, search, sort, filter; collection name from md up
  * - Hamburger menu with auth status, settings, and navigation
  * - Auto-fetched collection name display with truncation
  * - Glass morphism styling with sticky positioning
- * - Dynamic header heights via CSS variables (64px desktop, 96px mobile)
+ * - Dynamic header heights via CSS variables (64px desktop, 56px mobile)
  */
 
 import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
@@ -16,6 +16,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import SearchBar from './SearchBar';
 import SortDropdown, { SortDropdownRef } from './SortDropdown';
 import FilterButton from './FilterButton';
+import Toast from './Toast';
 import { SortOption } from '@/types/music';
 import { BiCollection, BiCog, BiMenu, BiX, BiUserX, BiUserCheck, BiLogOut, BiLinkExternal } from 'react-icons/bi';
 import { useAuth } from '@/hooks/useAuth';
@@ -161,63 +162,52 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
     <>
       {/* Auth Toast Notification */}
       {authMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-fade-in">
-          <div className={`px-4 py-3 rounded-lg shadow-lg backdrop-blur-md border ${
-            authMessage.type === 'success'
-              ? 'bg-green-900/90 text-green-100 border-green-500/30'
-              : 'bg-red-900/90 text-red-100 border-red-500/30'
-          }`}>
-            <div className="flex items-center space-x-2">
-              {authMessage.type === 'success' ? (
-                <BiUserCheck className="flex-shrink-0" size={20} />
-              ) : (
-                <BiUserX className="flex-shrink-0" size={20} />
-              )}
-              <span className="text-sm font-medium">{authMessage.text}</span>
-            </div>
-          </div>
-        </div>
+        <Toast
+          type={authMessage.type}
+          message={authMessage.text}
+          icon={authMessage.type === 'success'
+            ? <BiUserCheck className="flex-shrink-0" size={20} />
+            : <BiUserX className="flex-shrink-0" size={20} />}
+        />
       )}
 
       <header
-        className="sticky top-0 z-30 p-3 md:px-6 md:pt-4 md:pb-4 relative"
-        style={{
-          boxSizing: 'border-box',
-          margin: '0',
-          background: 'rgba(18,18,18,0.85)',
-          backdropFilter: 'blur(8px) saturate(1.2)'
-        }}
+        className="sticky top-0 z-30 p-3 md:px-6 md:pt-4 md:pb-4 header-surface"
       >
-      {/* Desktop Layout: Compact with Hover Details */}
-      <div className="hidden md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:items-center md:gap-4 h-8">
-        {/* Left: Menu Button + Collection Name + Switcher + Auth Status */}
-        <div className="flex items-center space-x-2 min-w-0">
-          {/* Menu Button */}
+      {/* One row at every width: the collection name only shows from md, where the row becomes a three-column grid */}
+      <div className="flex items-center gap-2 w-full md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:gap-4 md:h-8">
+        {/* Left: Menu Button + Collection Name */}
+        <div className="flex items-center space-x-2 min-w-0 flex-shrink-0 md:flex-shrink">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-full backdrop-blur-md bg-[#1E1E1E]/75 hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
+            className="p-2 rounded-full backdrop-blur-md bg-background-control/75 hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
             title="Menu"
+            aria-label="Menu"
+            aria-expanded={mobileMenuOpen}
+            aria-haspopup="true"
           >
-            {mobileMenuOpen ? <BiX size={24} /> : <BiMenu size={24} />}
+            {mobileMenuOpen ? <BiX className="w-5 h-5 md:w-6 md:h-6" /> : <BiMenu className="w-5 h-5 md:w-6 md:h-6" />}
           </button>
 
-          {/* Collection Name */}
-          <h1
-            className="text-sm font-bold text-white/70 truncate cursor-pointer hover:text-white transition-colors"
-            onClick={onTitleClick}
-            title="Return to top and close panels"
-          >
-            {displayName}
+          <h1 className="hidden md:flex min-w-0">
+            <button
+              type="button"
+              className="min-w-0 max-w-full text-sm font-bold text-white/70 hover:text-white transition-colors"
+              onClick={onTitleClick}
+              title="Return to top and close panels"
+            >
+              <span className="block truncate">{displayName}</span>
+            </button>
           </h1>
           {entityType && (
-            <span className="ml-2 bg-gray-700/50 text-gray-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
+            <span className="hidden md:inline ml-2 bg-gray-700/50 text-gray-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
               {entityType}
             </span>
           )}
         </div>
 
-        {/* Center: Search Bar (grid centers this column) */}
-        <div className="w-full justify-self-center">
+        {/* Center: Search Bar (the md grid centers this column) */}
+        <div className="flex-1 min-w-0 md:w-full md:justify-self-center">
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -225,15 +215,13 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
         </div>
 
         {/* Right: Sort + Filter */}
-        <div className="flex items-center space-x-3 justify-self-end">
-          {/* Sort Dropdown */}
+        <div className="flex items-center gap-2 md:gap-3 md:justify-self-end">
           <SortDropdown
             ref={sortDropdownRef}
             value={sortOption}
             onChange={setSortOption}
             entityType={entityType}
           />
-          {/* Filter Button */}
           <FilterButton
             isFilterPanelOpen={isFilterPanelOpen}
             toggleFilterPanel={toggleFilterPanel}
@@ -243,45 +231,9 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
         </div>
       </div>
 
-      {/* Mobile Layout: Single Row */}
-      <div className="flex md:hidden items-center space-x-2 w-full">
-        {/* Menu Button */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 rounded-full backdrop-blur-md bg-[#1E1E1E]/75 hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
-          title="Menu"
-        >
-          {mobileMenuOpen ? <BiX size={20} /> : <BiMenu size={20} />}
-        </button>
-
-        {/* Search Bar */}
-        <div className="flex-1">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-          />
-        </div>
-
-        {/* Sort Dropdown */}
-        <SortDropdown
-          ref={sortDropdownRef}
-          value={sortOption}
-          onChange={setSortOption}
-          entityType={entityType}
-        />
-
-        {/* Filter Button */}
-        <FilterButton
-          isFilterPanelOpen={isFilterPanelOpen}
-          toggleFilterPanel={toggleFilterPanel}
-          activeFilterCount={activeFilterCount}
-          hasActiveFilters={hasActiveFilters}
-        />
-      </div>
-
       {/* Menu Dropdown - Absolute positioned overlay */}
       {mobileMenuOpen && (
-        <div ref={menuRef} className="absolute left-3 md:left-6 top-full mt-2 w-[calc(100%-1.5rem)] md:w-80 rounded-3xl backdrop-blur-md bg-[#1A1A1A]/95 border border-white/10 overflow-hidden shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div ref={menuRef} className="absolute left-3 md:left-6 top-full mt-2 w-[calc(100%-1.5rem)] md:w-80 rounded-3xl backdrop-blur-md bg-background-secondary/95 border border-white/10 overflow-hidden shadow-lg z-50 animate-fade-in">
           {/* Collection Name - Only show on mobile since desktop already shows it */}
           <button
             onClick={() => {

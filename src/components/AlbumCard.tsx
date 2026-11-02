@@ -4,9 +4,9 @@
  * @ai-dependencies React, Next.js Image, CoverArtImage, clsx
  * @ai-features
  * - Responsive card with cover art and metadata
- * - Dynamic placeholder generation with color based on album title
  * - Loading states with smooth transitions
  * - Selected state with highlight border
+ * - Opens with Enter or Space when focused
  */
 
 import React, { useState, useEffect } from 'react';
@@ -30,16 +30,6 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   
-  // Generate a color based on album title for the placeholder background
-  const generatePlaceholderColor = (text: string) => {
-    let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      hash = text.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const hue = hash % 360;
-    return `hsl(${hue}, 40%, 25%)`;
-  };
-
   const artistNames = album.artist_credit && album.artist_credit.length > 0
     ? album.artist_credit
       .map(credit => {
@@ -56,9 +46,6 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
     ? album.first_release_date.split('-')[0] 
     : '';
     
-  // Generate placeholder color based on album title
-  const placeholderColor = generatePlaceholderColor(album.title);
-  
   // Debug log image size in development (only for first visible album)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development' && index === 0 && album.cover) {
@@ -91,6 +78,16 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
         selected && 'bg-background-secondary ring-2 ring-primary',
       )}
       onClick={() => onClick(album)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(album);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`${album.title} by ${artistNames}${releaseYear ? `, ${releaseYear}` : ''}`}
       data-album-id={album.id} // Add data attribute for scroll position tracking
     >
       <div className="relative aspect-square mb-2 md:mb-3 rounded-md overflow-hidden bg-background-tertiary">

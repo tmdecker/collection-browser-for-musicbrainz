@@ -13,6 +13,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Toast from './Toast';
 import { MusicBrainzCollection } from '@/types/auth';
 import { BiLoaderAlt, BiError, BiCollection, BiLinkExternal, BiCheck, BiUserX, BiX, BiRefresh } from 'react-icons/bi';
 import { validateEntityId } from '@/utils/mbid-validation';
@@ -173,23 +174,7 @@ export default function CollectionBrowsePanel({
     <>
       {/* Validation Toast Notification - Only show for valid/error, not validating */}
       {validationState.message && validationState.status !== 'idle' && validationState.status !== 'validating' && (
-        <div className="fixed top-4 right-4 z-50 animate-fade-in">
-          <div className={`px-4 py-3 rounded-lg shadow-lg backdrop-blur-md border ${
-            validationState.status === 'valid'
-              ? 'bg-green-900/90 text-green-100 border-green-500/30'
-              : 'bg-red-900/90 text-red-100 border-red-500/30'
-          }`}>
-            <div className="flex items-center space-x-2">
-              {validationState.status === 'valid' && (
-                <BiCheck className="flex-shrink-0" size={20} />
-              )}
-              {validationState.status === 'error' && (
-                <BiError className="flex-shrink-0" size={20} />
-              )}
-              <span className="text-sm font-medium">{validationState.message}</span>
-            </div>
-          </div>
-        </div>
+        <Toast type={validationState.status === 'valid' ? 'success' : 'error'} message={validationState.message} />
       )}
 
       <div
@@ -203,7 +188,7 @@ export default function CollectionBrowsePanel({
         onClick={onClose}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`absolute right-6 sm:right-6 top-[30px] md:top-3 z-30 p-1.5 rounded-full bg-background-tertiary/90 text-text-secondary transition-all shadow-lg backdrop-blur-sm lg:opacity-0 lg:pointer-events-none hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
+        className={`absolute right-6 sm:right-6 top-[30px] md:top-3 z-30 p-1.5 rounded-full bg-background-tertiary/90 text-text-secondary transition-all shadow-lg backdrop-blur-sm lg:opacity-0 lg:pointer-events-none lg:focus-visible:!opacity-100 lg:focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
         aria-label="Close collections browser"
       >
         <svg
@@ -223,16 +208,11 @@ export default function CollectionBrowsePanel({
       </button>
 
       <div
-        className="max-h-[calc(100vh-var(--header-height)-2rem)] overflow-y-auto rounded-3xl border border-white/10 pointer-events-auto"
+        className="max-h-[calc(100vh-var(--header-height)-2rem)] overflow-y-auto rounded-3xl border border-white/10 pointer-events-auto panel-surface"
         role="region"
         aria-label="Collections browser panel"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{
-          background: 'linear-gradient(180deg, rgba(26,26,26,0.98) 0%, rgba(26,26,26,0.95) 100%)',
-          backdropFilter: 'blur(8px) saturate(1.2)',
-          boxShadow: '0 1px 3px rgba(18,18,18,0.12), 0 1px 2px rgba(18,18,18,0.24)'
-        }}
       >
         <div className="px-4 sm:px-6 pt-6 md:pt-[50px] pb-6 md:pb-[50px]">
 
@@ -254,7 +234,7 @@ export default function CollectionBrowsePanel({
                       }
                     }}
                     placeholder="Enter collection or series ID/URL"
-                    className="w-full px-3 py-2 pr-10 bg-[#2A2A2A] text-text-primary text-sm rounded-lg border border-white/10 focus:border-primary focus:outline-none placeholder:text-white/40"
+                    className="w-full px-3 py-2 pr-10 bg-background-tertiary text-text-primary text-sm rounded-lg border border-white/10 focus:border-primary focus:outline-none placeholder:text-white/40"
                   />
 
                   {/* Clear button */}
@@ -409,6 +389,17 @@ export default function CollectionBrowsePanel({
                     index !== totalInGroup - 1 ? 'border-b border-white/5' : ''
                   }`}
                   onClick={() => !isCurrentCollection && handleLoadCollection(collection)}
+                  onKeyDown={(e) => {
+                    // Only the row itself, not the buttons inside it
+                    if (e.target !== e.currentTarget || isCurrentCollection) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleLoadCollection(collection);
+                    }
+                  }}
+                  role={isCurrentCollection ? undefined : 'button'}
+                  tabIndex={isCurrentCollection ? undefined : 0}
+                  aria-label={isCurrentCollection ? undefined : `Load ${collection.name}`}
                 >
                   <div className="px-4 sm:px-6 py-5">
                     {/* Content constrained in center for larger screens */}
@@ -466,7 +457,7 @@ export default function CollectionBrowsePanel({
                             e.stopPropagation();
                             handleViewCollection(collection.id);
                           }}
-                          className="px-4 py-2 rounded-lg text-sm font-medium bg-[#2A2A2A] text-white/90 hover:bg-[#333333] hover:text-white transition-colors inline-flex items-center gap-2"
+                          className="px-4 py-2 rounded-lg text-sm font-medium bg-background-tertiary text-white/90 hover:bg-[#333333] hover:text-white transition-colors inline-flex items-center gap-2"
                         >
                           <span>View on MusicBrainz.org</span>
                           <BiLinkExternal size={14} />

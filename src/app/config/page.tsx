@@ -98,34 +98,34 @@ export default function ConfigPage() {
         <div className="space-y-6">
           {/* Display Settings */}
           <div>
-            <h3 className="text-lg font-medium text-text-primary mb-2">Display Settings</h3>
-            <div className="flex items-center">
+            <h2 className="text-lg font-medium text-text-primary mb-2">Display Settings</h2>
+            <label className="flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 checked={preferences.display.useGenresOnly}
                 onChange={(e) => setUseGenresOnly(e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary"
+                className="h-4 w-4"
               />
-              <label className="ml-2 block text-sm text-text-secondary">
+              <span className="ml-2 block text-sm text-text-secondary">
                 Show official genres only (recommended)
-              </label>
-            </div>
+              </span>
+            </label>
             <p className="mt-1 text-sm text-text-tertiary ml-6">
               When checked, only official MusicBrainz genre tags are shown in filters and album details.
               When unchecked, all user-submitted tags are shown as genres.
             </p>
 
-            <div className="flex items-center mt-4">
+            <label className="flex items-center cursor-pointer mt-4">
               <input
                 type="checkbox"
                 checked={preferences.display.enableLabelFilter}
                 onChange={(e) => setEnableLabelFilter(e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary"
+                className="h-4 w-4"
               />
-              <label className="ml-2 block text-sm text-text-secondary">
+              <span className="ml-2 block text-sm text-text-secondary">
                 Enable label filter
-              </label>
-            </div>
+              </span>
+            </label>
             <p className="mt-1 text-sm text-text-tertiary ml-6">
               When checked, record label filtering is available in the filter panel.
               <strong className="text-text-secondary"> Note:</strong> This feature is currently in development
@@ -135,22 +135,22 @@ export default function ConfigPage() {
 
           {/* Rating Display Settings */}
           <div>
-            <h3 className="text-lg font-medium text-text-primary mb-2">
+            <h2 className="text-lg font-medium text-text-primary mb-2">
               Rating Display
-            </h3>
+            </h2>
 
             {/* Master toggle */}
-            <div className="flex items-center">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 checked={preferences.display.showRatings}
                 onChange={(e) => setShowRatings(e.target.checked)}
-                className="h-4 w-4 text-primary focus:ring-primary"
+                className="h-4 w-4"
               />
-              <label className="ml-2 block text-sm text-text-secondary">
+              <span className="ml-2 block text-sm text-text-secondary">
                 Show ratings on albums
-              </label>
-            </div>
+              </span>
+            </label>
 
             {/* Display mode selection */}
             {preferences.display.showRatings && (
@@ -162,7 +162,7 @@ export default function ConfigPage() {
                     value="average"
                     checked={preferences.display.ratingDisplayMode === 'average'}
                     onChange={() => setRatingDisplayMode('average')}
-                    className="w-4 h-4 text-primary focus:ring-primary"
+                    className="w-4 h-4"
                   />
                   <div>
                     <span className="text-text-primary">Average community rating</span>
@@ -179,7 +179,7 @@ export default function ConfigPage() {
                     value="personal"
                     checked={preferences.display.ratingDisplayMode === 'personal'}
                     onChange={() => setRatingDisplayMode('personal')}
-                    className="w-4 h-4 text-primary focus:ring-primary"
+                    className="w-4 h-4"
                   />
                   <div>
                     <span className="text-text-primary">My personal rating</span>
@@ -205,56 +205,56 @@ export default function ConfigPage() {
 
           {/* Streaming Service Settings */}
           <div>
-            <h3 className="text-lg font-medium text-text-primary mb-3">Streaming Services</h3>
+            <h2 className="text-lg font-medium text-text-primary mb-3">Streaming Services</h2>
 
             {/* Desktop App Settings */}
             <div className="mb-4 space-y-3">
               <div>
-                <div className="flex items-center">
+                <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={preferences.streaming.spotifyUseDesktopApp}
                     onChange={(e) => setSpotifyUseDesktopApp(e.target.checked)}
-                    className="h-4 w-4 text-primary focus:ring-primary"
+                    className="h-4 w-4"
                   />
-                  <label className="ml-2 block text-sm text-text-secondary">
+                  <span className="ml-2 block text-sm text-text-secondary">
                     Open Spotify links in desktop app
-                  </label>
-                </div>
+                  </span>
+                </label>
                 <p className="mt-1 text-sm text-text-tertiary ml-6">
                   When enabled, Spotify links will open in the desktop app instead of the web browser.
                 </p>
               </div>
 
               <div>
-                <div className="flex items-center">
+                <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={preferences.streaming.tidalUseDesktopApp}
                     onChange={(e) => setTidalUseDesktopApp(e.target.checked)}
-                    className="h-4 w-4 text-primary focus:ring-primary"
+                    className="h-4 w-4"
                   />
-                  <label className="ml-2 block text-sm text-text-secondary">
+                  <span className="ml-2 block text-sm text-text-secondary">
                     Open Tidal links in desktop app
-                  </label>
-                </div>
+                  </span>
+                </label>
                 <p className="mt-1 text-sm text-text-tertiary ml-6">
                   When enabled, Tidal links will open in the desktop app instead of the web browser.
                 </p>
               </div>
 
               <div>
-                <div className="flex items-center">
+                <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={preferences.streaming.appleMusicUseDesktopApp}
                     onChange={(e) => setAppleMusicUseDesktopApp(e.target.checked)}
-                    className="h-4 w-4 text-primary focus:ring-primary"
+                    className="h-4 w-4"
                   />
-                  <label className="ml-2 block text-sm text-text-secondary">
+                  <span className="ml-2 block text-sm text-text-secondary">
                     Open Apple Music links in desktop app
-                  </label>
-                </div>
+                  </span>
+                </label>
                 <p className="mt-1 text-sm text-text-tertiary ml-6">
                   When enabled, Apple Music links will open in the desktop app instead of the web browser.
                 </p>
@@ -263,11 +263,12 @@ export default function ConfigPage() {
 
             {/* Store country */}
             <div>
-              <h4 className="text-md font-medium text-text-primary mb-2">Store Country</h4>
+              <h3 className="text-base font-medium text-text-primary mb-2">Store Country</h3>
               <p className="text-sm text-text-tertiary mb-3">
                 Country used to find streaming links (Apple Music store, Spotify market, Tidal). Albums can be available in one country but not another.
               </p>
               <select
+                aria-label="Store country"
                 value={preferences.streaming.country}
                 onChange={(e) => updateStreaming({ country: e.target.value })}
                 className="px-3 py-2 rounded-lg bg-background-tertiary text-sm text-text-primary border border-white/10 focus:outline-none focus:ring-1 focus:ring-primary"
@@ -282,7 +283,7 @@ export default function ConfigPage() {
 
             {/* Enabled Services */}
             <div>
-              <h4 className="text-md font-medium text-text-primary mb-2">Show These Services</h4>
+              <h3 className="text-base font-medium text-text-primary mb-2">Show These Services</h3>
               <p className="text-sm text-text-tertiary mb-3">
                 Select which streaming services to display in album details. Disabled services won&apos;t show their icons.
               </p>
@@ -304,7 +305,7 @@ export default function ConfigPage() {
                   };
 
                   return (
-                    <div key={service} className="flex items-center">
+                    <label key={service} className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         checked={enabled}
@@ -316,12 +317,12 @@ export default function ConfigPage() {
                             },
                           });
                         }}
-                        className="h-4 w-4 text-primary focus:ring-primary"
+                        className="h-4 w-4"
                       />
-                      <label className="ml-2 block text-sm text-text-secondary">
+                      <span className="ml-2 block text-sm text-text-secondary">
                         {serviceLabels[service] || service}
-                      </label>
-                    </div>
+                      </span>
+                    </label>
                   );
                 })}
               </div>
