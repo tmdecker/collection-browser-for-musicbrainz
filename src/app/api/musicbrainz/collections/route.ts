@@ -7,12 +7,12 @@
  * - Fetches user's collections (both public and private)
  * - Uses inc=user-collections parameter for private access
  * - Returns collections of every entity type (the Collections page groups them)
- * - Shares rate limiting with all MusicBrainz routes
+ * - Shares rate limiting with all MusicBrainz routes; a 503 pauses all of them and is retried once
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAgent } from '@/utils/config/userAgent';
-import { waitForRateLimit } from '@/lib/rate-limiter';
+import { waitForRateLimit, backOffMusicBrainz } from '@/lib/rate-limiter';
 import { MusicBrainzCollectionList } from '@/types/auth';
 
 // Force dynamic runtime for this API route
@@ -32,9 +32,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Rate limiting (shared with all MusicBrainz routes)
-    await waitForRateLimit();
-
     // Get username from query params
     const { searchParams } = new URL(request.url);
     const username = searchParams.get('username');
@@ -52,22 +49,26 @@ export async function GET(request: NextRequest) {
     mbUrl.searchParams.set('inc', 'user-collections'); // Include private collections
     mbUrl.searchParams.set('fmt', 'json');
 
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-
     try {
-      const response = await fetch(mbUrl.toString(), {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': getUserAgent(),
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+      // A 503 (MusicBrainz busy) pauses all MusicBrainz requests for as long as it asks, then this
+      // request tries once more; each attempt waits for its own slot in the shared rate limit
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await waitForRateLimit();
+        response = await fetch(mbUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': getUserAgent(),
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          signal: AbortSignal.timeout(30000),
+          cache: 'no-store',
+        });
+        if (response.status !== 503) break;
+        backOffMusicBrainz(response);
+      }
+      if (!response) throw new Error('No response from MusicBrainz');
 
       if (!response.ok) {
         console.error(`❌ MusicBrainz collections API error: ${response.status}`);
@@ -87,8 +88,7 @@ export async function GET(request: NextRequest) {
       });
 
     } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
         console.error(`❌ MusicBrainz collections request timeout`);
         return NextResponse.json(
           { error: 'Request timeout' },
