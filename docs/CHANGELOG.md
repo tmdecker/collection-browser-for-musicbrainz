@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- Every collection and series has its own address (`/collection/<mbid>`, `/series/<mbid>`), so browser Back, bookmarks and links to a collection work. Opening the app at `/` goes to the collection or series used last; the welcome screen only shows when none was opened yet
 - Album count next to the collection name, or "10 of 1,226" while a search or filter is active
 - Sort by rating ("Rating: Highest" and "Rating: Lowest", using the average or personal rating chosen in Settings), and a checkmark on the current sort option. Unrated albums come last in both directions; average ratings are weighted by their number of votes, so a 5.0 from one vote doesn't outrank a 4.4 from 200
 - "Back to collection" link at the top of the Settings page

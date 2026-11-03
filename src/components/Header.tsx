@@ -12,7 +12,7 @@
 
 import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import SearchBar from './SearchBar';
 import SortDropdown, { SortDropdownRef } from './SortDropdown';
 import FilterButton from './FilterButton';
@@ -75,6 +75,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
 
   // Get auth state
   const { isAuthenticated, user, login, logout: authLogout } = useAuth();
@@ -98,17 +99,17 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
       // Only show message once user info is available
       setAuthMessage({ type: 'success', text: `Successfully logged in as ${user.name}!` });
       // Clear the URL parameter
-      router.replace('/');
+      router.replace(pathname);
       // Auto-clear message after 3 seconds
       setTimeout(() => setAuthMessage(null), 3000);
     } else if (authError) {
       setAuthMessage({ type: 'error', text: `Login failed: ${authError}` });
       // Clear the URL parameter
-      router.replace('/');
+      router.replace(pathname);
       // Auto-clear message after 5 seconds
       setTimeout(() => setAuthMessage(null), 5000);
     }
-  }, [searchParams, router, user]);
+  }, [searchParams, router, pathname, user]);
 
   // Close menu when clicking outside
   useEffect(() => {

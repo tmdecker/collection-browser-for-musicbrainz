@@ -36,6 +36,8 @@ import {
 interface UsePreferencesReturn {
   // Current preferences
   preferences: UserPreferences;
+  // True once the stored preferences have been loaded (they are defaults before that)
+  isInitialized: boolean;
 
   // Category-specific updaters
   updateDisplay: (updates: PartialPreferences<'display'>) => void;
@@ -289,6 +291,7 @@ const usePreferencesStore = (): UsePreferencesReturn => {
   return useMemo(
     () => ({
       preferences,
+      isInitialized,
       updateDisplay,
       updateStreaming,
       updateApi,
@@ -311,7 +314,7 @@ const usePreferencesStore = (): UsePreferencesReturn => {
       importPreferences,
       cleanupLegacyStorage,
     }),
-    [preferences, updateDisplay, updateStreaming, updateApi, updateMetadata, updateAuth, setSortOption, setUseGenresOnly, setEnableLabelFilter, setSpotifyUseDesktopApp, setTidalUseDesktopApp, setAppleMusicUseDesktopApp, setEnabledStreamingServices, setCollectionId, setCollectionName, setShowRatings, setRatingDisplayMode, toggleShowRatings, resetToDefaults, exportPreferences, importPreferences, cleanupLegacyStorage]
+    [preferences, isInitialized, updateDisplay, updateStreaming, updateApi, updateMetadata, updateAuth, setSortOption, setUseGenresOnly, setEnableLabelFilter, setSpotifyUseDesktopApp, setTidalUseDesktopApp, setAppleMusicUseDesktopApp, setEnabledStreamingServices, setCollectionId, setCollectionName, setShowRatings, setRatingDisplayMode, toggleShowRatings, resetToDefaults, exportPreferences, importPreferences, cleanupLegacyStorage]
   );
 };
 

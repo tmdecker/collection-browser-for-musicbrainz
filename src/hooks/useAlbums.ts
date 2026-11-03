@@ -39,10 +39,11 @@ export const toPanelDetails = (details: any, gridAlbum?: ReleaseGroup | null): R
  * Central data management hook - Focused on album data fetching and management
  *
  * @param externalCollectionId - Optional collection ID to override preferences (for direct prop passing)
+ * @param externalEntityType - Optional entity type (collection or series) for externalCollectionId, e.g. from the URL
  * @note Preferences are now managed by the usePreferences hook
  * @returns {Object} Album data, controls, and preference values from usePreferences
  */
-export const useAlbums = (externalCollectionId?: string) => {
+export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'collection' | 'series') => {
   const [albums, setAlbums] = useState<ReleaseGroup[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +85,7 @@ export const useAlbums = (externalCollectionId?: string) => {
   const useGenresOnly = preferences.display.useGenresOnly;
   const spotifyUseDesktopApp = preferences.streaming.spotifyUseDesktopApp;
   const collectionName = preferences.metadata.collectionName;
-  const entityType = preferences.metadata.entityType;
+  const entityType = externalEntityType ?? preferences.metadata.entityType;
   // Use external collection ID if provided, otherwise use preference value
   const collectionId = externalCollectionId ?? preferences.api.collectionId;
 
