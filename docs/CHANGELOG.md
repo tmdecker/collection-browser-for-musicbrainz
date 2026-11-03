@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Opening the details panel no longer makes the grid wobble; search clear button and header spacing aligned
 
 ### Fixed
+- Album tracklist comes from a typical release of the album: among official releases the app now takes the most common track count, then the oldest date, and a year-only date no longer beats a full date in the same year (Kind of Blue showed a 3-track 1959 reel-to-reel tape). Albums cached earlier pick the new release after "Refresh from MusicBrainz" or their next refresh
 - Album details panel shows the star rating again: details loaded from the server or the browser cache are normalized before display, so the rating, album type and secondary types no longer go missing
 - Active filter chips get their own row instead of covering the first album cover; the "No Active Filters" placeholder is gone
 - Album tracklist shows every track (scrolls only past about half the screen) and wraps long titles instead of cutting them off

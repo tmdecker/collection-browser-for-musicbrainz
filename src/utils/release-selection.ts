@@ -4,7 +4,7 @@
  * @ai-dependencies Release, Media, Track types
  * @ai-features
  * - Shared by the client (utils/api.ts), the release-groups route and the prefetch service
- * - Preferred release: official first, then oldest date
+ * - Preferred release: official first, then the most common track count, then oldest date
  * - Best streaming release: Digital Media + Worldwide first
  * - Streaming search order over all releases: Digital Media, then Worldwide, then the rest
  */
@@ -12,9 +12,30 @@
 import { Media, Release, Track } from '@/types/music';
 
 /**
+ * Sort key for a MusicBrainz date: missing parts sort last, so "1959" comes after "1959-08-17"
+ * @ai A year-only date says less about the release, so a full date in the same year wins
+ */
+const dateSortKey = (date?: string): string => {
+  if (!date) return '9999-99-99';
+  const [year, month = '99', day = '99'] = date.split('-');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Total track count of a release from its media, 0 when unknown
+ * @ai The browse API returns "track-count" per medium; the type names it track_count
+ */
+const trackCount = (release: Release): number =>
+  (release.media ?? []).reduce((sum, medium) => {
+    const raw = medium as Media & { 'track-count'?: number };
+    return sum + (raw['track-count'] ?? raw.track_count ?? raw.tracks?.length ?? 0);
+  }, 0);
+
+/**
  * Select the preferred release from a list of releases
- * @ai Priority: Official status first, then oldest release date
- * @ai Ensures album details (tracks, labels) come from original official release
+ * @ai Priority: Official status, then the most common track count, then oldest release date
+ * @ai The most common track count skips odd editions (partial tapes, bonus tracks, box sets),
+ *     so the tracklist matches what most releases of the album contain
  * @returns The preferred release, or null if no releases exist
  */
 export const selectPreferredRelease = (releases: Release[]): Release | null => {
@@ -24,14 +45,28 @@ export const selectPreferredRelease = (releases: Release[]): Release | null => {
   const officialReleases = releases.filter(r => r.status === 'Official');
   const candidates = officialReleases.length > 0 ? officialReleases : releases;
 
-  // Priority 2: Sort by date (oldest first = original release)
-  const sorted = [...candidates].sort((a, b) => {
-    const dateA = a.date || '9999-99-99';
-    const dateB = b.date || '9999-99-99';
-    return dateA.localeCompare(dateB);
-  });
+  // Oldest first; year-only dates after full dates of the same year, undated last
+  const byDate = [...candidates].sort((a, b) =>
+    dateSortKey(a.date).localeCompare(dateSortKey(b.date))
+  );
 
-  return sorted[0];
+  // Priority 2: the most common track count; a tie goes to the count of the oldest release
+  const frequency = new Map<number, number>();
+  for (const release of byDate) {
+    const count = trackCount(release);
+    if (count > 0) frequency.set(count, (frequency.get(count) ?? 0) + 1);
+  }
+  let commonCount = 0;
+  let commonFrequency = 0;
+  for (const [count, times] of frequency) {
+    if (times > commonFrequency) {
+      commonCount = count;
+      commonFrequency = times;
+    }
+  }
+
+  // Priority 3: oldest release with that track count
+  return byDate.find(r => trackCount(r) === commonCount) ?? byDate[0];
 };
 
 /**

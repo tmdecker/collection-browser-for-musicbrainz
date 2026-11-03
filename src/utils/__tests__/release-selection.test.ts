@@ -17,6 +17,35 @@ describe('selectPreferredRelease', () => {
     expect(selectPreferredRelease(releases)?.id).toBe('original');
   });
 
+  it('ranks a year-only date after a full date in the same year', () => {
+    const releases = [
+      release({ id: 'year-only', status: 'Official', date: '1959' }),
+      release({ id: 'full-date', status: 'Official', date: '1959-08-17' }),
+    ];
+    expect(selectPreferredRelease(releases)?.id).toBe('full-date');
+  });
+
+  it('prefers the most common track count over an odd older release', () => {
+    const tracks = (...counts: number[]) => counts.map(count => ({ 'track-count': count })) as unknown as Media[];
+    const releases = [
+      release({ id: 'partial-tape', status: 'Official', date: '1959', media: tracks(3) }),
+      release({ id: 'lp', status: 'Official', date: '1959-08-17', media: tracks(5) }),
+      release({ id: 'tape', status: 'Official', date: '1959', media: tracks(5) }),
+      release({ id: 'cd', status: 'Official', date: '1987', media: tracks(5) }),
+      release({ id: 'legacy', status: 'Official', date: '1958', media: tracks(6, 15) }),
+    ];
+    expect(selectPreferredRelease(releases)?.id).toBe('lp');
+  });
+
+  it('breaks a track count tie with the oldest release', () => {
+    const tracks = (count: number) => [{ 'track-count': count }] as unknown as Media[];
+    const releases = [
+      release({ id: 'deluxe', status: 'Official', date: '2010', media: tracks(14) }),
+      release({ id: 'original', status: 'Official', date: '2000', media: tracks(10) }),
+    ];
+    expect(selectPreferredRelease(releases)?.id).toBe('original');
+  });
+
   it('falls back to any release when none is official, and null for none', () => {
     expect(selectPreferredRelease([release({ id: 'promo', status: 'Promotion', date: '2001' })])?.id).toBe('promo');
     expect(selectPreferredRelease([])).toBeNull();
