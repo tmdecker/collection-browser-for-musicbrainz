@@ -5,7 +5,8 @@
  * @ai-features
  * - Login/logout with the MusicBrainz account, Collections, Settings
  * - Optional "Reload from MusicBrainz" for the collection on screen
- * - On phones, the current collection name as the first item (the header hides it there)
+ * - On phones, the current collection name as the first item and a link back to the series
+ *   collection a series was opened from (the header hides the breadcrumb there)
  * - Shows the login/logout result after the OAuth redirect and clears its query parameters
  */
 
@@ -14,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { BiCollection, BiCog, BiMenu, BiX, BiUserX, BiUserCheck, BiLogOut, BiLinkExternal, BiRefresh } from 'react-icons/bi';
+import { BiArrowBack, BiCollection, BiCog, BiMenu, BiX, BiUserX, BiUserCheck, BiLogOut, BiLinkExternal, BiRefresh } from 'react-icons/bi';
 import Toast from './Toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -25,9 +26,11 @@ interface AppMenuProps {
   // Reload the collection on screen from MusicBrainz
   onReloadCollection?: () => void;
   isReloadingCollection?: boolean;
+  // Series collection a series was opened from: a link back to it on phones
+  parentLink?: { href: string; name: string };
 }
 
-export default function AppMenu({ currentName, onCurrentNameClick, onReloadCollection, isReloadingCollection = false }: AppMenuProps) {
+export default function AppMenu({ currentName, onCurrentNameClick, onReloadCollection, isReloadingCollection = false, parentLink }: AppMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -121,6 +124,14 @@ export default function AppMenu({ currentName, onCurrentNameClick, onReloadColle
               <BiCollection className="text-white/70 flex-shrink-0" size={20} />
               <span className="text-white font-medium truncate">{currentName}</span>
             </button>
+          )}
+
+          {/* Back to the series collection - only on phones, desktop has the breadcrumb */}
+          {parentLink && (
+            <Link href={parentLink.href} onClick={() => setMenuOpen(false)} className={`md:hidden ${itemClass}`}>
+              <BiArrowBack className="text-white/70 flex-shrink-0" size={20} />
+              <span className="text-white font-medium truncate">{parentLink.name}</span>
+            </Link>
           )}
 
           {/* Authentication Section */}

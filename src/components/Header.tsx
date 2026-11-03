@@ -102,6 +102,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             onCurrentNameClick={onTitleClick}
             onReloadCollection={onReloadCollection}
             isReloadingCollection={isReloadingCollection}
+            parentLink={parentCrumb}
           />
 
           {/* Breadcrumb: Collections / name; for a series opened from a series collection

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- On phones, a series opened from a series collection has a menu item back to that collection (desktop has the breadcrumb)
 - Series collections: a series collection opens a list of its series (sorted by name, with a MusicBrainz icon on hover); release group series open their grid with the breadcrumb "collection / series", other series types are listed as not supported yet. Collections of other entity types say so instead of showing an empty grid
 - The Collections page and series collection pages show the last known list at once (kept in the browser) and refresh it in the background, at most once a minute
 - Collections page (`/collections`): your MusicBrainz collections grouped by entity type (release group, series, release, …), each with its count and a MusicBrainz icon on hover; only release group collections open for now. "Open by MBID or URL" for any public collection or series, and the last opened one is marked or listed. It replaces the collections overlay and the welcome screen; a first visit to `/` lands here
