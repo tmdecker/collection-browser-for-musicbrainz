@@ -36,6 +36,9 @@ interface HeaderProps {
   activeFilterCount: number;
   hasActiveFilters: boolean;
 
+  // Series collection a series was opened from, shown between "Collections" and the name
+  parentCrumb?: { href: string; name: string };
+
   // Reload the collection from MusicBrainz (menu item)
   onReloadCollection?: () => void;
   isReloadingCollection?: boolean;
@@ -65,6 +68,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   hasActiveFilters,
   onReloadCollection,
   isReloadingCollection,
+  parentCrumb,
   onTitleClick,
 }, ref) => {
   const sortDropdownRef = useRef<SortDropdownRef>(null);
@@ -100,14 +104,26 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             isReloadingCollection={isReloadingCollection}
           />
 
-          {/* Breadcrumb: Collections / name */}
+          {/* Breadcrumb: Collections / name; for a series opened from a series collection
+              "collection / series", with "Collections /" in front only on very wide screens */}
           <Link
             href="/collections"
-            className="hidden md:inline text-sm text-white/50 hover:text-white transition-colors flex-shrink-0 !ml-3"
+            className={`${parentCrumb ? 'hidden 2xl:inline' : 'hidden md:inline'} text-sm text-white/50 hover:text-white transition-colors flex-shrink-0 !ml-3`}
           >
             Collections
           </Link>
-          <span className="hidden md:inline text-sm text-white/30 flex-shrink-0" aria-hidden="true">/</span>
+          <span className={`${parentCrumb ? 'hidden 2xl:inline' : 'hidden md:inline'} text-sm text-white/30 flex-shrink-0`} aria-hidden="true">/</span>
+          {parentCrumb && (
+            <>
+              <Link
+                href={parentCrumb.href}
+                className="hidden md:inline md:!ml-3 2xl:!ml-2 text-sm text-white/50 hover:text-white transition-colors min-w-[2.5rem] truncate shrink-[4]"
+              >
+                {parentCrumb.name}
+              </Link>
+              <span className="hidden md:inline text-sm text-white/30 flex-shrink-0" aria-hidden="true">/</span>
+            </>
+          )}
           <h1 className="hidden md:flex min-w-0">
             <button
               type="button"

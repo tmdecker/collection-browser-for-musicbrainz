@@ -3,7 +3,8 @@
  * @ai-description Collections page: the signed-in user's MusicBrainz collections grouped by entity type, the last opened one, and "Open by MBID or URL"
  * @ai-dependencies React, Next.js Link and router, AppMenu, useAuth, usePreferences, mbid-validation
  * @ai-features
- * - Groups collections by MusicBrainz entity type; only release group collections open for now
+ * - Groups collections by MusicBrainz entity type; release group and series collections open
+ * - Shows the last known list at once (browser copy) and refreshes it in the background
  * - Each row links to its collection page; a MusicBrainz icon opens it on musicbrainz.org
  * - The last opened collection or series is marked, or listed on its own when it isn't one of yours
  * - Open any public collection or series by MBID or musicbrainz.org URL
@@ -22,9 +23,10 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { MusicBrainzCollection } from '@/types/auth';
 import { validateEntityId, EntityType } from '@/utils/mbid-validation';
 import { collectionPath } from '@/utils/collection-routes';
+import { readCachedCollections, writeCachedCollections } from '@/utils/collection-info';
 
 // Entity types the app can show (MusicBrainz writes them with an underscore)
-const SUPPORTED_ENTITY_TYPES = new Set(['release_group']);
+const SUPPORTED_ENTITY_TYPES = new Set(['release_group', 'series']);
 const ENTITY_ORDER = ['release_group', 'series', 'release', 'artist', 'recording', 'work', 'label', 'event', 'place', 'area', 'instrument'];
 
 // "release_group" -> "Release group"
@@ -61,20 +63,29 @@ export default function CollectionsPage() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Show the last known list at once and refresh it in the background
   useEffect(() => {
     if (!isAuthenticated || !user?.name) return;
+    const username = user.name;
     let cancelled = false;
+    const cached = readCachedCollections(username);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
+    if (cached) setCollections(cached.collections);
+    // A list fetched within the last minute is fresh enough (saves MusicBrainz requests when going back and forth)
+    if (cached && Date.now() - cached.fetchedAt < 60_000) return;
+    if (!cached) setLoading(true);
     setLoadError(null);
-    fetch(`/api/musicbrainz/collections?username=${encodeURIComponent(user.name)}`)
+    fetch(`/api/musicbrainz/collections?username=${encodeURIComponent(username)}`)
       .then(async response => {
         if (!response.ok) throw new Error(`MusicBrainz answered ${response.status}`);
         const data = await response.json();
-        if (!cancelled) setCollections(data.collections ?? []);
+        const list: MusicBrainzCollection[] = data.collections ?? [];
+        writeCachedCollections(username, list);
+        if (!cancelled) setCollections(list);
       })
       .catch(err => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Unknown error');
+        // A failed refresh keeps showing the last known list
+        if (!cancelled && !cached) setLoadError(err instanceof Error ? err.message : 'Unknown error');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

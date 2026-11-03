@@ -28,13 +28,16 @@ import { albumMatchesLabelFilters } from '@/utils/label-processor';
 import { albumMatchesTagFilters } from '@/utils/tag-processor';
 import { albumMatchesDateFilter } from '@/utils/date-processor';
 import { collectionPath, type CollectionRoute } from '@/utils/collection-routes';
+import { loadCollectionInfo } from '@/utils/collection-info';
 
 interface CollectionBrowserProps {
   // Collection or series from the URL
   route: CollectionRoute;
+  // Series collection this series was opened from (breadcrumb "Collections / collection / series")
+  parentCollectionId?: string;
 }
 
-export default function CollectionBrowser({ route }: CollectionBrowserProps) {
+export default function CollectionBrowser({ route, parentCollectionId }: CollectionBrowserProps) {
   // The URL decides which collection is shown; preferences only remember the last one opened
   const { preferences: prefs, isInitialized } = usePreferences();
   const activeCollectionId = route.mbid;
@@ -182,6 +185,20 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
     updateMetadata({ entityType: route.entityType });
   }, [route, isInitialized, prefs.api.collectionId, prefs.metadata.entityType, updateApi, updateMetadata]);
 
+  // Name of the series collection this series was opened from (remembered by the Collections page or the collection page)
+  const [parentName, setParentName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!parentCollectionId) return;
+    let cancelled = false;
+    loadCollectionInfo(parentCollectionId).then(info => {
+      if (!cancelled) setParentName(info?.name || 'Series collection');
+    });
+    return () => { cancelled = true; };
+  }, [parentCollectionId]);
+  const parentCrumb = parentCollectionId && parentName
+    ? { href: collectionPath('collection', parentCollectionId), name: parentName }
+    : undefined;
+
   // The stored name belongs to the stored collection; until it matches the URL, show no name
   const shownCollectionName = prefs.api.collectionId === collectionId ? collectionName : '';
 
@@ -279,6 +296,7 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
           totalAlbums={loading ? 'Loading...' : totalAlbums}
           filteredAlbums={albums.length}
           collectionName={shownCollectionName}
+          parentCrumb={parentCrumb}
           collectionId={collectionId}
           sortOption={sortOption}
           setSortOption={setSortOption}
