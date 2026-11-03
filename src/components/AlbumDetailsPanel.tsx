@@ -278,14 +278,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   const genres = getGenres();
 
-  // Round "close panel" button: left of the cover on large screens (over its top-left corner on tablets);
+  // Icon-only "close panel" button: left of the cover on large screens (over its top-left corner on tablets);
   // always shown on touch devices,
   // on devices with a mouse only while the panel is hovered or the button has keyboard focus
   const closeButton = (
     <button
       type="button"
       onClick={onClose}
-      className={`hidden md:grid absolute top-2 left-2 xl:top-0 xl:-left-11 z-10 w-9 h-9 place-items-center rounded-full bg-background-tertiary border border-white/15 text-text-secondary hover:text-text-primary hover:bg-[#3a3a3a] transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
+      className={`hidden md:grid absolute top-2 left-2 xl:top-0 xl:-left-7 z-10 w-6 h-6 place-items-center text-text-secondary hover:text-text-primary drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] xl:drop-shadow-none transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
       aria-label="Close album details"
       title="Close (Esc)"
     >
@@ -302,7 +302,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Everything is as wide as the cover; on large screens the close button sits in the space left of it */}
-      <div className="relative mx-auto w-full max-w-[460px] flex flex-col gap-4">
+      <div className="relative mx-auto w-full max-w-[488px] flex flex-col gap-4">
       {closeButton}
       {/* Phones: the panel is a full-screen view, closed with Back */}
       <button
@@ -347,7 +347,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 <CoverArtImage
                   mbid={displayAlbum.id}
                   title={displayAlbum.title}
-                  size={500}
+                  size={1080}
                   priority={true}
                   className="absolute inset-0 w-full h-full object-cover transition-opacity group-hover:opacity-90"
                 />

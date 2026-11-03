@@ -95,19 +95,15 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
           return window.mbImageCache[cacheKey].loadedSizes[requestedSize];
         }
         
-        // If we have any size loaded, use the closest one while loading the requested size
-        const sizesAvailable = Object.keys(window.mbImageCache[cacheKey].loadedSizes)
+        // Reuse an already loaded image only if it is at least as large as the one asked for. A smaller one
+        // (e.g. the grid thumbnail) used to be returned here and then stored as this size, so the larger
+        // cover was never loaded
+        const largerSize = Object.keys(window.mbImageCache[cacheKey].loadedSizes)
           .map(Number)
-          .sort((a, b) => a - b);
-        
-        if (sizesAvailable.length > 0) {
-          // Use the closest available size (prefer larger if available)
-          const closestSize = sizesAvailable.reduce((prev, curr) => 
-            Math.abs(curr - requestedSize) < Math.abs(prev - requestedSize) ? curr : prev
-          );
-          
-          console.log(`Using cached image at ${closestSize}px while loading ${requestedSize}px`);
-          return window.mbImageCache[cacheKey].loadedSizes[closestSize];
+          .sort((a, b) => a - b)
+          .find(loaded => loaded >= requestedSize);
+        if (largerSize !== undefined) {
+          return window.mbImageCache[cacheKey].loadedSizes[largerSize];
         }
       }
       
