@@ -20,21 +20,21 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChange,
-  placeholder = 'Search albums, artists...'
+  placeholder = 'Search release groups, artists...'
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dynamicPlaceholder, setDynamicPlaceholder] = useState(placeholder);
 
   // Detect screen size and set appropriate placeholder text with 3-tier system:
   // < 400px: "Search..." (ultra-compact)
-  // 400-640px: "Search albums..." (compact)
-  // > 640px: "Search albums, artists..." (full)
+  // 400-640px: "Search..." too ("release groups" doesn't fit)
+  // > 640px: "Search release groups, artists..." (full)
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 400) { // Very small screens
         setDynamicPlaceholder('Search...');
       } else if (window.innerWidth < 640) { // Small screens (sm breakpoint)
-        setDynamicPlaceholder('Search albums...');
+        setDynamicPlaceholder('Search...');
       } else {
         setDynamicPlaceholder(placeholder);
       }

@@ -55,7 +55,7 @@ const LazyAlbumGrid: React.FC<LazyAlbumGridProps> = ({
   if (normalizedAlbums.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 h-64 text-text-secondary text-center px-4">
-        {emptyState ?? 'No albums found. Try adjusting your search.'}
+        {emptyState ?? 'No release groups found. Try adjusting your search.'}
       </div>
     );
   }

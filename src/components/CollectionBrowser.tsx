@@ -1,12 +1,11 @@
 /**
  * @ai-file component
- * @ai-description Collection browser screen integrating all components; rendered by / (no collection yet) and by the /collection/[mbid] and /series/[mbid] routes
+ * @ai-description Collection browser screen integrating all components; rendered by the /collection/[mbid] and /series/[mbid] routes
  * @ai-dependencies Next.js, React, useAlbums, useFilters, usePreferences, Header, FilterPanel, LazyAlbumGrid, AlbumDetailsPanel
  * @ai-features
  * - Responsive layout with collapsible filter panel and album details panel
  * - Multi-category filtering (genres, tags, labels, dates, ratings)
  * - Album grid with search and sort functionality
- * - Welcome screen with collection input for first-time users
  * - IndexedDB caching with progressive loading
  * - The collection or series to show comes from the URL; the last one opened is remembered in preferences
  */
@@ -14,13 +13,10 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo, useCallback, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
-import Toast from '@/components/Toast';
 import Header, { HeaderRef } from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import ActiveFiltersBar from '@/components/ActiveFiltersBar';
 import AlbumDetailsPanel from '@/components/AlbumDetailsPanel';
-import CollectionBrowsePanel from '@/components/CollectionBrowsePanel';
 import LazyAlbumGrid from '@/components/lazy/LazyAlbumGrid';
 import { useAlbums } from '@/hooks/useAlbums';
 import { useFilters } from '@/hooks/useFilters';
@@ -31,21 +27,18 @@ import { ReleaseGroup } from '@/types/music';
 import { albumMatchesLabelFilters } from '@/utils/label-processor';
 import { albumMatchesTagFilters } from '@/utils/tag-processor';
 import { albumMatchesDateFilter } from '@/utils/date-processor';
-import { validateEntityId } from '@/utils/mbid-validation';
-import { BiCheck, BiError, BiX, BiLinkExternal } from 'react-icons/bi';
 import { collectionPath, type CollectionRoute } from '@/utils/collection-routes';
 
 interface CollectionBrowserProps {
-  // Collection or series from the URL; without it (the welcome screen at /) the stored collection is used
-  route?: CollectionRoute;
+  // Collection or series from the URL
+  route: CollectionRoute;
 }
 
 export default function CollectionBrowser({ route }: CollectionBrowserProps) {
   // The URL decides which collection is shown; preferences only remember the last one opened
   const { preferences: prefs, isInitialized } = usePreferences();
-  const activeCollectionId = route?.mbid ?? (prefs.api.collectionId || undefined);
-  const activeEntityType = route?.entityType ?? prefs.metadata.entityType;
-  const router = useRouter();
+  const activeCollectionId = route.mbid;
+  const activeEntityType = route.entityType;
 
   // Album-related state from useAlbums (pass activeCollectionId to enable automatic reload)
   const {
@@ -69,7 +62,7 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
     useGenresOnly,
     spotifyUseDesktopApp,
     preferences
-  } = useAlbums(activeCollectionId, route?.entityType);
+  } = useAlbums(activeCollectionId, activeEntityType);
 
   // Filter-related state from useFilters (using raw albums for stats)
   const {
@@ -156,7 +149,6 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
   const hiddenByFilters = albums.length === 0 && hasActiveFilters && searchQuery.trim() ? searchFilteredAlbums.length : 0;
 
   const [detailsPanelOpen, setDetailsPanelOpen] = useState(false);
-  const [collectionsPanelOpen, setCollectionsPanelOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const headerRef = useRef<HeaderRef>(null);
 
@@ -173,8 +165,7 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Get auth state for collections panel
-  const { isAuthenticated, user, login } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { updateApi, updateMetadata } = usePreferences();
 
   // Remember the collection from the URL as the last one opened, so / opens it next time.
@@ -182,7 +173,7 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
   // syncing back on every change would make the two tabs overwrite each other forever.
   const syncedRouteRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!route || !isInitialized) return;
+    if (!isInitialized) return;
     const routeKey = collectionPath(route.entityType, route.mbid);
     if (syncedRouteRef.current === routeKey) return;
     syncedRouteRef.current = routeKey;
@@ -194,17 +185,7 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
   // The stored name belongs to the stored collection; until it matches the URL, show no name
   const shownCollectionName = prefs.api.collectionId === collectionId ? collectionName : '';
 
-  // State for manual collection input on welcome screen
-  const [manualCollectionId, setManualCollectionId] = useState('');
-  const [validationState, setValidationState] = useState<{
-    status: 'idle' | 'validating' | 'valid' | 'error';
-    message: string;
-  }>({ status: 'idle', message: '' });
-  const [validatedEntityType, setValidatedEntityType] = useState<'collection' | 'series' | null>(null);
-  const skipValidationRef = useRef(false);
-
-  // Selecting an album opens the details panel and closes the collections panel
-  // (the filter tray may stay open beside it); clicking the open album again closes the panel
+  // Selecting an album opens the details panel (the filter tray may stay open beside it); clicking the open album again closes the panel
   const handleAlbumClick = (album: ReleaseGroup) => {
     if (detailsPanelOpen && selectedAlbum?.id === album.id) {
       setDetailsPanelOpen(false);
@@ -213,7 +194,6 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
     }
     handleSelectAlbum(album);
     setDetailsPanelOpen(true);
-    setCollectionsPanelOpen(false);
   };
 
   // Handle close details panel
@@ -222,8 +202,8 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
     handleSelectAlbum(null);
   };
 
-  // Escape closes the album details first, then the filter tray, then the collections panel; typing in a field keeps them open
-  const anyPanelOpen = detailsPanelOpen || isFilterPanelOpen || collectionsPanelOpen;
+  // Escape closes the album details first, then the filter tray; typing in a field keeps them open
+  const anyPanelOpen = detailsPanelOpen || isFilterPanelOpen;
   useEffect(() => {
     if (!anyPanelOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -233,106 +213,13 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
       if (detailsPanelOpen) {
         setDetailsPanelOpen(false);
         handleSelectAlbum(null);
-      } else if (isFilterPanelOpen) {
-        setFilterPanelOpen(false);
       } else {
-        setCollectionsPanelOpen(false);
+        setFilterPanelOpen(false);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [anyPanelOpen, detailsPanelOpen, isFilterPanelOpen, handleSelectAlbum, setFilterPanelOpen]);
-
-  // Filter tray toggle; the docked album details stay open beside it, the collections panel closes
-  const handleToggleFilterPanel = () => {
-    if (!isFilterPanelOpen) setCollectionsPanelOpen(false);
-
-    // Toggle the filter panel
-    toggleFilterPanel();
-  };
-
-  // Enhanced collections panel toggle that closes other panels when opening
-  const handleToggleCollectionsPanel = () => {
-    const newCollectionsPanelState = !collectionsPanelOpen;
-
-    // If opening collections panel, close other panels
-    if (newCollectionsPanelState) {
-      setDetailsPanelOpen(false);
-      handleSelectAlbum(null);
-      setFilterPanelOpen(false);
-    }
-
-    // Toggle the collections panel
-    setCollectionsPanelOpen(newCollectionsPanelState);
-  };
-
-  // Debounced validation function for manual collection input on welcome screen
-  const validateManualCollection = useCallback(async (input: string) => {
-    if (!input.trim()) {
-      setValidationState({ status: 'idle', message: '' });
-      return;
-    }
-
-    setValidationState({ status: 'validating', message: 'Validating...' });
-
-    const result = await validateEntityId(input);
-
-    if (result.valid && result.mbid) {
-      setValidationState({ status: 'valid', message: result.message });
-      setValidatedEntityType(result.entityType);
-
-      // Auto-update the input field with the extracted MBID if user entered a URL
-      if (result.mbid !== input.trim()) {
-        skipValidationRef.current = true; // Skip validation on the next update
-        setManualCollectionId(result.mbid);
-      }
-
-      // Auto-clear success toast after 3 seconds (but keep the valid state)
-      setTimeout(() => {
-        setValidationState(prev => prev.status === 'valid' ? { ...prev, message: '' } : prev);
-      }, 3000);
-    } else {
-      setValidationState({ status: 'error', message: result.message });
-      setValidatedEntityType(null);
-
-      // Auto-clear error message after 5 seconds
-      setTimeout(() => {
-        setValidationState(prev => prev.status === 'error' ? { status: 'idle', message: '' } : prev);
-      }, 5000);
-    }
-  }, []);
-
-  // Debounce timer for manual input validation
-  useEffect(() => {
-    // Skip validation if we're just updating with extracted MBID
-    if (skipValidationRef.current) {
-      skipValidationRef.current = false;
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      validateManualCollection(manualCollectionId);
-    }, 800); // Wait 800ms after user stops typing
-
-    return () => clearTimeout(timer);
-  }, [manualCollectionId, validateManualCollection]);
-
-  // Handle loading manual collection from welcome screen
-  const handleLoadManualCollection = () => {
-    if (validationState.status === 'valid' && manualCollectionId.trim()) {
-      handleLoadCollection(manualCollectionId.trim(), 'Manual Collection', validatedEntityType || undefined);
-      setManualCollectionId('');
-      setValidationState({ status: 'idle', message: '' });
-      setValidatedEntityType(null);
-    }
-  };
-
-  // Handle loading a new collection or series: remember it (with its name) and go to its URL
-  const handleLoadCollection = (newCollectionId: string, collectionName: string, entityType?: 'collection' | 'series') => {
-    updateApi({ collectionId: newCollectionId });
-    updateMetadata({ collectionName, entityType });
-    router.push(collectionPath(entityType ?? 'collection', newCollectionId));
-  };
 
   // Handle manual refresh of current collection
   const handleRefreshCollection = async () => {
@@ -367,7 +254,6 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
     setDetailsPanelOpen(false);
     handleSelectAlbum(null);
     setFilterPanelOpen(false);
-    setCollectionsPanelOpen(false);
 
     // Close sort dropdown
     headerRef.current?.closeSortDropdown();
@@ -398,11 +284,11 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
           setSortOption={setSortOption}
           entityType={activeEntityType}
           isFilterPanelOpen={isFilterPanelOpen}
-          toggleFilterPanel={handleToggleFilterPanel}
+          toggleFilterPanel={toggleFilterPanel}
           activeFilterCount={activeFilterCount}
           hasActiveFilters={hasActiveFilters}
-          isCollectionsPanelOpen={collectionsPanelOpen}
-          toggleCollectionsPanel={handleToggleCollectionsPanel}
+          onReloadCollection={handleRefreshCollection}
+          isReloadingCollection={isRefreshing}
           onTitleClick={handleTitleClick}
         />
       </Suspense>
@@ -453,112 +339,13 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
       />
       </div>
 
-      {/* Collections Browse Panel */}
-      <CollectionBrowsePanel
-        isOpen={collectionsPanelOpen}
-        onClose={() => setCollectionsPanelOpen(false)}
-        username={user?.name || null}
-        currentCollectionId={collectionId}
-        onLoadCollection={handleLoadCollection}
-        isAuthenticated={isAuthenticated}
-        hasActiveFilters={hasActiveFilters || isFilterPanelOpen}
-        onLogin={login}
-        onRefreshCollection={handleRefreshCollection}
-        isRefreshing={isRefreshing}
-      />
-
-      {/* Validation Toast Notification */}
-      {validationState.message && validationState.status !== 'idle' && validationState.status !== 'validating' && (
-        <Toast type={validationState.status === 'valid' ? 'success' : 'error'} message={validationState.message} />
-      )}
-
       {error && (
         <div className="p-6">
           <div className="p-4 bg-background-tertiary border border-background-secondary rounded-md">
-            <h2 className={`text-lg font-medium mb-2 ${error.includes('No collection configured') || error.includes('Using sample data') ? 'text-primary' : 'text-red-500'}`}>
-              {error.includes('No collection configured') ? 'Welcome to Music Library Viewer' : error.includes('Using sample data') ? 'Notice' : 'Error'}
+            <h2 className={`text-lg font-medium mb-2 ${error.includes('Using sample data') ? 'text-primary' : 'text-red-500'}`}>
+              {error.includes('Using sample data') ? 'Notice' : 'Error'}
             </h2>
             <p className="text-text-secondary">{error}</p>
-            {error.includes('No collection configured') && (
-              <div className="mt-4 space-y-6">
-                <div>
-                  <p className="text-text-secondary mb-4">
-                    Enter a MusicBrainz collection or series ID/URL to get started. Works with any public collection or series!
-                  </p>
-
-                  {/* Collection Input Field */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-2xl">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        value={manualCollectionId}
-                        onChange={(e) => setManualCollectionId(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && validationState.status === 'valid') {
-                            handleLoadManualCollection();
-                          }
-                        }}
-                        placeholder="Enter collection or series ID/URL"
-                        className="w-full px-3 py-2 pr-10 bg-background-tertiary text-text-primary text-sm rounded-lg border border-white/10 focus:border-primary focus:outline-none placeholder:text-white/40"
-                      />
-
-                      {/* Clear button */}
-                      {manualCollectionId && (
-                        <button
-                          onClick={() => {
-                            skipValidationRef.current = false;
-                            setManualCollectionId('');
-                            setValidationState({ status: 'idle', message: '' });
-                          }}
-                          className="absolute right-10 top-1/2 -translate-y-1/2 p-1 transition-colors group"
-                          aria-label="Clear input"
-                        >
-                          <BiX className="w-5 h-5 text-white/60 group-hover:text-white/90 transition-colors" />
-                        </button>
-                      )}
-
-                      {/* Validation status icon */}
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                        {validationState.status === 'valid' && (
-                          <BiCheck className="w-5 h-5 text-green-500" />
-                        )}
-                        {validationState.status === 'error' && (
-                          <BiError className="w-5 h-5 text-red-500" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Load Button */}
-                    {validationState.status === 'valid' && (
-                      <button
-                        onClick={handleLoadManualCollection}
-                        className="px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors whitespace-nowrap"
-                      >
-                        Load Collection
-                      </button>
-                    )}
-                  </div>
-
-                  <p className="text-xs text-text-tertiary mt-2">
-                    Example: https://musicbrainz.org/collection/YOUR-COLLECTION-ID or https://musicbrainz.org/series/YOUR-SERIES-ID
-                  </p>
-                </div>
-
-                {/* Login Option */}
-                <div className="pt-4 border-t border-white/10">
-                  <p className="text-text-secondary mb-3">
-                    Or login to browse your personal collections
-                  </p>
-                  <button
-                    onClick={login}
-                    className="inline-flex items-center gap-2 px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
-                  >
-                    Login with MusicBrainz
-                    <BiLinkExternal size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
             {error.includes('Using sample data') && (
               <div className="mt-4">
                 <p className="text-text-secondary">You&apos;re seeing sample album data because we couldn&apos;t connect to MusicBrainz.</p>
@@ -571,43 +358,40 @@ export default function CollectionBrowser({ route }: CollectionBrowserProps) {
       {/* Grid and the docked album details side by side: the panel narrows the grid instead of covering it */}
       <div className="flex-1 flex items-start">
       <div className="flex-1 min-w-0 pt-3">
-        {/* No grid (and no "No albums found") on the welcome screen before a collection is chosen */}
-        {!error?.includes('No collection configured') && (
-          <LazyAlbumGrid
-            albums={albums}
-            selectedAlbum={selectedAlbum}
-            onSelectAlbum={handleAlbumClick}
-            loading={loading}
-            emptyState={hiddenByFilters > 0 ? (
-              <>
-                <p>
-                  {hiddenByFilters} {hiddenByFilters === 1 ? 'album matches' : 'albums match'} your search but {hiddenByFilters === 1 ? 'is' : 'are'} hidden by your filters.
-                </p>
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="px-4 py-1.5 rounded-full bg-primary text-white text-sm hover:bg-primary-light transition-colors"
-                >
-                  Clear filters
-                </button>
-              </>
-            ) : searchQuery.trim() ? (
-              <p>No albums match &ldquo;{searchQuery.trim()}&rdquo;.</p>
-            ) : hasActiveFilters ? (
-              <>
-                <p>No albums match your filters.</p>
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="px-4 py-1.5 rounded-full bg-primary text-white text-sm hover:bg-primary-light transition-colors"
-                >
-                  Clear filters
-                </button>
-              </>
-            ) : undefined}
-          />
-        )}
-      </div>
+        <LazyAlbumGrid
+          albums={albums}
+          selectedAlbum={selectedAlbum}
+          onSelectAlbum={handleAlbumClick}
+          loading={loading}
+          emptyState={hiddenByFilters > 0 ? (
+            <>
+              <p>
+                {hiddenByFilters} {hiddenByFilters === 1 ? 'release group matches' : 'release groups match'} your search but {hiddenByFilters === 1 ? 'is' : 'are'} hidden by your filters.
+              </p>
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="px-4 py-1.5 rounded-full bg-primary text-white text-sm hover:bg-primary-light transition-colors"
+              >
+                Clear filters
+              </button>
+            </>
+          ) : searchQuery.trim() ? (
+            <p>No release groups match &ldquo;{searchQuery.trim()}&rdquo;.</p>
+          ) : hasActiveFilters ? (
+            <>
+              <p>No release groups match your filters.</p>
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="px-4 py-1.5 rounded-full bg-primary text-white text-sm hover:bg-primary-light transition-colors"
+              >
+                Clear filters
+              </button>
+            </>
+          ) : undefined}
+        />
+    </div>
         <aside aria-label="Album details" className={`details-dock ${detailsPanelOpen ? 'open' : ''}`}>
           <AlbumDetailsPanel
             album={selectedAlbum}

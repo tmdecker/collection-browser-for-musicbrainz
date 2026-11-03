@@ -1,25 +1,23 @@
 /**
  * @ai-file component
- * @ai-description Application header with menu, collection name, search, sort, and filter
- * @ai-dependencies React, SearchBar, SortDropdown, FilterButton, useAuth
+ * @ai-description Collection header with menu, breadcrumb, search, sort, and filter
+ * @ai-dependencies React, AppMenu, SearchBar, SortDropdown, FilterButton
  * @ai-features
- * - Responsive single row: menu, search, sort, filter; collection name from md up
- * - Hamburger menu with auth status, settings, and navigation
- * - Auto-fetched collection name display with truncation
+ * - Responsive single row: menu, search, sort, filter; breadcrumb from md up
+ * - Breadcrumb "Collections / name" with release group count and a MusicBrainz link
+ * - App menu with auth status, Collections, reload, settings
  * - Glass morphism styling with sticky positioning
  * - Dynamic header heights via CSS variables (64px desktop, 56px mobile)
  */
 
-import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { SiMusicbrainz } from 'react-icons/si';
+import AppMenu from './AppMenu';
 import SearchBar from './SearchBar';
 import SortDropdown, { SortDropdownRef } from './SortDropdown';
 import FilterButton from './FilterButton';
-import Toast from './Toast';
 import { SortOption } from '@/types/music';
-import { BiCollection, BiCog, BiMenu, BiX, BiUserX, BiUserCheck, BiLogOut, BiLinkExternal } from 'react-icons/bi';
-import { useAuth } from '@/hooks/useAuth';
 
 interface HeaderProps {
   searchQuery: string;
@@ -38,9 +36,9 @@ interface HeaderProps {
   activeFilterCount: number;
   hasActiveFilters: boolean;
 
-  // Collections panel props
-  isCollectionsPanelOpen?: boolean;
-  toggleCollectionsPanel?: () => void;
+  // Reload the collection from MusicBrainz (menu item)
+  onReloadCollection?: () => void;
+  isReloadingCollection?: boolean;
 
   // Title click handler
   onTitleClick: () => void;
@@ -65,91 +63,11 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   toggleFilterPanel,
   activeFilterCount,
   hasActiveFilters,
-  isCollectionsPanelOpen = false,
-  toggleCollectionsPanel,
+  onReloadCollection,
+  isReloadingCollection,
   onTitleClick,
 }, ref) => {
   const sortDropdownRef = useRef<SortDropdownRef>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // Get auth state
-  const { isAuthenticated, user, login, logout: authLogout } = useAuth();
-
-  // Wrap logout to show success message
-  const logout = async () => {
-    await authLogout();
-    setAuthMessage({ type: 'success', text: 'Successfully logged out!' });
-    setTimeout(() => setAuthMessage(null), 3000);
-  };
-
-  // Check for auth success/error from OAuth callback
-  useEffect(() => {
-    const authSuccess = searchParams.get('auth_success');
-    const authError = searchParams.get('auth_error');
-
-    // Only process if we have query params (prevents running after router.replace clears them)
-    if (!authSuccess && !authError) return;
-
-    if (authSuccess === 'true' && user) {
-      // Only show message once user info is available
-      setAuthMessage({ type: 'success', text: `Successfully logged in as ${user.name}!` });
-      // Clear the URL parameter
-      router.replace(pathname);
-      // Auto-clear message after 3 seconds
-      setTimeout(() => setAuthMessage(null), 3000);
-    } else if (authError) {
-      setAuthMessage({ type: 'error', text: `Login failed: ${authError}` });
-      // Clear the URL parameter
-      router.replace(pathname);
-      // Auto-clear message after 5 seconds
-      setTimeout(() => setAuthMessage(null), 5000);
-    }
-  }, [searchParams, router, pathname, user]);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMobileMenuOpen(false);
-      }
-    };
-
-    if (mobileMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [mobileMenuOpen]);
-
-  // Close menu on Escape key
-  useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return;
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMobileMenuOpen(false);
-      }
-    };
-
-    if (mobileMenuOpen) {
-      document.addEventListener('keydown', handleEscape);
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [mobileMenuOpen]);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -159,26 +77,15 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   // Calculate the display name
   const displayName = collectionName || 'Music Collection';
 
-  // "1,226 albums", or "10 of 1,226" while a search or filter narrows the grid
+  // "1,226 release groups", or "10 of 1,226" while a search or filter narrows the grid
   const albumCountLabel = typeof totalAlbums === 'number' && totalAlbums > 0
     ? filteredAlbums < totalAlbums
       ? `${filteredAlbums.toLocaleString()} of ${totalAlbums.toLocaleString()}`
-      : `${totalAlbums.toLocaleString()} ${totalAlbums === 1 ? 'album' : 'albums'}`
+      : `${totalAlbums.toLocaleString()} ${totalAlbums === 1 ? 'release group' : 'release groups'}`
     : null;
 
   return (
     <>
-      {/* Auth Toast Notification */}
-      {authMessage && (
-        <Toast
-          type={authMessage.type}
-          message={authMessage.text}
-          icon={authMessage.type === 'success'
-            ? <BiUserCheck className="flex-shrink-0" size={20} />
-            : <BiUserX className="flex-shrink-0" size={20} />}
-        />
-      )}
-
       <header
         className="relative z-30 p-3 md:px-6 md:pt-4 md:pb-4 header-surface"
       >
@@ -186,17 +93,21 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
       <div className="flex items-center gap-2 w-full md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:gap-4">
         {/* Left: Menu Button + Collection Name */}
         <div className="flex items-center space-x-2 min-w-0 flex-shrink-0 md:flex-shrink">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-full bg-background-control hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
-            title="Menu"
-            aria-label="Menu"
-            aria-expanded={mobileMenuOpen}
-            aria-haspopup="true"
-          >
-            {mobileMenuOpen ? <BiX className="w-5 h-5 md:w-6 md:h-6" /> : <BiMenu className="w-5 h-5 md:w-6 md:h-6" />}
-          </button>
+          <AppMenu
+            currentName={displayName}
+            onCurrentNameClick={onTitleClick}
+            onReloadCollection={onReloadCollection}
+            isReloadingCollection={isReloadingCollection}
+          />
 
+          {/* Breadcrumb: Collections / name */}
+          <Link
+            href="/collections"
+            className="hidden md:inline text-sm text-white/50 hover:text-white transition-colors flex-shrink-0 !ml-3"
+          >
+            Collections
+          </Link>
+          <span className="hidden md:inline text-sm text-white/30 flex-shrink-0" aria-hidden="true">/</span>
           <h1 className="hidden md:flex min-w-0">
             <button
               type="button"
@@ -207,15 +118,22 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
               <span className="block truncate">{displayName}</span>
             </button>
           </h1>
-          {entityType && (
-            <span className="hidden md:inline ml-2 bg-neutral-700/50 text-neutral-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
-              {entityType}
-            </span>
-          )}
           {albumCountLabel && (
             <span className="hidden md:inline ml-2 text-xs text-text-tertiary tabular-nums whitespace-nowrap flex-shrink-0" aria-live="polite">
               {albumCountLabel}
             </span>
+          )}
+          {collectionId && (
+            <a
+              href={`https://musicbrainz.org/${entityType ?? 'collection'}/${collectionId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:inline-flex ml-2 text-text-secondary hover:text-white transition-colors duration-200 flex-shrink-0"
+              title={`Open this ${entityType ?? 'collection'} on MusicBrainz`}
+              aria-label={`Open this ${entityType ?? 'collection'} on MusicBrainz`}
+            >
+              <SiMusicbrainz size={16} />
+            </a>
           )}
         </div>
 
@@ -244,96 +162,6 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
         </div>
       </div>
 
-      {/* Menu Dropdown - Absolute positioned overlay */}
-      {mobileMenuOpen && (
-        <div ref={menuRef} className="absolute left-3 md:left-6 top-full mt-2 w-[calc(100%-1.5rem)] md:w-80 rounded-3xl bg-background-secondary border border-white/10 overflow-hidden shadow-lg z-50 animate-fade-in">
-          {/* Collection Name - Only show on mobile since desktop already shows it */}
-          <button
-            onClick={() => {
-              onTitleClick();
-              setMobileMenuOpen(false);
-            }}
-            className="md:hidden w-full flex items-center space-x-3 px-4 py-3 hover:bg-white/10 transition-colors text-left border-b border-white/10"
-          >
-            <BiCollection className="text-white/70 flex-shrink-0" size={20} />
-            <span className="text-white font-medium truncate">{displayName}</span>
-            {entityType && (
-              <span className="bg-neutral-700/50 text-neutral-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
-                {entityType}
-              </span>
-            )}
-          </button>
-
-          {/* Authentication Section */}
-          {isAuthenticated && user ? (
-            <div className="w-full flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <div className="flex items-center space-x-3 min-w-0">
-                <BiUserCheck className="text-primary flex-shrink-0" size={20} />
-                <a
-                  href={`https://musicbrainz.org/user/${user.name}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-white font-medium hover:text-primary transition-colors inline-flex items-center gap-1 truncate"
-                >
-                  <span className="truncate">{user.name}</span>
-                  <BiLinkExternal className="flex-shrink-0" size={12} />
-                </a>
-              </div>
-              {/* Logout Button */}
-              <button
-                onClick={() => {
-                  logout();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center space-x-1 text-white/70 hover:text-white transition-colors flex-shrink-0 ml-2"
-              >
-                <BiLogOut className="flex-shrink-0" size={16} />
-                <span>Logout</span>
-              </button>
-            </div>
-          ) : (
-            /* Login Button */
-            <button
-              onClick={() => {
-                login();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-white/10 transition-colors text-left border-b border-white/10"
-            >
-              <BiUserX className="text-white/70 flex-shrink-0" size={20} />
-              <span className="text-white font-medium inline-flex items-center gap-1">
-                Login with MusicBrainz.org
-                <BiLinkExternal className="flex-shrink-0" size={12} />
-              </span>
-            </button>
-          )}
-
-          {/* Browse Collections/Series (accessible to all users) */}
-          <button
-            onClick={() => {
-              if (toggleCollectionsPanel) {
-                toggleCollectionsPanel();
-              }
-              setMobileMenuOpen(false);
-            }}
-            className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-white/10 transition-colors border-b border-white/10 text-left"
-          >
-            <BiCollection className="text-white/70 flex-shrink-0" size={20} />
-            <span className="text-white font-medium">Browse</span>
-          </button>
-
-          {/* Settings */}
-          <Link
-            href="/config"
-            onClick={() => setMobileMenuOpen(false)}
-            className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-white/10 transition-colors"
-          >
-            <BiCog className="text-white/70 flex-shrink-0" size={20} />
-            <span className="text-white font-medium">Settings</span>
-          </Link>
-        </div>
-      )}
       </header>
     </>
   );

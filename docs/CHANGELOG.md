@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- Collections page (`/collections`): your MusicBrainz collections grouped by entity type (release group, series, release, …), each with its count and a MusicBrainz icon on hover; only release group collections open for now. "Open by MBID or URL" for any public collection or series, and the last opened one is marked or listed. It replaces the collections overlay and the welcome screen; a first visit to `/` lands here
+- Breadcrumb in the header ("Collections / name"), with the release group count and a MusicBrainz icon that opens the collection or series on musicbrainz.org
+- "Reload from MusicBrainz" in the menu reloads the collection on screen
 - Every collection and series has its own address (`/collection/<mbid>`, `/series/<mbid>`), so browser Back, bookmarks and links to a collection work. Opening the app at `/` goes to the collection or series used last; the welcome screen only shows when none was opened yet
 - Album count next to the collection name, or "10 of 1,226" while a search or filter is active
 - Sort by rating ("Rating: Highest" and "Rating: Lowest", using the average or personal rating chosen in Settings), and a checkmark on the current sort option. Unrated albums come last in both directions; average ratings are weighted by their number of votes, so a 5.0 from one vote doesn't outrank a 4.4 from 200
@@ -14,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - The server keeps a copy of each collection's album list (SQLite), so a browser without its own copy (new device, cleared data) loads a large collection in about a second instead of about 30 s. Background refreshes and the Refresh button still load the live list from MusicBrainz and update the copy; a copy whose album count no longer matches the collection is reloaded live. Copies of private collections loaded while signed in are only served to signed-in requests
 
 ### Changed
+- MusicBrainz terms in the UI: counts, search and empty states say "release groups" instead of "albums"; the Collection/Series badge next to the name is gone (the breadcrumb and MusicBrainz link replace it)
 - Album titles in the phone grid wrap to two lines instead of being cut after about 12 characters
 - Album details open in a panel docked beside the grid (400px, 584px on large screens) instead of a floating card; full screen with Back on phones. Cover with type and year label above the title; icon buttons on the cover for MusicBrainz and refresh; close icon left of the cover
 - Filter tray sits under the header and pushes the grid down; header, active filters and tray stay pinned together. Filters and album details can be open at the same time

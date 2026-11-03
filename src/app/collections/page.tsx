@@ -1,0 +1,11 @@
+import { Suspense } from 'react';
+import CollectionsPage from '@/components/CollectionsPage';
+
+// Your MusicBrainz collections, grouped by entity type, plus "Open by MBID or URL"
+export default function Collections() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-background" />}>
+      <CollectionsPage />
+    </Suspense>
+  );
+}

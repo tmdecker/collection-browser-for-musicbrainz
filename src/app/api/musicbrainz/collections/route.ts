@@ -6,14 +6,14 @@
  * - Requires access token from cookies (401 if missing)
  * - Fetches user's collections (both public and private)
  * - Uses inc=user-collections parameter for private access
- * - Filters by release_group type
+ * - Returns collections of every entity type (the Collections page groups them)
  * - Shares rate limiting with all MusicBrainz routes
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { waitForRateLimit } from '@/lib/rate-limiter';
-import { MusicBrainzCollectionList, MusicBrainzCollection } from '@/types/auth';
+import { MusicBrainzCollectionList } from '@/types/auth';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -79,16 +79,11 @@ export async function GET(request: NextRequest) {
 
       const data: MusicBrainzCollectionList = await response.json();
 
-      // Filter for release_group collections only (note: MusicBrainz uses underscore in entity-type value)
-      const releaseGroupCollections = data.collections.filter(
-        (collection: MusicBrainzCollection) => collection['entity-type'] === 'release_group'
-      );
-
-      console.log(`✅ Fetched ${releaseGroupCollections.length} release_group collections`);
+      console.log(`✅ Fetched ${data.collections.length} collections`);
 
       return NextResponse.json({
-        collections: releaseGroupCollections,
-        'collection-count': releaseGroupCollections.length,
+        collections: data.collections,
+        'collection-count': data.collections.length,
       });
 
     } catch (error) {
