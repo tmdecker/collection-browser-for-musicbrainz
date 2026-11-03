@@ -3,7 +3,7 @@
  * @ai-description Sort dropdown with sorting options for album collections
  * @ai-dependencies React, SortOption type, react-icons/bi
  * @ai-features
- * - Glass morphism dropdown with sort options (artist A-Z/Z-A, title A-Z/Z-A, date oldest/newest, rating highest)
+ * - Glass morphism dropdown with sort options (artist A-Z/Z-A, title A-Z/Z-A, date oldest/newest, rating highest/lowest)
  * - Checkmark on the current option
  * - Click-outside handling
  * - Exposes closeDropdown method via forwardRef
@@ -31,6 +31,7 @@ const allSortOptions: { value: SortOption; label: string }[] = [
   { value: 'date-old-new', label: 'Release: Oldest' },
   { value: 'date-new-old', label: 'Release: Newest' },
   { value: 'rating-high-low', label: 'Rating: Highest' },
+  { value: 'rating-low-high', label: 'Rating: Lowest' },
   { value: 'series-order', label: 'Series Order' },
 ];
 

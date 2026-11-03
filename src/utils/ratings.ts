@@ -117,3 +117,45 @@ export function hasRatingData(album: ReleaseGroup): boolean {
     (album.rating.average !== null || album.rating.personal !== null)
   );
 }
+
+// How many "average" votes every album rating is blended with when sorting (see sortByRating)
+export const RATING_PRIOR_VOTES = 3;
+
+/**
+ * Sort albums by rating, highest or lowest first; unrated albums always come last
+ * - Average mode: a vote-weighted score, (votes × average + 3 × mean of the sorted albums) / (votes + 3), so a
+ *   5.0 from one vote doesn't outrank a 4.4 from 200 votes. Equal scores: more votes first
+ * - Personal mode: the user's own rating as it is
+ * - Remaining ties by artist name
+ */
+export function sortByRating(
+  albums: ReleaseGroup[],
+  mode: RatingDisplayMode,
+  direction: 'high-low' | 'low-high'
+): ReleaseGroup[] {
+  const valueOf = (album: ReleaseGroup): number | null =>
+    (mode === 'personal' ? album.rating?.personal : album.rating?.average) ?? null;
+
+  const rated = albums.map(valueOf).filter((value): value is number => value !== null);
+  const mean = rated.length > 0 ? rated.reduce((sum, value) => sum + value, 0) / rated.length : 0;
+
+  const scoreOf = (album: ReleaseGroup): number | null => {
+    const value = valueOf(album);
+    if (value === null || mode === 'personal') return value;
+    const votes = album.rating?.count ?? 0;
+    return (votes * value + RATING_PRIOR_VOTES * mean) / (votes + RATING_PRIOR_VOTES);
+  };
+
+  const sign = direction === 'high-low' ? 1 : -1;
+  const artistOf = (album: ReleaseGroup) => album.artist_credit?.[0]?.artist?.name || '';
+  const scored = albums.map(album => ({ album, score: scoreOf(album), votes: album.rating?.count ?? 0 }));
+
+  return scored
+    .sort((a, b) => {
+      if (a.score === null || b.score === null) {
+        return (a.score === null ? 1 : 0) - (b.score === null ? 1 : 0); // Unrated last
+      }
+      return sign * (b.score - a.score) || b.votes - a.votes || artistOf(a.album).localeCompare(artistOf(b.album));
+    })
+    .map(({ album }) => album);
+}

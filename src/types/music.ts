@@ -159,6 +159,7 @@ export type SortOption =
   | 'date-old-new'
   | 'date-new-old'
   | 'rating-high-low'
+  | 'rating-low-high'
   | 'series-order';
 
 export interface UserCollection {

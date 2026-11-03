@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 - Album count next to the collection name, or "10 of 1,226" while a search or filter is active
-- Sort by rating ("Rating: Highest", using the average or personal rating chosen in Settings; unrated albums last), and a checkmark on the current sort option
+- Sort by rating ("Rating: Highest" and "Rating: Lowest", using the average or personal rating chosen in Settings), and a checkmark on the current sort option. Unrated albums come last in both directions; average ratings are weighted by their number of votes, so a 5.0 from one vote doesn't outrank a 4.4 from 200
 - "Back to collection" link at the top of the Settings page
 - The server keeps a copy of each collection's album list (SQLite), so a browser without its own copy (new device, cleared data) loads a large collection in about a second instead of about 30 s. Background refreshes and the Refresh button still load the live list from MusicBrainz and update the copy; a copy whose album count no longer matches the collection is reloaded live. Copies of private collections loaded while signed in are only served to signed-in requests
 

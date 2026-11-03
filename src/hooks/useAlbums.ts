@@ -1,3 +1,4 @@
+import { sortByRating } from '@/utils/ratings';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ReleaseGroup, SortOption } from '@/types/music';
 import { getBasicData } from '@/utils/progressive-loader';
@@ -360,14 +361,10 @@ export const useAlbums = (externalCollectionId?: string) => {
           const dateB = b.first_release_date || '0000';
           return dateB.localeCompare(dateA);
         });
-      case 'rating-high-low': {
-        // The rating the grid shows (personal or average); unrated albums go last, ties by artist
-        const ratingOf = (album: ReleaseGroup) =>
-          (ratingDisplayMode === 'personal' ? album.rating?.personal : album.rating?.average) ?? -1;
-        return sorted.sort((a, b) =>
-          ratingOf(b) - ratingOf(a) ||
-          (a.artist_credit?.[0]?.artist?.name || '').localeCompare(b.artist_credit?.[0]?.artist?.name || ''));
-      }
+      case 'rating-high-low':
+        return sortByRating(sorted, ratingDisplayMode, 'high-low');
+      case 'rating-low-high':
+        return sortByRating(sorted, ratingDisplayMode, 'low-high');
       case 'series-order':
         return sorted.sort((a, b) => {
           const orderA = a.seriesOrder ?? 999;
