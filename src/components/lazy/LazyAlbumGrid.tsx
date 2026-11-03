@@ -44,7 +44,7 @@ const LazyAlbumGrid: React.FC<LazyAlbumGridProps> = ({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-album-grid md:grid-cols-album-grid-tablet lg:grid-cols-album-grid-desktop md:justify-center gap-1 px-3 pt-0 pb-3 md:px-6 md:pt-0 md:pb-6">
+      <div className="grid grid-cols-album-grid md:grid-cols-album-grid-tablet lg:grid-cols-album-grid-desktop gap-1 px-3 pt-0 pb-3 md:px-6 md:pt-0 md:pb-6">
         {Array.from({ length: 24 }).map((_, index) => (
           <SkeletonAlbumCard key={index} />
         ))}
@@ -64,7 +64,7 @@ const LazyAlbumGrid: React.FC<LazyAlbumGridProps> = ({
   const selectedIndex = selectedAlbum ? normalizedAlbums.findIndex(album => album.id === selectedAlbum.id) : -1;
 
   return (
-    <div className="grid grid-cols-album-grid md:grid-cols-album-grid-tablet lg:grid-cols-album-grid-desktop md:justify-center gap-1 px-3 pt-0 pb-3 md:px-6 md:pt-0 md:pb-6">
+    <div className="grid grid-cols-album-grid md:grid-cols-album-grid-tablet lg:grid-cols-album-grid-desktop gap-1 px-3 pt-0 pb-3 md:px-6 md:pt-0 md:pb-6">
       {normalizedAlbums.map((album, index) => {
         // Prioritize items near the selected album
         const isNearSelected = selectedIndex !== -1 ? 

@@ -278,13 +278,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   const genres = getGenres();
 
-  // Round "close panel" button, top-left over the cover: always shown on touch devices,
+  // Round "close panel" button: left of the cover on large screens (over its top-left corner on tablets);
+  // always shown on touch devices,
   // on devices with a mouse only while the panel is hovered or the button has keyboard focus
   const closeButton = (
     <button
       type="button"
       onClick={onClose}
-      className={`hidden md:grid absolute top-2 left-2 z-10 w-9 h-9 place-items-center rounded-full bg-background-tertiary border border-white/15 text-text-secondary hover:text-text-primary hover:bg-[#3a3a3a] transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
+      className={`hidden md:grid absolute top-2 left-2 xl:top-0 xl:-left-11 z-10 w-9 h-9 place-items-center rounded-full bg-background-tertiary border border-white/15 text-text-secondary hover:text-text-primary hover:bg-[#3a3a3a] transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
       aria-label="Close album details"
       title="Close (Esc)"
     >
@@ -300,6 +301,9 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Everything is as wide as the cover; on large screens the close button sits in the space left of it */}
+      <div className="relative mx-auto w-full max-w-[460px] flex flex-col gap-4">
+      {closeButton}
       {/* Phones: the panel is a full-screen view, closed with Back */}
       <button
         type="button"
@@ -313,8 +317,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       {loading ? (
         <div className="animate-pulse flex flex-col gap-4">
           <div className="relative">
-            <div className="bg-background-tertiary aspect-square rounded-md w-full max-w-[480px] mx-auto"></div>
-            {closeButton}
+            <div className="bg-background-tertiary aspect-square rounded-md w-full"></div>
           </div>
           <div className="bg-background-tertiary h-7 rounded-md w-3/4"></div>
           <div className="bg-background-tertiary h-5 rounded-md w-1/2"></div>
@@ -333,7 +336,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         <>
           {/* Cover: links to MusicBrainz */}
           <div>
-            <div className="relative w-full max-w-[480px] mx-auto">
+            <div className="relative w-full">
               <a
                 href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
                 target="_blank"
@@ -353,7 +356,6 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                   <SiMusicbrainz className="w-6 h-6 text-white drop-shadow-lg" />
                 </div>
               </a>
-              {closeButton}
             </div>
             {onRefreshAlbum && (
               <button
@@ -491,6 +493,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
           </div>
         </>
       )}
+      </div>
     </div>
   );
 };
