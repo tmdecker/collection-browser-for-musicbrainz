@@ -382,8 +382,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
               >
                 <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} />
                 {/* MusicBrainz icon in bottom-right corner */}
-                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <SiMusicbrainz className="w-6 h-6 text-white drop-shadow-lg" />
+                <div className="absolute bottom-2 right-2 w-8 h-8 grid place-items-center rounded-full bg-background/70 text-white/80 group-hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  <SiMusicbrainz className="w-5 h-5" />
                 </div>
               </a>
               {onRefreshAlbum && (
