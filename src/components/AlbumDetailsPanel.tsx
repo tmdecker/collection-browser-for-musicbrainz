@@ -371,7 +371,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   const coverIconClass = compact
     ? 'w-8 h-8 md:w-7 md:h-7 grid place-items-center rounded-full bg-background/70'
     : 'w-8 h-8 grid place-items-center rounded-full bg-background/70';
-  const inset = compact ? { tl: 'top-2 md:top-1.5', bl: 'bottom-2 md:bottom-1.5', l: 'left-2 md:left-1.5', r: 'right-2 md:right-1.5' } : { tl: 'top-2', bl: 'bottom-2', l: 'left-2', r: 'right-2' };
+  const inset = compact ? { tl: 'top-2 md:top-1.5', bl: 'bottom-2 md:bottom-1.5', l: 'left-2 md:left-1.5', r: 'right-2 md:right-1.5', xlTop: 'xl:top-1.5' } : { tl: 'top-2', bl: 'bottom-2', l: 'left-2', r: 'right-2', xlTop: 'xl:top-2' };
   const coverIconSize = compact ? 'w-5 h-5 md:w-4 md:h-4' : 'w-5 h-5';
 
   return (
@@ -436,13 +436,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                   <SiMusicbrainz className={coverIconSize} />
                 </div>
               </a>
-              {/* Larger / smaller cover (tablet and desktop; phones always show the full-width cover) */}
+              {/* Larger / smaller cover (tablet and desktop; phones always show the full-width cover). Top-left on
+                  desktop; bottom-left on tablets, where the close icon sits on the cover's top-left corner */}
               <button
                 type="button"
                 onClick={toggleCoverExpanded}
                 aria-label={compact ? 'Show large cover' : 'Show small cover'}
                 title={compact ? 'Larger cover' : 'Smaller cover'}
-                className={`hidden md:grid absolute ${inset.bl} ${inset.l} z-10 ${coverIconClass} text-white/80 hover:text-white transition-opacity focus-visible:opacity-100 group-hover/cover:opacity-100 [@media(hover:hover)]:opacity-0`}
+                className={`hidden md:grid absolute ${inset.bl} ${inset.l} ${inset.xlTop} xl:bottom-auto z-10 ${coverIconClass} text-white/80 hover:text-white transition-opacity focus-visible:opacity-100 group-hover/cover:opacity-100 [@media(hover:hover)]:opacity-0`}
               >
                 {compact ? <BiExpandAlt className={coverIconSize} /> : <BiCollapseAlt className={coverIconSize} />}
               </button>
