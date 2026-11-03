@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Removed all backdrop blur (it made the page flicker in Chromium browsers such as Vivaldi); header, panels and menus are solid
 - Album details load a sharp 1080px cover, showing the grid thumbnail instantly first. Fixed the image cache reusing a smaller cached cover for a larger request
 - Opening the details panel no longer makes the grid wobble; search clear button and header spacing aligned
+- Album details panel opens with a compact header on tablet and desktop: a small cover with the type, year, title, artist, rating and links beside it, so the tracklist starts higher. An icon on the cover switches to the large cover and back, and the choice is remembered
 
 ### Fixed
 - Album tracklist comes from a typical release of the album: among official releases the app now takes the most common track count, then the oldest date, and a year-only date no longer beats a full date in the same year (Kind of Blue showed a 3-track 1959 reel-to-reel tape). Albums cached earlier pick the new release after "Refresh from MusicBrainz" or their next refresh
