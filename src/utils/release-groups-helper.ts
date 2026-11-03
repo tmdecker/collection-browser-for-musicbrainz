@@ -20,16 +20,20 @@ import { mbApi } from './api';
  * @param collectionId - MusicBrainz collection ID
  * @param userAgent - User agent string for API requests (deprecated - handled by API proxy)
  * @param onCollectionNameFetched - Optional callback called immediately when collection name is fetched
+ * @param options.fresh - Ask MusicBrainz for live pages instead of the server's copy (refreshes use this);
+ *   without it, a server copy whose album count no longer matches the collection is fetched again live
  * @returns Object containing release groups array and collection name
  */
 export const fetchAllReleaseGroupsInCollection = async (
   collectionId: string,
   userAgent: string = 'MusicLibraryViewer/1.0.0 (mailto:your.email@example.com)',
-  onCollectionNameFetched?: (name: string) => void
+  onCollectionNameFetched?: (name: string) => void,
+  { fresh = false }: { fresh?: boolean } = {}
 ): Promise<{ releaseGroups: ReleaseGroup[], collectionName: string }> => {
   // Key parameters
   const limit = 100;
   const allReleaseGroups = [];
+  let usedServerCopy = false; // Some page came from the server's copy instead of MusicBrainz
 
   try {
     // Get the collection info to see the expected count and name
@@ -79,10 +83,12 @@ export const fetchAllReleaseGroupsInCollection = async (
                 limit,
                 offset,
               },
+              headers: fresh ? { 'x-mb-refresh': '1' } : undefined,
               timeout: 30000 // 30 second timeout
             }
           );
           
+          if (response.headers?.['x-mb-cache'] === 'hit') usedServerCopy = true;
           const releaseGroups = response.data['release-groups'] || [];
           console.log(`Page ${page + 1}: Got ${releaseGroups.length} items at offset ${offset}`);
           
@@ -140,6 +146,12 @@ export const fetchAllReleaseGroupsInCollection = async (
     });
     
     console.log(`Fetched ${allReleaseGroups.length} total items, ${uniqueReleaseGroups.length} unique release groups`);
+
+    // The server's copy is outdated (albums were added or removed since): load the live list instead
+    if (usedServerCopy && uniqueReleaseGroups.length !== expectedTotal) {
+      console.log(`Server copy has ${uniqueReleaseGroups.length} albums, collection has ${expectedTotal}: loading live`);
+      return fetchAllReleaseGroupsInCollection(collectionId, userAgent, undefined, { fresh: true });
+    }
 
     if (uniqueReleaseGroups.length < expectedTotal) {
       console.warn(`Warning: Only fetched ${uniqueReleaseGroups.length} release groups, expected ${expectedTotal}`);

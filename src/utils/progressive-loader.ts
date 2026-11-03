@@ -157,7 +157,11 @@ async function fetchAndUpdateCollectionName(collectionId: string, entityType?: '
 /**
  * Fetch collection or series from API and cache it
  */
-async function fetchAndCacheCollection(collectionId: string, entityType?: 'collection' | 'series'): Promise<ReleaseGroup[]> {
+async function fetchAndCacheCollection(
+  collectionId: string,
+  entityType?: 'collection' | 'series',
+  { fresh = false }: { fresh?: boolean } = {}
+): Promise<ReleaseGroup[]> {
   const userAgent = `${process.env.NEXT_PUBLIC_MUSICBRAINZ_APP_NAME} (mailto:${process.env.NEXT_PUBLIC_MUSICBRAINZ_CONTACT_EMAIL})`;
 
   // Callback to update collection/series name immediately when fetched
@@ -178,7 +182,7 @@ async function fetchAndCacheCollection(collectionId: string, entityType?: 'colle
   // Route to correct fetcher based on entity type
   const { releaseGroups, collectionName } = entityType === 'series'
     ? await fetchAllReleaseGroupsInSeries(collectionId, userAgent, handleNameFetched)
-    : await fetchAllReleaseGroupsInCollection(collectionId, userAgent, handleNameFetched);
+    : await fetchAllReleaseGroupsInCollection(collectionId, userAgent, handleNameFetched, { fresh });
 
   // Add cover art URLs to each release group BEFORE storing
   const apiData = releaseGroups.map(rg => ({
@@ -217,7 +221,7 @@ export async function forceRefreshCollection(collectionId: string): Promise<Rele
   await db.clearCollectionMetadata(collectionId);
 
   // Fetch fresh data and cache it
-  return await fetchAndCacheCollection(collectionId);
+  return await fetchAndCacheCollection(collectionId, undefined, { fresh: true });
 }
 
 /**
@@ -303,7 +307,8 @@ export function refreshDataInBackground(collectionId: string): void {
       const { releaseGroups, collectionName } = await fetchAllReleaseGroupsInCollection(
         collectionId,
         userAgent,
-        handleCollectionNameFetched
+        handleCollectionNameFetched,
+        { fresh: true }
       );
 
       // Add cover art URLs to each release group BEFORE storing

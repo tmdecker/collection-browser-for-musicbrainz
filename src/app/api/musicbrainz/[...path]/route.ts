@@ -8,11 +8,14 @@
  * - Automatically includes OAuth Bearer token from cookies when available
  * - Enables access to private collections for authenticated users
  * - AbortSignal for request timeouts with error handling
+ * - Collection list pages come from the server's copy when there is one (see collection-page-cache);
+ *   the x-mb-refresh: 1 header asks for live data and updates the copy
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { waitForRateLimit, backOffMusicBrainz } from '@/lib/rate-limiter';
+import { collectionPageCache, isCollectionPageRequest } from '@/lib/cache/collection-page-cache';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -58,6 +61,15 @@ export async function GET(
 
     // Check for access token (for authenticated requests to private collections)
     const accessToken = request.cookies.get('mb_access_token')?.value;
+
+    // A browser loading a collection it has no copy of gets the server's copy right away
+    const cachePage = isCollectionPageRequest(segments, searchParams);
+    if (cachePage && request.headers.get('x-mb-refresh') !== '1') {
+      const cached = collectionPageCache.lookup(mbUrl, !!accessToken);
+      if (cached !== undefined) {
+        return NextResponse.json(cached, { headers: { 'x-mb-cache': 'hit' } });
+      }
+    }
 
     // Build headers
     const headers: HeadersInit = {
@@ -106,6 +118,9 @@ export async function GET(
     }
 
     const data = await response.json();
+    if (cachePage) {
+      collectionPageCache.store(mbUrl, !!accessToken, data);
+    }
     return NextResponse.json(data);
 
   } catch (error) {
