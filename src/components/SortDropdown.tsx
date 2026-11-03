@@ -106,10 +106,10 @@ const SortDropdown = forwardRef<SortDropdownRef, SortDropdownProps>(({ value, on
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`p-2 rounded-full backdrop-blur-md transition-colors flex items-center space-x-1 border ${
+        className={`p-2 rounded-full transition-colors flex items-center space-x-1 border ${
           isOpen
             ? 'bg-white/20 text-white border-white/35'
-            : 'bg-background-control/75 hover:bg-white/20 text-white/75 hover:text-white border-white/15 hover:border-white/35'
+            : 'bg-background-control hover:bg-white/20 text-white/75 hover:text-white border-white/15 hover:border-white/35'
         }`}
         title={`Sort by: ${getCurrentLabel()}`}
         aria-label="Sort options"
@@ -122,7 +122,7 @@ const SortDropdown = forwardRef<SortDropdownRef, SortDropdownProps>(({ value, on
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div role="menu" aria-label="Sort by" className="absolute right-0 mt-2 w-48 rounded-3xl bg-background-secondary/95 backdrop-blur-md border border-white/10 shadow-lg overflow-hidden z-50 animate-fade-in">
+        <div role="menu" aria-label="Sort by" className="absolute right-0 mt-2 w-48 rounded-3xl bg-background-secondary border border-white/10 shadow-lg overflow-hidden z-50 animate-fade-in">
           {sortOptions.map((option) => (
             <button
               key={option.value}

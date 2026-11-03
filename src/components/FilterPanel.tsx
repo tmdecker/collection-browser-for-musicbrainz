@@ -311,7 +311,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         onClick={onClose}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`absolute right-4 sm:right-6 top-2 sm:top-3 z-30 p-1.5 rounded-full bg-background-tertiary/90 text-text-secondary transition-all shadow-lg backdrop-blur-sm lg:opacity-0 lg:pointer-events-none lg:focus-visible:!opacity-100 lg:focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
+        className={`absolute right-4 sm:right-6 top-2 sm:top-3 z-30 p-1.5 rounded-full bg-background-tertiary text-text-secondary transition-all shadow-lg lg:opacity-0 lg:pointer-events-none lg:focus-visible:!opacity-100 lg:focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
         aria-label="Close filter panel"
       >
         <svg
@@ -344,7 +344,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         {/* Horizontal scope/category bar with inline search */}
         <div className="flex items-center gap-2 mb-4">
           {/* Category selector bar */}
-          <div className="flex items-center gap-1 p-1 rounded-full bg-background-tertiary/60 backdrop-blur-md border border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-1 p-1 rounded-full bg-background-tertiary border border-white/10 flex-shrink-0">
             <button
               onClick={() => selectCategory('genres')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-sm font-medium whitespace-nowrap ${
@@ -421,7 +421,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 // Search icon button when closed
                 <button
                   onClick={() => setIsSearchOpen(true)}
-                  className="p-2 pl-3 rounded-full transition-all text-white/50 hover:text-white/70 hover:bg-background-tertiary/60"
+                  className="p-2 pl-3 rounded-full transition-all text-white/50 hover:text-white/70 hover:bg-white/10"
                   aria-label="Open search"
                 >
                   <BiSearch className="w-5 h-5" />
@@ -435,7 +435,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                     value={currentSearchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     placeholder={`Search in ${categoryName}...`}
-                    className="w-80 px-4 py-2 pl-10 rounded-lg bg-background-tertiary/80 backdrop-blur-md text-sm text-white placeholder:text-white/50 focus:outline-none focus:bg-background-tertiary/90 transition-colors"
+                    className="w-80 px-4 py-2 pl-10 rounded-lg bg-background-tertiary text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-1 focus:ring-white/25 transition-colors"
                     aria-label={`Search ${categoryName.toLowerCase()}`}
                   />
                   <BiSearch className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 z-10" />
@@ -479,10 +479,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                       <button
                         key={genre.name}
                         onClick={() => onToggleGenre(genre.name)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 backdrop-blur-md ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 ${
                           isSelected
-                            ? 'bg-primary/90 hover:bg-primary text-white shadow-sm'
-                            : 'bg-background-tertiary/80 hover:bg-background-tertiary/95 text-white'
+                            ? 'bg-primary hover:bg-primary-light text-white shadow-sm'
+                            : 'bg-background-tertiary hover:bg-white/15 text-white'
                         }`}
                         role="option"
                         aria-selected={isSelected}
@@ -535,10 +535,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                       <button
                         key={label.name}
                         onClick={() => onToggleLabel(label.name)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 backdrop-blur-md ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 ${
                           isSelected
-                            ? 'bg-category-label/90 hover:bg-category-label text-white shadow-sm'
-                            : 'bg-background-tertiary/80 hover:bg-background-tertiary/95 text-white'
+                            ? 'bg-category-label hover:brightness-110 text-white shadow-sm'
+                            : 'bg-background-tertiary hover:bg-white/15 text-white'
                         }`}
                         role="option"
                         aria-selected={isSelected}
@@ -585,10 +585,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                       <button
                         key={tag.name}
                         onClick={() => onToggleTag(tag.name)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 backdrop-blur-md ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all duration-200 ${
                           isSelected
-                            ? 'bg-category-tag/90 hover:bg-category-tag text-white shadow-sm'
-                            : 'bg-background-tertiary/80 hover:bg-background-tertiary/95 text-white'
+                            ? 'bg-category-tag hover:brightness-110 text-white shadow-sm'
+                            : 'bg-background-tertiary hover:bg-white/15 text-white'
                         }`}
                         role="option"
                         aria-selected={isSelected}
@@ -641,7 +641,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                           e.currentTarget.blur();
                         }
                       }}
-                      className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary/90 backdrop-blur-md text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary/90 focus:outline-none focus:border-fuchsia-400/50 focus:ring-1 focus:ring-fuchsia-400/30 transition-all flex-shrink-0"
+                      className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary focus:outline-none focus:border-fuchsia-400/50 focus:ring-1 focus:ring-fuchsia-400/30 transition-all flex-shrink-0"
                       aria-label="Minimum year"
                     />
 
@@ -685,7 +685,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                         aria-label="Maximum year slider"
                         />
                         {/* Slider track background */}
-                        <div className="absolute top-0 left-0 w-full h-2 bg-background-tertiary/80 rounded-full border border-white/10 overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-2 bg-background-tertiary rounded-full border border-white/10 overflow-hidden">
                           {/* Active range highlight */}
                           <div
                             className="absolute h-full bg-fuchsia-400/60 transition-all"
@@ -710,7 +710,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                           e.currentTarget.blur();
                         }
                       }}
-                      className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary/90 backdrop-blur-md text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary/90 focus:outline-none focus:border-fuchsia-400/50 focus:ring-1 focus:ring-fuchsia-400/30 transition-all flex-shrink-0"
+                      className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary focus:outline-none focus:border-fuchsia-400/50 focus:ring-1 focus:ring-fuchsia-400/30 transition-all flex-shrink-0"
                       aria-label="Maximum year"
                     />
                   </div>
@@ -748,7 +748,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className={`fixed left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full bg-background-tertiary/90 text-text-secondary transition-all shadow-lg backdrop-blur-sm opacity-0 pointer-events-none focus-visible:!opacity-100 focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? '!opacity-100 !pointer-events-auto' : ''}`}
+          className={`fixed left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full bg-background-tertiary text-text-secondary transition-all shadow-lg opacity-0 pointer-events-none focus-visible:!opacity-100 focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? '!opacity-100 !pointer-events-auto' : ''}`}
           style={{
             top: `${chevronPosition}px`
           }}

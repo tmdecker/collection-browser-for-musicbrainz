@@ -10,7 +10,7 @@ module.exports = {
           DEFAULT: '#121212',
           secondary: '#1A1A1A',
           tertiary: '#2A2A2A',
-          control: '#1E1E1E', // Resting fill of the round header controls and the search field (used at /75)
+          control: '#1E1E1E', // Resting fill of the round header controls and the search field (solid)
         },
         primary: {
           DEFAULT: '#8B5CF6',  // Violet-500 color

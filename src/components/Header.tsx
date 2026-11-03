@@ -187,7 +187,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
         <div className="flex items-center space-x-2 min-w-0 flex-shrink-0 md:flex-shrink">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-full backdrop-blur-md bg-background-control/75 hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
+            className="p-2 rounded-full bg-background-control hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
             title="Menu"
             aria-label="Menu"
             aria-expanded={mobileMenuOpen}
@@ -245,7 +245,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
 
       {/* Menu Dropdown - Absolute positioned overlay */}
       {mobileMenuOpen && (
-        <div ref={menuRef} className="absolute left-3 md:left-6 top-full mt-2 w-[calc(100%-1.5rem)] md:w-80 rounded-3xl backdrop-blur-md bg-background-secondary/95 border border-white/10 overflow-hidden shadow-lg z-50 animate-fade-in">
+        <div ref={menuRef} className="absolute left-3 md:left-6 top-full mt-2 w-[calc(100%-1.5rem)] md:w-80 rounded-3xl bg-background-secondary border border-white/10 overflow-hidden shadow-lg z-50 animate-fade-in">
           {/* Collection Name - Only show on mobile since desktop already shows it */}
           <button
             onClick={() => {

@@ -157,7 +157,7 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
               max={defaultMax}
               step={0.5}
               aria-label="Minimum rating"
-              className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary/90 backdrop-blur-md text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary/90 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-all flex-shrink-0"
+              className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-all flex-shrink-0"
             />
           </div>
 
@@ -176,7 +176,7 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
               max={defaultMax}
               step={0.5}
               aria-label="Maximum rating"
-              className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary/90 backdrop-blur-md text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary/90 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-all flex-shrink-0"
+              className="w-16 px-2 py-1.5 rounded-lg bg-background-secondary text-sm text-white text-center border border-white/10 hover:border-white/20 hover:bg-background-tertiary focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-all flex-shrink-0"
             />
             <BiStar className="text-amber-400 text-lg" style={{ fill: 'currentColor' }} />
           </div>
@@ -185,7 +185,7 @@ const RatingFilterSection: React.FC<RatingFilterSectionProps> = ({
         {/* Double range slider */}
         <div className="relative h-10">
           {/* Background track */}
-          <div className="absolute top-1/2 left-0 right-0 h-2 bg-background-tertiary/80 rounded-full border border-white/10 transform -translate-y-1/2" />
+          <div className="absolute top-1/2 left-0 right-0 h-2 bg-background-tertiary rounded-full border border-white/10 transform -translate-y-1/2" />
 
           {/* Active track highlight */}
           <div

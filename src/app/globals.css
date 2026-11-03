@@ -48,15 +48,15 @@ body {
   background: var(--primary-dark);
 }
 
-/* Panel surfaces shared by the header and the floating panels */
+/* Panel surfaces shared by the header and the floating panels.
+   Solid on purpose: backdrop-filter made the page flicker in Chromium browsers. */
 .header-surface {
-  background: rgba(18, 18, 18, 0.85);
-  backdrop-filter: blur(8px) saturate(1.2);
+  background: var(--background);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .panel-surface {
-  background: linear-gradient(180deg, rgba(26, 26, 26, 0.98) 0%, rgba(26, 26, 26, 0.95) 100%);
-  backdrop-filter: blur(8px) saturate(1.2);
+  background: var(--background-secondary);
   box-shadow: 0 1px 3px rgba(18, 18, 18, 0.12), 0 1px 2px rgba(18, 18, 18, 0.24);
 }
 

@@ -19,10 +19,10 @@ interface ToastProps {
 
 const Toast: React.FC<ToastProps> = ({ type, message, icon }) => (
   <div className="fixed top-4 right-4 z-50 animate-fade-in" role={type === 'error' ? 'alert' : 'status'}>
-    <div className={`px-4 py-3 rounded-lg shadow-lg backdrop-blur-md border ${
+    <div className={`px-4 py-3 rounded-lg shadow-lg border ${
       type === 'success'
-        ? 'bg-green-900/90 text-green-100 border-green-500/30'
-        : 'bg-red-900/90 text-red-100 border-red-500/30'
+        ? 'bg-green-900 text-green-100 border-green-500/30'
+        : 'bg-red-900 text-red-100 border-red-500/30'
     }`}>
       <div className="flex items-center space-x-2">
         {icon ?? (type === 'success'

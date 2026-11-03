@@ -335,7 +335,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         onClick={onClose}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`absolute right-6 sm:right-6 top-[30px] md:top-3 z-30 p-1.5 rounded-full bg-background-tertiary/90 text-text-secondary transition-all shadow-lg backdrop-blur-sm lg:opacity-0 lg:pointer-events-none lg:focus-visible:!opacity-100 lg:focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
+        className={`absolute right-6 sm:right-6 top-[30px] md:top-3 z-30 p-1.5 rounded-full bg-background-tertiary text-text-secondary transition-all shadow-lg lg:opacity-0 lg:pointer-events-none lg:focus-visible:!opacity-100 lg:focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
         aria-label="Close album details"
       >
         <svg
