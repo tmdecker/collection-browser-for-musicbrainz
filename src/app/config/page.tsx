@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useAuth } from '@/hooks/useAuth';
 import { StreamingServicePreferences, STREAMING_COUNTRIES } from '@/types/preferences';
-import { BiInfoCircle } from 'react-icons/bi';
+import { BiChevronLeft, BiInfoCircle } from 'react-icons/bi';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 interface CacheStatsResponse {
@@ -92,6 +93,13 @@ export default function ConfigPage() {
 
   return (
     <main className="min-h-screen p-6 bg-background">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1 mb-4 -ml-1 text-sm text-text-secondary hover:text-text-primary transition-colors"
+      >
+        <BiChevronLeft className="text-lg" aria-hidden />
+        Back to collection
+      </Link>
       <h1 className="text-2xl font-bold mb-6 text-text-primary">Configuration Settings</h1>
 
       <div className="max-w-2xl">
@@ -262,7 +270,7 @@ export default function ConfigPage() {
             </div>
 
             {/* Store country */}
-            <div>
+            <div className="mb-6">
               <h3 className="text-base font-medium text-text-primary mb-2">Store Country</h3>
               <p className="text-sm text-text-tertiary mb-3">
                 Country used to find streaming links (Apple Music store, Spotify market, Tidal). Albums can be available in one country but not another.

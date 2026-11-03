@@ -118,7 +118,7 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
       </div>
       
       <div className="flex flex-col flex-grow">
-        <h3 className="font-medium text-text-primary text-xs md:text-sm line-clamp-1" title={album.title}>
+        <h3 className="font-medium text-text-primary text-xs md:text-sm line-clamp-2 md:line-clamp-1" title={album.title}>
           {album.title}
         </h3>
         <p className="text-text-secondary text-xs md:text-sm line-clamp-1" title={artistNames}>

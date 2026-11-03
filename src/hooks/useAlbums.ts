@@ -79,6 +79,7 @@ export const useAlbums = (externalCollectionId?: string) => {
 
   // Extract commonly used values
   const sortOption = preferences.display.sortOption;
+  const ratingDisplayMode = preferences.display.ratingDisplayMode;
   const useGenresOnly = preferences.display.useGenresOnly;
   const spotifyUseDesktopApp = preferences.streaming.spotifyUseDesktopApp;
   const collectionName = preferences.metadata.collectionName;
@@ -359,6 +360,14 @@ export const useAlbums = (externalCollectionId?: string) => {
           const dateB = b.first_release_date || '0000';
           return dateB.localeCompare(dateA);
         });
+      case 'rating-high-low': {
+        // The rating the grid shows (personal or average); unrated albums go last, ties by artist
+        const ratingOf = (album: ReleaseGroup) =>
+          (ratingDisplayMode === 'personal' ? album.rating?.personal : album.rating?.average) ?? -1;
+        return sorted.sort((a, b) =>
+          ratingOf(b) - ratingOf(a) ||
+          (a.artist_credit?.[0]?.artist?.name || '').localeCompare(b.artist_credit?.[0]?.artist?.name || ''));
+      }
       case 'series-order':
         return sorted.sort((a, b) => {
           const orderA = a.seriesOrder ?? 999;
@@ -368,7 +377,7 @@ export const useAlbums = (externalCollectionId?: string) => {
       default:
         return sorted;
     }
-  }, [sortOption]);
+  }, [sortOption, ratingDisplayMode]);
 
   // Filtered and sorted albums based on search query only
   const filteredAlbums = useMemo(() => {

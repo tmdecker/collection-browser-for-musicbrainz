@@ -102,7 +102,7 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
         
         <div className="flex flex-col flex-grow">
           {/* Use actual text but with placeholder styling for better accessibility */}
-          <h3 className="font-medium text-text-primary text-xs md:text-sm line-clamp-1 opacity-30" title={album.title}>
+          <h3 className="font-medium text-text-primary text-xs md:text-sm line-clamp-2 md:line-clamp-1 opacity-30" title={album.title}>
             {album.title}
           </h3>
           <p className="text-text-secondary text-xs md:text-sm line-clamp-1 opacity-30" title={artistNames}>

@@ -1,16 +1,17 @@
 /**
  * @ai-file component
- * @ai-description Sort dropdown with 6 sorting options for album collections
+ * @ai-description Sort dropdown with sorting options for album collections
  * @ai-dependencies React, SortOption type, react-icons/bi
  * @ai-features
- * - Glass morphism dropdown with 6 sort options (artist A-Z/Z-A, title A-Z/Z-A, date oldest/newest)
+ * - Glass morphism dropdown with sort options (artist A-Z/Z-A, title A-Z/Z-A, date oldest/newest, rating highest)
+ * - Checkmark on the current option
  * - Click-outside handling
  * - Exposes closeDropdown method via forwardRef
  */
 
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { SortOption } from '@/types/music';
-import { BiSort } from 'react-icons/bi';
+import { BiSort, BiCheck } from 'react-icons/bi';
 
 interface SortDropdownProps {
   value: SortOption;
@@ -29,6 +30,7 @@ const allSortOptions: { value: SortOption; label: string }[] = [
   { value: 'title-desc', label: 'Title Z-A' },
   { value: 'date-old-new', label: 'Release: Oldest' },
   { value: 'date-new-old', label: 'Release: Newest' },
+  { value: 'rating-high-low', label: 'Rating: Highest' },
   { value: 'series-order', label: 'Series Order' },
 ];
 
@@ -124,7 +126,7 @@ const SortDropdown = forwardRef<SortDropdownRef, SortDropdownProps>(({ value, on
             <button
               key={option.value}
               onClick={() => handleOptionClick(option.value)}
-              className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors ${
+              className={`w-full flex items-center justify-between gap-2 text-left px-4 py-3 text-sm font-medium transition-colors ${
                 value === option.value
                   ? 'bg-white/10 text-white'
                   : 'text-white/70 hover:text-white hover:bg-white/[0.07]'
@@ -134,6 +136,7 @@ const SortDropdown = forwardRef<SortDropdownRef, SortDropdownProps>(({ value, on
               autoFocus={value === option.value}
             >
               {option.label}
+              {value === option.value && <BiCheck className="text-lg flex-shrink-0" aria-hidden />}
             </button>
           ))}
         </div>

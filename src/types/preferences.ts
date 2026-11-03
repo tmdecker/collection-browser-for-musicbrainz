@@ -160,7 +160,7 @@ export type PartialPreferences<T extends PreferenceCategory> = Partial<UserPrefe
 
 // Type guards
 export const isValidSortOption = (value: string): value is SortOption => {
-  return ['artist-asc', 'artist-desc', 'title-asc', 'title-desc', 'date-old-new', 'date-new-old', 'series-order'].includes(value);
+  return ['artist-asc', 'artist-desc', 'title-asc', 'title-desc', 'date-old-new', 'date-new-old', 'rating-high-low', 'series-order'].includes(value);
 };
 
 export const isValidThemeOption = (value: string): value is ThemeOption => {
