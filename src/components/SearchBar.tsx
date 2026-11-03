@@ -76,7 +76,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         type="search"
         id="music-search"
         name="music-search"
-        className="block w-full pl-10 sm:pl-12 pr-6 sm:pr-8 py-2.5 text-sm text-white placeholder:text-white/55 bg-background-control rounded-full transition-all duration-200 ease-in-out border border-white/15 hover:bg-white/20 hover:border-white/35 focus:ring-2 focus:ring-primary focus:border-primary focus:bg-white/20 focus:outline-none"
+        className="block w-full pl-10 sm:pl-12 pr-2 sm:pr-3 py-2.5 text-sm text-white placeholder:text-white/55 bg-background-control rounded-full transition-all duration-200 ease-in-out border border-white/15 hover:bg-white/20 hover:border-white/35 focus:ring-2 focus:ring-primary focus:border-primary focus:bg-white/20 focus:outline-none"
         placeholder={dynamicPlaceholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}

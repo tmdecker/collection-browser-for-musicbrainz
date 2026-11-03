@@ -44,6 +44,31 @@ interface AlbumDetailsPanelProps {
   onRefreshAlbum?: (albumId: string) => Promise<boolean>;
 }
 
+// The panel cover: the grid's 360px thumbnail (already in the browser cache) shows at once, and the
+// sharp 1080px version fades in over it once loaded. Keyed by album, so a previous cover never lingers.
+const PanelCover: React.FC<{ mbid: string; title: string }> = ({ mbid, title }) => {
+  const [sharpLoaded, setSharpLoaded] = useState(false);
+  return (
+    <>
+      <CoverArtImage
+        mbid={mbid}
+        title={title}
+        size={360}
+        priority={true}
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      <CoverArtImage
+        mbid={mbid}
+        title={title}
+        size={1080}
+        priority={true}
+        onLoad={() => setSharpLoaded(true)}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90 ${sharpLoaded ? '' : '!opacity-0'}`}
+      />
+    </>
+  );
+};
+
 const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum }) => {
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
@@ -293,6 +318,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
     </button>
   );
 
+  const refreshLabel = refreshStatus === 'running'
+    ? 'Refreshing from MusicBrainz…'
+    : refreshStatus === 'done'
+      ? 'Updated from MusicBrainz'
+      : refreshStatus === 'failed'
+        ? 'Refresh failed, try again'
+        : 'Refresh from MusicBrainz (after editing it there)';
+
   return (
     <div
       className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-5 flex flex-col gap-4"
@@ -317,7 +350,10 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       {loading ? (
         <div className="animate-pulse flex flex-col gap-4">
           <div className="relative">
-            <div className="bg-background-tertiary aspect-square rounded-md w-full"></div>
+            {/* The cover is known before the details arrive, so show it right away */}
+            <div className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-full">
+              <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} />
+            </div>
           </div>
           <div className="bg-background-tertiary h-7 rounded-md w-3/4"></div>
           <div className="bg-background-tertiary h-5 rounded-md w-1/2"></div>
@@ -336,7 +372,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         <>
           {/* Cover: links to MusicBrainz */}
           <div>
-            <div className="relative w-full">
+            <div className="relative w-full group/cover">
               <a
                 href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
                 target="_blank"
@@ -344,39 +380,27 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 title="View on MusicBrainz"
                 className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-full group cursor-pointer"
               >
-                <CoverArtImage
-                  mbid={displayAlbum.id}
-                  title={displayAlbum.title}
-                  size={1080}
-                  priority={true}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity group-hover:opacity-90"
-                />
+                <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} />
                 {/* MusicBrainz icon in bottom-right corner */}
                 <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <SiMusicbrainz className="w-6 h-6 text-white drop-shadow-lg" />
                 </div>
               </a>
+              {onRefreshAlbum && (
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={refreshStatus === 'running'}
+                  aria-label={refreshLabel}
+                  title={refreshLabel}
+                  // Icon only, top-right on the cover: shown while the cover is hovered, focused by keyboard, or a
+                  // refresh is running or reporting; always shown on touch devices (no hover)
+                  className={`absolute top-2 right-2 z-10 w-8 h-8 grid place-items-center rounded-full bg-background/70 transition-opacity disabled:cursor-wait focus-visible:opacity-100 group-hover/cover:opacity-100 ${refreshStatus === 'failed' ? 'text-red-400' : refreshStatus === 'done' ? 'text-green-400' : 'text-white/80 hover:text-white'} ${refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
+                >
+                  <BiRefresh className={`w-5 h-5 ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
+                </button>
+              )}
             </div>
-            {onRefreshAlbum && (
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={refreshStatus === 'running'}
-                title="Fetch this album again from MusicBrainz (after editing it there)"
-                // Shown while the panel is hovered, focused by keyboard, or a refresh is running or reporting;
-                // always shown on touch devices (no hover), so it stays reachable there
-                className={`mt-2 w-full flex items-center justify-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-[color,opacity] disabled:cursor-wait focus-visible:opacity-100 ${isHovered || refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
-              >
-                <BiRefresh className={`text-base ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
-                {refreshStatus === 'running'
-                  ? 'Refreshing from MusicBrainz…'
-                  : refreshStatus === 'done'
-                    ? 'Updated from MusicBrainz'
-                    : refreshStatus === 'failed'
-                      ? 'Refresh failed, try again'
-                      : 'Refresh from MusicBrainz'}
-              </button>
-            )}
           </div>
 
           <div className="flex flex-col gap-3 min-w-0">

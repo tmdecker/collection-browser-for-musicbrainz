@@ -82,7 +82,11 @@ body {
     flex-shrink: 0;
     overflow: hidden;
     border-left: 1px solid transparent;
-    transition: width 0.2s ease;
+  }
+  /* The width changes in one step (animating it made the grid reflow on every frame and wobble);
+     only the panel content slides in */
+  .details-dock.open > * {
+    animation: dock-in 0.2s ease-out;
   }
   .details-dock.open {
     width: var(--dock-width);
@@ -100,9 +104,19 @@ body {
     display: block;
   }
 }
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .details-dock {
-    transition: none;
+  .details-dock.open > * {
+    animation: none;
   }
 }
 

@@ -182,7 +182,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
         className="relative z-30 p-3 md:px-6 md:pt-4 md:pb-4 header-surface"
       >
       {/* One row at every width: the collection name only shows from md, where the row becomes a three-column grid */}
-      <div className="flex items-center gap-2 w-full md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:gap-4 md:h-8">
+      <div className="flex items-center gap-2 w-full md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:gap-4">
         {/* Left: Menu Button + Collection Name */}
         <div className="flex items-center space-x-2 min-w-0 flex-shrink-0 md:flex-shrink">
           <button
