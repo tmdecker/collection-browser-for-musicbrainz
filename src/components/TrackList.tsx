@@ -165,7 +165,7 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
       </div>
 
       {/* Track listing - scrollable, takes remaining space */}
-      <div className="space-y-1 flex-1 overflow-y-auto pr-2 min-h-0">
+      <div className="space-y-1 flex-1 overflow-y-auto pr-2 min-h-0 lg:max-h-[min(26rem,55vh)]">
         {tracks.map((track, index) => {
           const trackArtist = getArtistName(track.artist_credit);
           const showArtist = trackArtist && trackArtist !== albumArtist;
@@ -181,7 +181,7 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
 
                 {/* Track title and artist */}
                 <div className="min-w-0 flex-1">
-                  <div className="text-text-primary text-sm font-medium truncate">
+                  <div className="text-text-primary text-sm font-medium break-words">
                     {track.title}
                   </div>
                   {showArtist && (

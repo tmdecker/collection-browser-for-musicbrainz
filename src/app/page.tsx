@@ -174,6 +174,23 @@ export default function Home() {
     handleSelectAlbum(null);
   };
 
+  // Escape closes whichever panel is open (only one is open at a time); typing in a field keeps it open
+  const anyPanelOpen = detailsPanelOpen || isFilterPanelOpen || collectionsPanelOpen;
+  useEffect(() => {
+    if (!anyPanelOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
+      setDetailsPanelOpen(false);
+      handleSelectAlbum(null);
+      setFilterPanelOpen(false);
+      setCollectionsPanelOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [anyPanelOpen, handleSelectAlbum, setFilterPanelOpen]);
+
   // Enhanced filter panel toggle that closes other panels when opening
   const handleToggleFilterPanel = () => {
     const newFilterPanelState = !isFilterPanelOpen;
@@ -526,7 +543,8 @@ export default function Home() {
         </div>
       )}
 
-      <div className="flex-1">
+      {/* Start the grid below the fixed active-filters bar (0px when the bar is hidden) */}
+      <div className="flex-1" style={{ paddingTop: 'var(--active-filters-height, 0px)' }}>
         <LazyAlbumGrid
           albums={albums}
           selectedAlbum={selectedAlbum}

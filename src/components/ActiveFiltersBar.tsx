@@ -85,29 +85,9 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
     }
   }, [selectedGenres, selectedLabels, selectedTags, releaseDateRange, ratingRange, isFilterPanelOpen]);
 
-  // Show empty bar when filter panel is open but no filters selected
+  // Nothing to show without active filters (the grid and panels then start right below the header)
   if (totalActiveFilters === 0) {
-    if (!isFilterPanelOpen) {
-      return null; // Hide completely
-    }
-    // Show empty spacer bar with "No Active Filters" text
-    return (
-      <div
-        ref={barRef}
-        className="fixed z-25 left-0 right-0"
-        style={{
-          top: 'var(--header-height, 64px)'
-        }}
-        role="region"
-        aria-label="Filter spacer"
-      >
-        <div className="px-4 sm:px-6 pt-2 pb-3">
-          <div className="flex items-center h-8">
-            <span className="text-white/50 text-sm backdrop-blur-md bg-background-secondary/70 rounded-lg px-3 py-2">No Active Filters</span>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

@@ -602,7 +602,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
             </div>
 
             {/* Tracklist Section - Stacked on tablet/mobile, side by side on large screens */}
-            <div className="flex-1 min-w-0 lg:max-w-md lg:h-64 mt-6 lg:mt-0">
+            <div className="flex-1 min-w-0 lg:max-w-md mt-6 lg:mt-0">
               <TrackList
                 tracks={displayAlbum.tracklist}
                 albumArtist={artistName}
