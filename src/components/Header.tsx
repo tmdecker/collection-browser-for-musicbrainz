@@ -158,6 +158,13 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   // Calculate the display name
   const displayName = collectionName || 'Music Collection';
 
+  // "1,226 albums", or "10 of 1,226" while a search or filter narrows the grid
+  const albumCountLabel = typeof totalAlbums === 'number' && totalAlbums > 0
+    ? filteredAlbums < totalAlbums
+      ? `${filteredAlbums.toLocaleString()} of ${totalAlbums.toLocaleString()}`
+      : `${totalAlbums.toLocaleString()} ${totalAlbums === 1 ? 'album' : 'albums'}`
+    : null;
+
   return (
     <>
       {/* Auth Toast Notification */}
@@ -202,6 +209,11 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
           {entityType && (
             <span className="hidden md:inline ml-2 bg-neutral-700/50 text-neutral-300 text-xs px-2 py-0.5 rounded capitalize flex-shrink-0">
               {entityType}
+            </span>
+          )}
+          {albumCountLabel && (
+            <span className="hidden md:inline ml-2 text-xs text-text-tertiary tabular-nums whitespace-nowrap flex-shrink-0" aria-live="polite">
+              {albumCountLabel}
             </span>
           )}
         </div>

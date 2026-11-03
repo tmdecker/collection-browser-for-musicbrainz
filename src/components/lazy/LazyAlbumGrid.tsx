@@ -16,13 +16,16 @@ interface LazyAlbumGridProps {
   selectedAlbum: ReleaseGroup | null;
   onSelectAlbum: (album: ReleaseGroup) => void;
   loading: boolean;
+  /** Shown instead of the default text when there are no albums to show */
+  emptyState?: React.ReactNode;
 }
 
 const LazyAlbumGrid: React.FC<LazyAlbumGridProps> = ({ 
   albums, 
   selectedAlbum, 
   onSelectAlbum,
-  loading 
+  loading,
+  emptyState
 }) => {
   // Albums are already normalized by useAlbums, no need to normalize again
   const normalizedAlbums = albums;
@@ -51,8 +54,8 @@ const LazyAlbumGrid: React.FC<LazyAlbumGridProps> = ({
 
   if (normalizedAlbums.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-text-secondary">
-        No albums found. Try adjusting your search.
+      <div className="flex flex-col items-center justify-center gap-3 h-64 text-text-secondary text-center px-4">
+        {emptyState ?? 'No albums found. Try adjusting your search.'}
       </div>
     );
   }

@@ -6,11 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+- Album count next to the collection name, or "10 of 1,226" while a search or filter is active
+
 ### Fixed
 - Album details panel shows the star rating again: details loaded from the server or the browser cache are normalized before display, so the rating, album type and secondary types no longer go missing
 - Active filter chips get their own row instead of covering the first album cover; the "No Active Filters" placeholder is gone
 - Album tracklist shows every track (scrolls only past about half the screen) and wraps long titles instead of cutting them off
 - Escape closes the open album, filter or browse panel
+- A search that finds nothing only because filters hide its matches says so and offers Clear filters; the welcome screen no longer shows "No albums found"
 
 ## [0.38.0] - 2026-11-02
 

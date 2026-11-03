@@ -142,6 +142,9 @@ export default function Home() {
     return filtered;
   }, [searchFilteredAlbums, selectedGenres, selectedLabels, selectedTags, releaseDateRange, ratingRange, availableYearRange]);
 
+  // A search that finds nothing only because the filters hide its matches says so (with a way out)
+  const hiddenByFilters = albums.length === 0 && hasActiveFilters && searchQuery.trim() ? searchFilteredAlbums.length : 0;
+
   const [detailsPanelOpen, setDetailsPanelOpen] = useState(false);
   const [collectionsPanelOpen, setCollectionsPanelOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -545,12 +548,42 @@ export default function Home() {
 
       {/* Start the grid below the fixed active-filters bar (0px when the bar is hidden) */}
       <div className="flex-1" style={{ paddingTop: 'var(--active-filters-height, 0px)' }}>
-        <LazyAlbumGrid
-          albums={albums}
-          selectedAlbum={selectedAlbum}
-          onSelectAlbum={handleAlbumClick}
-          loading={loading}
-        />
+        {/* No grid (and no "No albums found") on the welcome screen before a collection is chosen */}
+        {!error?.includes('No collection configured') && (
+          <LazyAlbumGrid
+            albums={albums}
+            selectedAlbum={selectedAlbum}
+            onSelectAlbum={handleAlbumClick}
+            loading={loading}
+            emptyState={hiddenByFilters > 0 ? (
+              <>
+                <p>
+                  {hiddenByFilters} {hiddenByFilters === 1 ? 'album matches' : 'albums match'} your search but {hiddenByFilters === 1 ? 'is' : 'are'} hidden by your filters.
+                </p>
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="px-4 py-1.5 rounded-full bg-primary text-white text-sm hover:bg-primary-light transition-colors"
+                >
+                  Clear filters
+                </button>
+              </>
+            ) : searchQuery.trim() ? (
+              <p>No albums match &ldquo;{searchQuery.trim()}&rdquo;.</p>
+            ) : hasActiveFilters ? (
+              <>
+                <p>No albums match your filters.</p>
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="px-4 py-1.5 rounded-full bg-primary text-white text-sm hover:bg-primary-light transition-colors"
+                >
+                  Clear filters
+                </button>
+              </>
+            ) : undefined}
+          />
+        )}
       </div>
     </main>
   );
