@@ -4,6 +4,8 @@
  * @ai-dependencies React, CoverArtImage, TrackList, StreamingLinksSection, StarRating, usePlexAlbums
  * @ai-features
  * - Docked inspector layout: one column (cover, metadata, tracklist) in a 400px side panel; full-screen view with Back on phones
+ * - Compact header by default on tablet/desktop (small cover with type, year, title, artist, rating and links beside it);
+ *   an expand icon on the cover switches to the full-width cover, and the choice is remembered
  * - Genre/tag display with optional ratings
  * - Streaming links integration
  * - "Open in Plex" link for albums in the user's Plex library (when Plex is configured)
@@ -13,7 +15,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SiMusicbrainz, SiPlex } from 'react-icons/si';
-import { BiChevronLeft, BiDockRight, BiLock, BiRefresh } from 'react-icons/bi';
+import { BiChevronLeft, BiCollapseAlt, BiDockRight, BiExpandAlt, BiLock, BiRefresh } from 'react-icons/bi';
 import CoverArtImage from './CoverArtImage';
 import TrackList from './TrackList';
 import StreamingLinksSection from './StreamingLinksSection';
@@ -44,10 +46,32 @@ interface AlbumDetailsPanelProps {
   onRefreshAlbum?: (albumId: string) => Promise<boolean>;
 }
 
+// Whether the panel shows the full-width cover (true) or the compact header with a small cover (false).
+// Remembered per browser; phones always show the full-width cover.
+const COVER_EXPANDED_KEY = 'mb-details-cover-expanded';
+const readCoverExpanded = () => {
+  try {
+    return typeof window !== 'undefined' && window.localStorage.getItem(COVER_EXPANDED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
 // The panel cover: the grid's 360px thumbnail (already in the browser cache) shows at once, and the
 // sharp 1080px version fades in over it once loaded. Keyed by album, so a previous cover never lingers.
-const PanelCover: React.FC<{ mbid: string; title: string }> = ({ mbid, title }) => {
+// The compact cover is small enough for the thumbnail, so the sharp version loads only when needed
+// (on phones the cover is always full width).
+const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> = ({ mbid, title, compact = false }) => {
   const [sharpLoaded, setSharpLoaded] = useState(false);
+  const [isWide, setIsWide] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  const needsSharp = !compact || !isWide;
   return (
     <>
       <CoverArtImage
@@ -57,14 +81,16 @@ const PanelCover: React.FC<{ mbid: string; title: string }> = ({ mbid, title }) 
         priority={true}
         className="absolute inset-0 w-full h-full object-cover"
       />
-      <CoverArtImage
-        mbid={mbid}
-        title={title}
-        size={1080}
-        priority={true}
-        onLoad={() => setSharpLoaded(true)}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90 ${sharpLoaded ? '' : '!opacity-0'}`}
-      />
+      {needsSharp && (
+        <CoverArtImage
+          mbid={mbid}
+          title={title}
+          size={1080}
+          priority={true}
+          onLoad={() => setSharpLoaded(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90 ${sharpLoaded ? '' : '!opacity-0'}`}
+        />
+      )}
     </>
   );
 };
@@ -76,6 +102,17 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   const [isHovered, setIsHovered] = useState(false);
   // Manual refresh from MusicBrainz, per album, so switching albums never shows another album's state
   const [refresh, setRefresh] = useState<{ albumId: string; status: 'running' | 'done' | 'failed' } | null>(null);
+  const [coverExpanded, setCoverExpanded] = useState(readCoverExpanded);
+  const toggleCoverExpanded = () => {
+    setCoverExpanded(expanded => {
+      try {
+        window.localStorage.setItem(COVER_EXPANDED_KEY, String(!expanded));
+      } catch {
+        // Storage unavailable (private mode): the choice just isn't remembered
+      }
+      return !expanded;
+    });
+  };
 
   // Use the detailed album data if available, otherwise fall back to basic album data
   const displayAlbum = albumDetails || album;
@@ -326,6 +363,17 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         ? 'Refresh failed, try again'
         : 'Refresh from MusicBrainz (after editing it there)';
 
+  // Compact header (tablet/desktop only): small cover with the facts beside it, vertically centred
+  const compact = !coverExpanded;
+  const headClass = compact ? 'flex flex-col gap-4 md:flex-row md:items-center' : 'flex flex-col gap-4';
+  const coverWidthClass = compact ? 'w-full md:w-36 xl:w-[168px] md:shrink-0' : 'w-full';
+  // Round icons on the cover, slightly smaller and closer to the edge on the compact cover
+  const coverIconClass = compact
+    ? 'w-8 h-8 md:w-7 md:h-7 grid place-items-center rounded-full bg-background/70'
+    : 'w-8 h-8 grid place-items-center rounded-full bg-background/70';
+  const inset = compact ? { tl: 'top-2 md:top-1.5', bl: 'bottom-2 md:bottom-1.5', l: 'left-2 md:left-1.5', r: 'right-2 md:right-1.5' } : { tl: 'top-2', bl: 'bottom-2', l: 'left-2', r: 'right-2' };
+  const coverIconSize = compact ? 'w-5 h-5 md:w-4 md:h-4' : 'w-5 h-5';
+
   return (
     <div
       className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-5 flex flex-col gap-4"
@@ -349,14 +397,16 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
       {loading ? (
         <div className="animate-pulse flex flex-col gap-4">
-          <div className="relative">
+          <div className={headClass}>
             {/* The cover is known before the details arrive, so show it right away */}
-            <div className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-full">
-              <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} />
+            <div className={`relative block aspect-square rounded-md overflow-hidden bg-background-tertiary ${coverWidthClass}`}>
+              <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} compact={compact} />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-3">
+              <div className="bg-background-tertiary h-7 rounded-md w-3/4"></div>
+              <div className="bg-background-tertiary h-5 rounded-md w-1/2"></div>
             </div>
           </div>
-          <div className="bg-background-tertiary h-7 rounded-md w-3/4"></div>
-          <div className="bg-background-tertiary h-5 rounded-md w-1/2"></div>
           <div className="flex flex-wrap gap-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="bg-background-tertiary h-6 rounded-full w-16"></div>
@@ -370,9 +420,9 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         </div>
       ) : (
         <>
-          {/* Cover: links to MusicBrainz */}
-          <div>
-            <div className="relative w-full group/cover">
+          <div className={headClass}>
+            {/* Cover: links to MusicBrainz */}
+            <div className={`relative group/cover ${coverWidthClass}`}>
               <a
                 href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
                 target="_blank"
@@ -380,12 +430,22 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 title="View on MusicBrainz"
                 className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-full group cursor-pointer"
               >
-                <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} />
+                <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} compact={compact} />
                 {/* MusicBrainz icon in bottom-right corner */}
-                <div className="absolute bottom-2 right-2 w-8 h-8 grid place-items-center rounded-full bg-background/70 text-white/80 group-hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                  <SiMusicbrainz className="w-5 h-5" />
+                <div className={`absolute ${inset.bl} ${inset.r} ${coverIconClass} text-white/80 group-hover:text-white opacity-0 group-hover:opacity-100 transition-opacity`}>
+                  <SiMusicbrainz className={coverIconSize} />
                 </div>
               </a>
+              {/* Larger / smaller cover (tablet and desktop; phones always show the full-width cover) */}
+              <button
+                type="button"
+                onClick={toggleCoverExpanded}
+                aria-label={compact ? 'Show large cover' : 'Show small cover'}
+                title={compact ? 'Larger cover' : 'Smaller cover'}
+                className={`hidden md:grid absolute ${inset.bl} ${inset.l} z-10 ${coverIconClass} text-white/80 hover:text-white transition-opacity focus-visible:opacity-100 group-hover/cover:opacity-100 [@media(hover:hover)]:opacity-0`}
+              >
+                {compact ? <BiExpandAlt className={coverIconSize} /> : <BiCollapseAlt className={coverIconSize} />}
+              </button>
               {onRefreshAlbum && (
                 <button
                   type="button"
@@ -395,115 +455,115 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                   title={refreshLabel}
                   // Icon only, top-right on the cover: shown while the cover is hovered, focused by keyboard, or a
                   // refresh is running or reporting; always shown on touch devices (no hover)
-                  className={`absolute top-2 right-2 z-10 w-8 h-8 grid place-items-center rounded-full bg-background/70 transition-opacity disabled:cursor-wait focus-visible:opacity-100 group-hover/cover:opacity-100 ${refreshStatus === 'failed' ? 'text-red-400' : refreshStatus === 'done' ? 'text-green-400' : 'text-white/80 hover:text-white'} ${refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
+                  className={`absolute ${inset.tl} ${inset.r} z-10 ${coverIconClass} transition-opacity disabled:cursor-wait focus-visible:opacity-100 group-hover/cover:opacity-100 ${refreshStatus === 'failed' ? 'text-red-400' : refreshStatus === 'done' ? 'text-green-400' : 'text-white/80 hover:text-white'} ${refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
                 >
-                  <BiRefresh className={`w-5 h-5 ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
+                  <BiRefresh className={`${coverIconSize} ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
                 </button>
               )}
             </div>
-          </div>
 
-          <div className="flex flex-col gap-3 min-w-0">
-            {/* Small type and year label above the title, then title and artist */}
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
-                {[displayAlbum.primary_type || 'Album', ...(displayAlbum.secondary_types || []), releaseYear]
-                  .filter(Boolean)
-                  .join(' · ')}
+            {/* Type and year label, title, artist, rating and links: beside the compact cover, under the large one */}
+            <div className="flex-1 flex flex-col gap-3 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                  {[displayAlbum.primary_type || 'Album', ...(displayAlbum.secondary_types || []), releaseYear]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+                <h2 className={`text-xl font-bold text-text-primary break-words ${compact ? '' : 'md:text-2xl'}`}>{displayAlbum.title}</h2>
+                <p className={`text-text-secondary text-lg ${compact ? 'md:text-base' : ''}`}>{artistName}</p>
               </div>
-              <h2 className="text-xl md:text-2xl font-bold text-text-primary break-words">{displayAlbum.title}</h2>
-              <p className="text-text-secondary text-lg">{artistName}</p>
-            </div>
 
-            {displayAlbum.rating && showRatings && (
-              <div>
-                {ratingDisplayMode === 'personal' ? (
-                  !isAuthenticated ? (
-                    <div className="text-sm text-text-tertiary italic flex items-center gap-1.5">
-                      <BiLock className="text-base" />
-                      <span>Log in to see your personal ratings</span>
-                    </div>
-                  ) : displayAlbum.rating.personal == null ? (
-                    <div className="text-sm text-text-tertiary italic">
-                      You haven&apos;t rated this album yet
-                    </div>
+              {displayAlbum.rating && showRatings && (
+                <div>
+                  {ratingDisplayMode === 'personal' ? (
+                    !isAuthenticated ? (
+                      <div className="text-sm text-text-tertiary italic flex items-center gap-1.5">
+                        <BiLock className="text-base" />
+                        <span>Log in to see your personal ratings</span>
+                      </div>
+                    ) : displayAlbum.rating.personal == null ? (
+                      <div className="text-sm text-text-tertiary italic">
+                        You haven&apos;t rated this album yet
+                      </div>
+                    ) : (
+                      <StarRating rating={displayAlbum.rating.personal} mode="personal" size="md" />
+                    )
                   ) : (
-                    <StarRating rating={displayAlbum.rating.personal} mode="personal" size="md" />
-                  )
-                ) : (
-                  displayAlbum.rating.average != null && (
-                    <StarRating
-                      rating={displayAlbum.rating.average}
-                      mode="average"
-                      count={displayAlbum.rating.count}
-                      size="md"
-                    />
-                  )
-                )}
-              </div>
-            )}
-
-            {genres.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {genres.slice(0, 8).map((genre, index) => {
-                  const isSelected = selectedGenres.includes(genre);
-                  const isClickable = onToggleGenre !== undefined;
-
-                  return isClickable ? (
-                    <button
-                      key={index}
-                      onClick={() => onToggleGenre(genre)}
-                      className={`px-3 py-1 rounded-full text-sm capitalize cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'bg-primary text-white hover:bg-primary/80'
-                          : 'bg-background-tertiary text-text-primary hover:bg-background'
-                      }`}
-                      title={isSelected ? `Remove ${genre} filter` : `Add ${genre} filter`}
-                    >
-                      {genre}
-                    </button>
-                  ) : (
-                    <span
-                      key={index}
-                      className="bg-background-tertiary text-text-primary px-3 py-1 rounded-full text-sm capitalize"
-                    >
-                      {genre}
-                    </span>
-                  );
-                })}
-                {genres.length > 8 && (
-                  <span className="text-text-tertiary text-xs px-3 py-1">
-                    +{genres.length - 8} more
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Plex link (albums in the user's Plex library) and streaming links */}
-            <div className="flex flex-wrap gap-2">
-              {plexUrl && (
-                <a
-                  href={plexUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center w-6 h-6 text-text-secondary hover:text-white transition-colors duration-200"
-                  title="Open in Plex"
-                  aria-label="Open in Plex"
-                >
-                  <SiPlex className="w-6 h-6" />
-                </a>
+                    displayAlbum.rating.average != null && (
+                      <StarRating
+                        rating={displayAlbum.rating.average}
+                        mode="average"
+                        count={displayAlbum.rating.count}
+                        size="md"
+                      />
+                    )
+                  )}
+                </div>
               )}
-              <StreamingLinksSection
-                streamingLinks={streamingLinks}
-                loading={streamingLinksLoading}
-                fromCache={streamingLinksFromCache}
-                spotifyUseDesktopApp={spotifyUseDesktopApp}
-                tidalUseDesktopApp={tidalUseDesktopApp}
-                appleMusicUseDesktopApp={appleMusicUseDesktopApp}
-                enabledServices={enabledStreamingServices}
-              />
+
+              {/* Plex link (albums in the user's Plex library) and streaming links */}
+              <div className="flex flex-wrap gap-2 empty:hidden">
+                {plexUrl && (
+                  <a
+                    href={plexUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center w-6 h-6 text-text-secondary hover:text-white transition-colors duration-200"
+                    title="Open in Plex"
+                    aria-label="Open in Plex"
+                  >
+                    <SiPlex className="w-6 h-6" />
+                  </a>
+                )}
+                <StreamingLinksSection
+                  streamingLinks={streamingLinks}
+                  loading={streamingLinksLoading}
+                  fromCache={streamingLinksFromCache}
+                  spotifyUseDesktopApp={spotifyUseDesktopApp}
+                  tidalUseDesktopApp={tidalUseDesktopApp}
+                  appleMusicUseDesktopApp={appleMusicUseDesktopApp}
+                  enabledServices={enabledStreamingServices}
+                />
+              </div>
             </div>
           </div>
+
+          {genres.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {genres.slice(0, 8).map((genre, index) => {
+                const isSelected = selectedGenres.includes(genre);
+                const isClickable = onToggleGenre !== undefined;
+
+                return isClickable ? (
+                  <button
+                    key={index}
+                    onClick={() => onToggleGenre(genre)}
+                    className={`px-3 py-1 rounded-full text-sm capitalize cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-primary text-white hover:bg-primary/80'
+                        : 'bg-background-tertiary text-text-primary hover:bg-background'
+                    }`}
+                    title={isSelected ? `Remove ${genre} filter` : `Add ${genre} filter`}
+                  >
+                    {genre}
+                  </button>
+                ) : (
+                  <span
+                    key={index}
+                    className="bg-background-tertiary text-text-primary px-3 py-1 rounded-full text-sm capitalize"
+                  >
+                    {genre}
+                  </span>
+                );
+              })}
+              {genres.length > 8 && (
+                <span className="text-text-tertiary text-xs px-3 py-1">
+                  +{genres.length - 8} more
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="mt-2 min-w-0">
             <TrackList
