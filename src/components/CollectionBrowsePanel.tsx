@@ -180,7 +180,7 @@ export default function CollectionBrowsePanel({
       <div
         className="fixed z-15 px-2 sm:px-3 pt-3 md:pt-0 pointer-events-none left-0 right-0"
         style={{
-          top: hasActiveFilters ? 'calc(var(--header-height, 64px) + var(--active-filters-height, 0px))' : 'var(--header-height, 64px)',
+          top: 'var(--top-height, 64px)',
         }}
       >
       {/* Floating close button - positioned relative to sticky container */}
@@ -208,7 +208,7 @@ export default function CollectionBrowsePanel({
       </button>
 
       <div
-        className="max-h-[calc(100vh-var(--header-height)-2rem)] overflow-y-auto rounded-3xl border border-white/10 pointer-events-auto panel-surface"
+        className="max-h-[calc(100vh-var(--top-height,64px)-2rem)] overflow-y-auto rounded-3xl border border-white/10 pointer-events-auto panel-surface"
         role="region"
         aria-label="Collections browser panel"
         onMouseEnter={() => setIsHovered(true)}

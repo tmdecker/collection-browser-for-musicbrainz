@@ -32,8 +32,8 @@ module.exports = {
       },
       gridTemplateColumns: {
         'album-grid': 'repeat(auto-fill, minmax(115px, 1fr))',
-        'album-grid-tablet': 'repeat(auto-fill, minmax(140px, 1fr))',
-        'album-grid-desktop': 'repeat(auto-fill, minmax(180px, 1fr))',
+        'album-grid-tablet': 'repeat(auto-fill, 150px)', // fixed card size: a docked panel removes columns instead of resizing cards
+        'album-grid-desktop': 'repeat(auto-fill, 180px)',
       },
       spacing: {
         'album-card': '180px',

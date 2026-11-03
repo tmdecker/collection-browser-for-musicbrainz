@@ -60,6 +60,43 @@ body {
   box-shadow: 0 1px 3px rgba(18, 18, 18, 0.12), 0 1px 2px rgba(18, 18, 18, 0.24);
 }
 
+/* Album details docked beside the grid: narrows the grid on tablet and desktop, full screen on phones */
+.details-dock {
+  background: var(--background-secondary);
+}
+@media (min-width: 768px) {
+  .details-dock {
+    position: sticky;
+    top: var(--top-height, 64px);
+    height: calc(100vh - var(--top-height, 64px));
+    width: 0;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-left: 1px solid transparent;
+    transition: width 0.2s ease;
+  }
+  .details-dock.open {
+    width: 400px;
+    border-left-color: rgba(255, 255, 255, 0.06);
+  }
+}
+@media (max-width: 767px) {
+  .details-dock {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: none;
+  }
+  .details-dock.open {
+    display: block;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .details-dock {
+    transition: none;
+  }
+}
+
 /* Visible keyboard focus for every control that does not draw its own ring */
 :focus-visible {
   outline: 2px solid var(--primary);

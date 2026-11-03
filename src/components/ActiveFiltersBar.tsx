@@ -5,7 +5,7 @@
  * @ai-features
  * - Always visible when filters are active (regardless of filter panel state)
  * - Displays active filters from genres, labels, tags, dates, and ratings categories
- * - Sticky positioning below header on solid chips (no backdrop blur, it flickers in Chromium)
+ * - Sits in the pinned top area below the header, on solid chips (no backdrop blur, it flickers in Chromium)
  * - Individual filter removal with close buttons and clear all functionality
  * - Color-coded by category (purple/rose/orange/fuchsia/emerald)
  * - Smooth animations and responsive layout
@@ -60,31 +60,6 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
   // Total active filters count
   const totalActiveFilters = selectedGenres.length + selectedLabels.length + selectedTags.length + (hasDateFilter ? 1 : 0) + (hasRatingFilter ? 1 : 0);
 
-  // Update CSS variable with actual bar height using ResizeObserver
-  useEffect(() => {
-    if (barRef.current) {
-      const updateHeight = () => {
-        if (barRef.current) {
-          const height = barRef.current.offsetHeight;
-          document.documentElement.style.setProperty('--active-filters-height', `${height}px`);
-        }
-      };
-
-      // Initial height update
-      updateHeight();
-
-      // Use ResizeObserver to track height changes (e.g., when filters wrap)
-      const resizeObserver = new ResizeObserver(updateHeight);
-      resizeObserver.observe(barRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-      };
-    } else {
-      document.documentElement.style.setProperty('--active-filters-height', '0px');
-    }
-  }, [selectedGenres, selectedLabels, selectedTags, releaseDateRange, ratingRange, isFilterPanelOpen]);
-
   // Nothing to show without active filters (the grid and panels then start right below the header)
   if (totalActiveFilters === 0) {
     return null;
@@ -93,14 +68,11 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
   return (
     <div
       ref={barRef}
-      className="fixed z-25 left-0 right-0"
-      style={{
-        top: 'var(--header-height, 64px)'
-      }}
+      className="border-b border-white/[0.06]"
       role="region"
       aria-label="Active filters"
     >
-      <div className="px-4 sm:px-6 pt-2 pb-4">
+      <div className="px-4 sm:px-6 py-2.5">
         <div className="flex items-center justify-between">
           {/* Round X button for clear all */}
           <button

@@ -286,26 +286,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     }
   };
 
-  // Calculate button position based on screen size
-  // FilterPanel is always positioned at header + 48px (ActiveFiltersBar height)
-  // So we need to add baseOffset to that position
-  const getButtonTop = () => {
-    const baseOffset = 12; // Mobile/tablet offset from FilterPanel top
-    return `calc(var(--header-height, 64px) + 48px + ${baseOffset}px)`;
-  };
-
-  const getButtonTopLg = () => {
-    const lgOffset = 12; // Large screen offset from FilterPanel top
-    return `calc(var(--header-height, 64px) + 48px + ${lgOffset}px)`;
-  };
-
   return (
-    <div
-      className="fixed z-20 px-2 sm:px-3 left-0 right-0"
-      style={{
-        top: 'calc(var(--header-height, 64px) + var(--active-filters-height, 0px))', // Account for ActiveFiltersBar height
-      }}
-    >
+    // A tray inside the pinned top area: it pushes the grid down instead of floating over it
+    <div className="relative bg-background-secondary border-b border-white/[0.06]">
       {/* Floating close button - positioned relative to sticky container */}
       <button
         onClick={onClose}
@@ -333,7 +316,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
         <div
           ref={filterPanelRef}
-          className="rounded-3xl border border-white/10 panel-surface"
+          className="max-h-[60vh] overflow-y-auto"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           role="region"

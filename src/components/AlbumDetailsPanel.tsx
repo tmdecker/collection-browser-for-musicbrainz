@@ -3,7 +3,7 @@
  * @ai-description Collapsible album details panel with cover art, metadata, genres, ratings, and tracklist
  * @ai-dependencies React, CoverArtImage, TrackList, StreamingLinksSection, StarRating, usePlexAlbums
  * @ai-features
- * - Three-column layout (cover, metadata, tracklist) - responsive stacking on mobile
+ * - Docked inspector layout: one column (cover, metadata, tracklist) in a 400px side panel; full-screen view with Back on phones
  * - Genre/tag display with optional ratings
  * - Streaming links integration
  * - "Open in Plex" link for albums in the user's Plex library (when Plex is configured)
@@ -13,7 +13,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SiMusicbrainz, SiPlex } from 'react-icons/si';
-import { BiLock, BiRefresh } from 'react-icons/bi';
+import { BiChevronLeft, BiDockRight, BiLock, BiRefresh } from 'react-icons/bi';
 import CoverArtImage from './CoverArtImage';
 import TrackList from './TrackList';
 import StreamingLinksSection from './StreamingLinksSection';
@@ -34,7 +34,6 @@ interface AlbumDetailsPanelProps {
   onToggleLabel?: (labelName: string) => void;
   selectedGenres?: string[];
   selectedLabels?: string[];
-  hasActiveFilters?: boolean;
   spotifyUseDesktopApp?: boolean;
   tidalUseDesktopApp?: boolean;
   appleMusicUseDesktopApp?: boolean;
@@ -45,7 +44,7 @@ interface AlbumDetailsPanelProps {
   onRefreshAlbum?: (albumId: string) => Promise<boolean>;
 }
 
-const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], hasActiveFilters = false, spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum }) => {
+const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum }) => {
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
   const [streamingLinksFromCache, setStreamingLinksFromCache] = useState(false);
@@ -211,34 +210,6 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   const releaseYear = getReleaseYear();
 
-  // Get track count from first release if available
-  const getTrackCount = () => {
-    if (!displayAlbum.releases || displayAlbum.releases.length === 0) {
-      return null;
-    }
-
-    const firstRelease = displayAlbum.releases[0];
-
-    // First try the direct track_count
-    if (firstRelease.track_count && firstRelease.track_count > 0) {
-      return firstRelease.track_count;
-    }
-
-    // Then try summing from media
-    if (firstRelease.media && firstRelease.media.length > 0) {
-      const totalTracks = firstRelease.media.reduce((sum, media) => {
-        const mediaTrackCount = media.track_count || 0;
-        return sum + (isFinite(mediaTrackCount) ? mediaTrackCount : 0);
-      }, 0);
-
-      return totalTracks > 0 ? totalTracks : null;
-    }
-
-    return null;
-  };
-
-  const trackCount = getTrackCount();
-
   // Get genres/tags based on useGenresOnly setting
   const getGenres = () => {
     const genreItems: Array<{ name: string; count: number }> = [];
@@ -307,315 +278,221 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   const genres = getGenres();
 
-  // Calculate button position based on screen size
-  const getButtonTop = () => {
-    const baseOffset = 44; // Mobile/tablet offset
-
-    return hasActiveFilters
-      ? `calc(var(--header-height, 64px) + 48px + ${baseOffset}px)`
-      : `calc(var(--header-height, 64px) + ${baseOffset}px)`;
-  };
-
-  const getButtonTopLg = () => {
-    const lgOffset = 24; // Large screen offset
-    return hasActiveFilters
-      ? `calc(var(--header-height, 64px) + 48px + ${lgOffset}px)`
-      : `calc(var(--header-height, 64px) + ${lgOffset}px)`;
-  };
+  // Round "close panel" button, top-left over the cover: always shown on touch devices,
+  // on devices with a mouse only while the panel is hovered or the button has keyboard focus
+  const closeButton = (
+    <button
+      type="button"
+      onClick={onClose}
+      className={`hidden md:grid absolute top-2 left-2 z-10 w-9 h-9 place-items-center rounded-full bg-background-tertiary border border-white/15 text-text-secondary hover:text-text-primary hover:bg-[#3a3a3a] transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
+      aria-label="Close album details"
+      title="Close (Esc)"
+    >
+      <BiDockRight className="w-5 h-5" />
+    </button>
+  );
 
   return (
     <div
-      className="fixed z-15 px-2 sm:px-3 pt-3 md:pt-0 left-0 right-0"
-      style={{
-        top: hasActiveFilters ? 'calc(var(--header-height, 64px) + var(--active-filters-height, 0px))' : 'var(--header-height, 64px)',
-      }}
+      className="h-full overflow-y-auto md:w-[400px] p-4 md:p-5 flex flex-col gap-4"
+      role="region"
+      aria-label="Album details panel"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Floating close button - positioned relative to sticky container */}
+      {/* Phones: the panel is a full-screen view, closed with Back */}
       <button
+        type="button"
         onClick={onClose}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className={`absolute right-6 sm:right-6 top-[30px] md:top-3 z-30 p-1.5 rounded-full bg-background-tertiary text-text-secondary transition-all shadow-lg lg:opacity-0 lg:pointer-events-none lg:focus-visible:!opacity-100 lg:focus-visible:!pointer-events-auto hover:bg-background hover:text-text-primary hover:scale-110 ${isHovered ? 'lg:!opacity-100 lg:!pointer-events-auto' : ''}`}
-        aria-label="Close album details"
+        className="md:hidden self-start flex items-center gap-1 text-text-secondary hover:text-text-primary"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
+        <BiChevronLeft className="w-6 h-6" />
+        Back
       </button>
 
-
-        <div
-          className="max-h-[calc(100vh-var(--header-height)-2rem)] sm:max-h-none overflow-y-auto sm:overflow-visible rounded-3xl border border-white/10 panel-surface"
-          role="region"
-          aria-label="Album details panel"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-        <div className="px-4 sm:px-6 pt-6 md:pt-[50px] pb-6 md:pb-[50px] relative">
-
-        {loading ? (
-          <div className="animate-pulse">
-            <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-              {/* Cover art skeleton */}
-              <div className="flex-shrink-0 md:w-64">
-                <div className="bg-background-tertiary aspect-square rounded-md w-64 h-64"></div>
-              </div>
-
-              {/* Metadata skeleton */}
-              <div className="flex-1 min-w-0 flex flex-col md:h-64 justify-between">
-                {/* Top section skeleton */}
-                <div>
-                  {/* Type skeleton */}
-                  <div className="bg-background-tertiary h-4 rounded-md w-32 mb-2"></div>
-                  <div className="bg-background-tertiary h-10 rounded-md w-3/4 mb-1"></div>
-                  <div className="bg-background-tertiary h-8 rounded-md w-1/2 mb-3"></div>
-                  {/* Genres skeleton */}
-                  <div className="mb-4">
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="bg-background-tertiary h-6 rounded-full w-16"></div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Track count skeleton */}
-                  <div>
-                    <div className="bg-background-tertiary h-3 rounded-md w-16 mb-2"></div>
-                    <div className="bg-background-tertiary h-4 rounded-md w-8"></div>
-                  </div>
-                </div>
-
-                {/* Bottom section skeleton */}
-                <div>
-                  {/* External link skeleton */}
-                  <div>
-                    <div className="bg-background-tertiary h-10 rounded-md w-40"></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tracklist skeleton */}
-              <div className="flex-1 min-w-0 md:max-w-md md:h-64 md:mt-0 mt-4">
-                <div className="bg-background-tertiary h-4 rounded-md w-24 mb-4"></div>
-                <div className="max-h-[232px] overflow-y-auto space-y-2">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="flex justify-between items-center">
-                      <div className="flex items-center space-x-2 flex-1">
-                        <div className="bg-background-tertiary h-3 w-6 rounded"></div>
-                        <div className="bg-background-tertiary h-3 rounded flex-1 max-w-xs"></div>
-                      </div>
-                      <div className="bg-background-tertiary h-3 w-12 rounded"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+      {loading ? (
+        <div className="animate-pulse flex flex-col gap-4">
+          <div className="relative">
+            <div className="bg-background-tertiary aspect-square rounded-md w-full max-w-[360px] mx-auto"></div>
+            {closeButton}
           </div>
-        ) : (
-          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-            {/* Cover Art + Metadata Container (side by side on tablet+) */}
-            <div className="flex flex-col md:flex-row gap-4 md:gap-6 lg:flex-1 items-center md:items-start">
-              {/* Cover Art Section */}
-              <div className="flex-shrink-0 md:w-64">
-                <a
-                  href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="View on MusicBrainz"
-                  className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-64 h-64 group cursor-pointer transition-transform hover:scale-[1.02]"
-                  style={{
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.18), 0 16px 48px rgba(0, 0, 0, 0.10)'
-                  }}
-                >
-                  <CoverArtImage
-                    mbid={displayAlbum.id}
-                    title={displayAlbum.title}
-                    size={500}
-                    priority={true}
-                    className="absolute inset-0 w-full h-full object-cover transition-opacity group-hover:opacity-90"
-                  />
-                  {/* MusicBrainz icon in bottom-right corner */}
-                  <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <SiMusicbrainz className="w-6 h-6 text-white drop-shadow-lg" />
-                  </div>
-                </a>
-                {onRefreshAlbum && (
-                  <button
-                    type="button"
-                    onClick={handleRefresh}
-                    disabled={refreshStatus === 'running'}
-                    title="Fetch this album again from MusicBrainz (after editing it there)"
-                    // Shown while the panel is hovered, focused by keyboard, or a refresh is running or reporting;
-                    // always shown on touch devices (no hover), so it stays reachable there
-                    className={`mt-2 w-64 flex items-center justify-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-[color,opacity] disabled:cursor-wait focus-visible:opacity-100 ${isHovered || refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
-                  >
-                    <BiRefresh className={`text-base ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
-                    {refreshStatus === 'running'
-                      ? 'Refreshing from MusicBrainz…'
-                      : refreshStatus === 'done'
-                        ? 'Updated from MusicBrainz'
-                        : refreshStatus === 'failed'
-                          ? 'Refresh failed, try again'
-                          : 'Refresh from MusicBrainz'}
-                  </button>
+          <div className="bg-background-tertiary h-7 rounded-md w-3/4"></div>
+          <div className="bg-background-tertiary h-5 rounded-md w-1/2"></div>
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-background-tertiary h-6 rounded-full w-16"></div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2 mt-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-background-tertiary h-4 rounded"></div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Cover: links to MusicBrainz */}
+          <div>
+            <div className="relative w-full max-w-[360px] mx-auto">
+              <a
+                href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View on MusicBrainz"
+                className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-full group cursor-pointer"
+              >
+                <CoverArtImage
+                  mbid={displayAlbum.id}
+                  title={displayAlbum.title}
+                  size={500}
+                  priority={true}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity group-hover:opacity-90"
+                />
+                {/* MusicBrainz icon in bottom-right corner */}
+                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <SiMusicbrainz className="w-6 h-6 text-white drop-shadow-lg" />
+                </div>
+              </a>
+              {closeButton}
+            </div>
+            {onRefreshAlbum && (
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshStatus === 'running'}
+                title="Fetch this album again from MusicBrainz (after editing it there)"
+                // Shown while the panel is hovered, focused by keyboard, or a refresh is running or reporting;
+                // always shown on touch devices (no hover), so it stays reachable there
+                className={`mt-2 w-full flex items-center justify-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-[color,opacity] disabled:cursor-wait focus-visible:opacity-100 ${isHovered || refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
+              >
+                <BiRefresh className={`text-base ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
+                {refreshStatus === 'running'
+                  ? 'Refreshing from MusicBrainz…'
+                  : refreshStatus === 'done'
+                    ? 'Updated from MusicBrainz'
+                    : refreshStatus === 'failed'
+                      ? 'Refresh failed, try again'
+                      : 'Refresh from MusicBrainz'}
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 min-w-0">
+            {/* Title with type and year next to it, vertically centred */}
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+              <h2 className="text-xl md:text-2xl font-bold text-text-primary break-words min-w-0">{displayAlbum.title}</h2>
+              <span className="text-sm text-text-tertiary whitespace-nowrap">
+                {displayAlbum.primary_type || 'Album'}
+                {displayAlbum.secondary_types && displayAlbum.secondary_types.length > 0 && (
+                  <span> • {displayAlbum.secondary_types.join(' • ')}</span>
+                )}
+                {releaseYear && <span> • {releaseYear}</span>}
+              </span>
+            </div>
+            <p className="text-text-secondary text-lg -mt-2">{artistName}</p>
+
+            {displayAlbum.rating && showRatings && (
+              <div>
+                {ratingDisplayMode === 'personal' ? (
+                  !isAuthenticated ? (
+                    <div className="text-sm text-text-tertiary italic flex items-center gap-1.5">
+                      <BiLock className="text-base" />
+                      <span>Log in to see your personal ratings</span>
+                    </div>
+                  ) : displayAlbum.rating.personal == null ? (
+                    <div className="text-sm text-text-tertiary italic">
+                      You haven&apos;t rated this album yet
+                    </div>
+                  ) : (
+                    <StarRating rating={displayAlbum.rating.personal} mode="personal" size="md" />
+                  )
+                ) : (
+                  displayAlbum.rating.average != null && (
+                    <StarRating
+                      rating={displayAlbum.rating.average}
+                      mode="average"
+                      count={displayAlbum.rating.count}
+                      size="md"
+                    />
+                  )
                 )}
               </div>
+            )}
 
-              {/* Metadata Section */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between text-center md:text-left" style={{ minHeight: '256px' }}>
-                {/* Top section with main metadata */}
-                <div className="flex flex-col items-center md:items-start">
-                  {/* Type information - discrete and above title */}
-                  <div className="text-sm text-text-tertiary mb-2">
-                    {displayAlbum.primary_type || 'Album'}
-                    {displayAlbum.secondary_types && displayAlbum.secondary_types.length > 0 && (
-                      <span> • {displayAlbum.secondary_types.join(' • ')}</span>
-                    )}
-                    {releaseYear && <span> • {releaseYear}</span>}
-                  </div>
+            {genres.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {genres.slice(0, 8).map((genre, index) => {
+                  const isSelected = selectedGenres.includes(genre);
+                  const isClickable = onToggleGenre !== undefined;
 
-                  <h2 className="text-xl md:text-2xl font-bold text-text-primary mb-1 line-clamp-2">{displayAlbum.title}</h2>
-                  <p className="text-text-secondary text-lg md:text-xl mb-2">{artistName}</p>
-
-                  {/* @ai Rating display with spacer to maintain genre position consistency
-                      When ratings are hidden but rating data exists, an empty spacer maintains
-                      the same vertical spacing so genre tags stay in their expected position */}
-                  {displayAlbum.rating && (
-                    <div className="mb-3">
-                      {showRatings ? (
-                        ratingDisplayMode === 'personal' ? (
-                          !isAuthenticated ? (
-                            <div className="text-sm text-text-tertiary italic flex items-center gap-1.5">
-                              <BiLock className="text-base" />
-                              <span>Log in to see your personal ratings</span>
-                            </div>
-                          ) : displayAlbum.rating.personal == null ? (
-                            <div className="text-sm text-text-tertiary italic">
-                              You haven&apos;t rated this album yet
-                            </div>
-                          ) : (
-                            <StarRating
-                              rating={displayAlbum.rating.personal}
-                              mode="personal"
-                              size="md"
-                            />
-                          )
-                        ) : (
-                          displayAlbum.rating.average != null && (
-                            <StarRating
-                              rating={displayAlbum.rating.average}
-                              mode="average"
-                              count={displayAlbum.rating.count}
-                              size="md"
-                            />
-                          )
-                        )
-                      ) : (
-                        <div className="h-6" />
-                      )}
-                    </div>
-                  )}
-
-                  {genres.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex flex-wrap gap-2">
-                        {genres.slice(0, 8).map((genre, index) => {
-                          const isSelected = selectedGenres.includes(genre);
-                          const isClickable = onToggleGenre !== undefined;
-
-                          return isClickable ? (
-                            <button
-                              key={index}
-                              onClick={() => onToggleGenre(genre)}
-                              className={`px-3 py-1 rounded-full text-sm capitalize cursor-pointer transition-colors ${
-                                isSelected
-                                  ? 'bg-primary text-white hover:bg-primary/80'
-                                  : 'bg-background-tertiary text-text-primary hover:bg-background'
-                              }`}
-                              title={isSelected ? `Remove ${genre} filter` : `Add ${genre} filter`}
-                            >
-                              {genre}
-                            </button>
-                          ) : (
-                            <span
-                              key={index}
-                              className="bg-background-tertiary text-text-primary px-3 py-1 rounded-full text-sm capitalize"
-                            >
-                              {genre}
-                            </span>
-                          );
-                        })}
-                        {genres.length > 8 && (
-                          <span className="text-text-tertiary text-xs px-3 py-1">
-                            +{genres.length - 8} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {trackCount && (
-                    <div className="mb-4">
-                      <h3 className="text-xs font-semibold text-text-tertiary uppercase mb-1">Tracks</h3>
-                      <p className="text-text-primary text-sm">{trackCount}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom section with the Plex link and streaming links */}
-                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                  {/* Plex link, only for albums in the user's Plex library */}
-                  {plexUrl && (
-                    <a
-                      href={plexUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center w-6 h-6 text-text-secondary hover:text-white transition-colors duration-200"
-                      title="Open in Plex"
-                      aria-label="Open in Plex"
+                  return isClickable ? (
+                    <button
+                      key={index}
+                      onClick={() => onToggleGenre(genre)}
+                      className={`px-3 py-1 rounded-full text-sm capitalize cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-primary text-white hover:bg-primary/80'
+                          : 'bg-background-tertiary text-text-primary hover:bg-background'
+                      }`}
+                      title={isSelected ? `Remove ${genre} filter` : `Add ${genre} filter`}
                     >
-                      <SiPlex className="w-[34px] h-[34px] md:w-6 md:h-6" />
-                    </a>
-                  )}
-                  {/* Streaming Links */}
-                  <StreamingLinksSection
-                    streamingLinks={streamingLinks}
-                    loading={streamingLinksLoading}
-                    fromCache={streamingLinksFromCache}
-                    spotifyUseDesktopApp={spotifyUseDesktopApp}
-                    tidalUseDesktopApp={tidalUseDesktopApp}
-                    appleMusicUseDesktopApp={appleMusicUseDesktopApp}
-                    enabledServices={enabledStreamingServices}
-                  />
-                </div>
+                      {genre}
+                    </button>
+                  ) : (
+                    <span
+                      key={index}
+                      className="bg-background-tertiary text-text-primary px-3 py-1 rounded-full text-sm capitalize"
+                    >
+                      {genre}
+                    </span>
+                  );
+                })}
+                {genres.length > 8 && (
+                  <span className="text-text-tertiary text-xs px-3 py-1">
+                    +{genres.length - 8} more
+                  </span>
+                )}
               </div>
-            </div>
+            )}
 
-            {/* Tracklist Section - Stacked on tablet/mobile, side by side on large screens */}
-            <div className="flex-1 min-w-0 lg:max-w-md mt-6 lg:mt-0">
-              <TrackList
-                tracks={displayAlbum.tracklist}
-                albumArtist={artistName}
-                loading={tracklistLoading}
-                releaseDetails={displayAlbum.releaseDetails}
-                onToggleLabel={onToggleLabel}
-                selectedLabels={selectedLabels}
+            {/* Plex link (albums in the user's Plex library) and streaming links */}
+            <div className="flex flex-wrap gap-2">
+              {plexUrl && (
+                <a
+                  href={plexUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center w-6 h-6 text-text-secondary hover:text-white transition-colors duration-200"
+                  title="Open in Plex"
+                  aria-label="Open in Plex"
+                >
+                  <SiPlex className="w-6 h-6" />
+                </a>
+              )}
+              <StreamingLinksSection
+                streamingLinks={streamingLinks}
+                loading={streamingLinksLoading}
+                fromCache={streamingLinksFromCache}
+                spotifyUseDesktopApp={spotifyUseDesktopApp}
+                tidalUseDesktopApp={tidalUseDesktopApp}
+                appleMusicUseDesktopApp={appleMusicUseDesktopApp}
+                enabledServices={enabledStreamingServices}
               />
             </div>
           </div>
-        )}
-        </div>
-        </div>
+
+          <div className="mt-2 min-w-0">
+            <TrackList
+              tracks={displayAlbum.tracklist}
+              albumArtist={artistName}
+              loading={tracklistLoading}
+              releaseDetails={displayAlbum.releaseDetails}
+              onToggleLabel={onToggleLabel}
+              selectedLabels={selectedLabels}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 };

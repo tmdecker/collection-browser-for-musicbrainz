@@ -150,6 +150,19 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const headerRef = useRef<HeaderRef>(null);
 
+  // Height of the pinned top area (header, active filters, filter tray), so the docked details
+  // panel starts right below it and fills the rest of the window
+  const topRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = topRef.current;
+    if (!el) return;
+    const update = () => document.documentElement.style.setProperty('--top-height', `${el.offsetHeight}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Get auth state for collections panel
   const { isAuthenticated, user, login } = useAuth();
   const { updateApi, updateMetadata } = usePreferences();
@@ -163,11 +176,16 @@ export default function Home() {
   const [validatedEntityType, setValidatedEntityType] = useState<'collection' | 'series' | null>(null);
   const skipValidationRef = useRef(false);
 
-  // Selecting an album opens the details panel and closes the other panels
+  // Selecting an album opens the details panel and closes the collections panel
+  // (the filter tray may stay open beside it); clicking the open album again closes the panel
   const handleAlbumClick = (album: ReleaseGroup) => {
+    if (detailsPanelOpen && selectedAlbum?.id === album.id) {
+      setDetailsPanelOpen(false);
+      handleSelectAlbum(null);
+      return;
+    }
     handleSelectAlbum(album);
     setDetailsPanelOpen(true);
-    setFilterPanelOpen(false);
     setCollectionsPanelOpen(false);
   };
 
@@ -177,7 +195,7 @@ export default function Home() {
     handleSelectAlbum(null);
   };
 
-  // Escape closes whichever panel is open (only one is open at a time); typing in a field keeps it open
+  // Escape closes the album details first, then the filter tray, then the collections panel; typing in a field keeps them open
   const anyPanelOpen = detailsPanelOpen || isFilterPanelOpen || collectionsPanelOpen;
   useEffect(() => {
     if (!anyPanelOpen) return;
@@ -185,25 +203,22 @@ export default function Home() {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
-      setDetailsPanelOpen(false);
-      handleSelectAlbum(null);
-      setFilterPanelOpen(false);
-      setCollectionsPanelOpen(false);
+      if (detailsPanelOpen) {
+        setDetailsPanelOpen(false);
+        handleSelectAlbum(null);
+      } else if (isFilterPanelOpen) {
+        setFilterPanelOpen(false);
+      } else {
+        setCollectionsPanelOpen(false);
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [anyPanelOpen, handleSelectAlbum, setFilterPanelOpen]);
+  }, [anyPanelOpen, detailsPanelOpen, isFilterPanelOpen, handleSelectAlbum, setFilterPanelOpen]);
 
-  // Enhanced filter panel toggle that closes other panels when opening
+  // Filter tray toggle; the docked album details stay open beside it, the collections panel closes
   const handleToggleFilterPanel = () => {
-    const newFilterPanelState = !isFilterPanelOpen;
-
-    // If opening filter panel, close other panels
-    if (newFilterPanelState) {
-      setDetailsPanelOpen(false);
-      handleSelectAlbum(null);
-      setCollectionsPanelOpen(false);
-    }
+    if (!isFilterPanelOpen) setCollectionsPanelOpen(false);
 
     // Toggle the filter panel
     toggleFilterPanel();
@@ -339,6 +354,8 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col">
+      {/* Header, active filters and the filter tray stay pinned together at the top */}
+      <div ref={topRef} className="sticky top-0 z-30 bg-background">
       <Suspense fallback={
         <div className="h-16 bg-background-secondary border-b border-background-tertiary" />
       }>
@@ -407,29 +424,7 @@ export default function Home() {
         onClearAll={clearAllFilters}
         onClose={() => setFilterPanelOpen(false)}
       />
-
-      {/* Album Details Panel */}
-      <AlbumDetailsPanel
-        album={selectedAlbum}
-        albumDetails={selectedAlbumDetails}
-        loading={selectedAlbumLoading}
-        isOpen={detailsPanelOpen}
-        onClose={handleCloseDetailsPanel}
-        useGenresOnly={useGenresOnly}
-        onToggleGenre={toggleGenre}
-        onToggleLabel={prefs.display.enableLabelFilter ? toggleLabel : undefined}
-        selectedGenres={selectedGenres}
-        selectedLabels={prefs.display.enableLabelFilter ? selectedLabels : []}
-        hasActiveFilters={hasActiveFilters || isFilterPanelOpen}
-        spotifyUseDesktopApp={spotifyUseDesktopApp}
-        tidalUseDesktopApp={preferences.streaming.tidalUseDesktopApp}
-        appleMusicUseDesktopApp={preferences.streaming.appleMusicUseDesktopApp}
-        enabledStreamingServices={preferences.streaming.enabledServices}
-        showRatings={preferences.display.showRatings}
-        ratingDisplayMode={preferences.display.ratingDisplayMode}
-        isAuthenticated={isAuthenticated}
-        onRefreshAlbum={refreshAlbum}
-      />
+      </div>
 
       {/* Collections Browse Panel */}
       <CollectionBrowsePanel
@@ -546,8 +541,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* Start the grid below the fixed active-filters bar (0px when the bar is hidden) */}
-      <div className="flex-1" style={{ paddingTop: 'var(--active-filters-height, 0px)' }}>
+      {/* Grid and the docked album details side by side: the panel narrows the grid instead of covering it */}
+      <div className="flex-1 flex items-start">
+      <div className="flex-1 min-w-0 pt-3">
         {/* No grid (and no "No albums found") on the welcome screen before a collection is chosen */}
         {!error?.includes('No collection configured') && (
           <LazyAlbumGrid
@@ -584,6 +580,30 @@ export default function Home() {
             ) : undefined}
           />
         )}
+      </div>
+        <aside aria-label="Album details" className={`details-dock ${detailsPanelOpen ? 'open' : ''}`}>
+          <AlbumDetailsPanel
+            album={selectedAlbum}
+            albumDetails={selectedAlbumDetails}
+            loading={selectedAlbumLoading}
+            isOpen={detailsPanelOpen}
+            onClose={handleCloseDetailsPanel}
+            useGenresOnly={useGenresOnly}
+            onToggleGenre={toggleGenre}
+            onToggleLabel={prefs.display.enableLabelFilter ? toggleLabel : undefined}
+            selectedGenres={selectedGenres}
+            selectedLabels={prefs.display.enableLabelFilter ? selectedLabels : []}
+            spotifyUseDesktopApp={spotifyUseDesktopApp}
+            tidalUseDesktopApp={preferences.streaming.tidalUseDesktopApp}
+            appleMusicUseDesktopApp={preferences.streaming.appleMusicUseDesktopApp}
+            enabledStreamingServices={preferences.streaming.enabledServices}
+            showRatings={preferences.display.showRatings}
+            ratingDisplayMode={preferences.display.ratingDisplayMode}
+            isAuthenticated={isAuthenticated}
+            onRefreshAlbum={refreshAlbum}
+          />
+
+        </aside>
       </div>
     </main>
   );
