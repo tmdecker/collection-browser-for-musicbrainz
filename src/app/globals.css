@@ -64,6 +64,15 @@ body {
 .details-dock {
   background: var(--background-secondary);
 }
+/* Panel width: 400px on tablets, one grid card (184px) wider on large screens */
+:root {
+  --dock-width: 400px;
+}
+@media (min-width: 1280px) {
+  :root {
+    --dock-width: 584px;
+  }
+}
 @media (min-width: 768px) {
   .details-dock {
     position: sticky;
@@ -76,7 +85,7 @@ body {
     transition: width 0.2s ease;
   }
   .details-dock.open {
-    width: 400px;
+    width: var(--dock-width);
     border-left-color: rgba(255, 255, 255, 0.06);
   }
 }

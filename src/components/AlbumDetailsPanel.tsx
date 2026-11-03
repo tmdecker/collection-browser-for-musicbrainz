@@ -294,7 +294,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   return (
     <div
-      className="h-full overflow-y-auto md:w-[400px] p-4 md:p-5 flex flex-col gap-4"
+      className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-5 flex flex-col gap-4"
       role="region"
       aria-label="Album details panel"
       onMouseEnter={() => setIsHovered(true)}
@@ -313,7 +313,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       {loading ? (
         <div className="animate-pulse flex flex-col gap-4">
           <div className="relative">
-            <div className="bg-background-tertiary aspect-square rounded-md w-full max-w-[360px] mx-auto"></div>
+            <div className="bg-background-tertiary aspect-square rounded-md w-full max-w-[480px] mx-auto"></div>
             {closeButton}
           </div>
           <div className="bg-background-tertiary h-7 rounded-md w-3/4"></div>
@@ -333,7 +333,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         <>
           {/* Cover: links to MusicBrainz */}
           <div>
-            <div className="relative w-full max-w-[360px] mx-auto">
+            <div className="relative w-full max-w-[480px] mx-auto">
               <a
                 href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
                 target="_blank"

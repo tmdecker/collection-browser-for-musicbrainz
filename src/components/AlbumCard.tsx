@@ -74,7 +74,7 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
     <div
       className={clsx(
         'flex flex-col cursor-pointer transition-all duration-200 ease-in-out',
-        'rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-3',
+        'rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-2',
         selected && 'bg-background-secondary ring-2 ring-primary',
       )}
       onClick={() => onClick(album)}

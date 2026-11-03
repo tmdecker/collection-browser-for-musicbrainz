@@ -76,7 +76,7 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
 
     return (
       <div 
-        className="flex flex-col cursor-pointer transition-all duration-200 ease-in-out rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-3"
+        className="flex flex-col cursor-pointer transition-all duration-200 ease-in-out rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-2"
         onClick={() => {
           // When clicking on placeholder, make it visible immediately and trigger the onClick
           setIsVisible(true);
