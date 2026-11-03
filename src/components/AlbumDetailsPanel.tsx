@@ -378,18 +378,16 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
           </div>
 
           <div className="flex flex-col gap-3 min-w-0">
-            {/* Title with type and year next to it, vertically centred */}
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-              <h2 className="text-xl md:text-2xl font-bold text-text-primary break-words min-w-0">{displayAlbum.title}</h2>
-              <span className="text-sm text-text-tertiary whitespace-nowrap">
-                {displayAlbum.primary_type || 'Album'}
-                {displayAlbum.secondary_types && displayAlbum.secondary_types.length > 0 && (
-                  <span> • {displayAlbum.secondary_types.join(' • ')}</span>
-                )}
-                {releaseYear && <span> • {releaseYear}</span>}
-              </span>
+            {/* Small type and year label above the title, then title and artist */}
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                {[displayAlbum.primary_type || 'Album', ...(displayAlbum.secondary_types || []), releaseYear]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </div>
+              <h2 className="text-xl md:text-2xl font-bold text-text-primary break-words">{displayAlbum.title}</h2>
+              <p className="text-text-secondary text-lg">{artistName}</p>
             </div>
-            <p className="text-text-secondary text-lg -mt-2">{artistName}</p>
 
             {displayAlbum.rating && showRatings && (
               <div>
