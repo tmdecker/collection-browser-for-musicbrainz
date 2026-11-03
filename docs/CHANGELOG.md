@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 - Album titles in the phone grid wrap to two lines instead of being cut after about 12 characters
+- Album details open in a panel docked beside the grid (400px, 584px on large screens) instead of a floating card; full screen with Back on phones. Cover with type and year label above the title; icon buttons on the cover for MusicBrainz and refresh; close icon left of the cover
+- Filter tray sits under the header and pushes the grid down; header, active filters and tray stay pinned together. Filters and album details can be open at the same time
+- Removed all backdrop blur (it made the page flicker in Chromium browsers such as Vivaldi); header, panels and menus are solid
+- Album details load a sharp 1080px cover, showing the grid thumbnail instantly first. Fixed the image cache reusing a smaller cached cover for a larger request
+- Opening the details panel no longer makes the grid wobble; search clear button and header spacing aligned
 
 ### Fixed
 - Album details panel shows the star rating again: details loaded from the server or the browser cache are normalized before display, so the rating, album type and secondary types no longer go missing
