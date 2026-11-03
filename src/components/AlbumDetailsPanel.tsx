@@ -340,21 +340,6 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   const genres = getGenres();
 
-  // Icon-only "close panel" button: left of the cover on large screens (over its top-left corner on tablets);
-  // always shown on touch devices,
-  // on devices with a mouse only while the panel is hovered or the button has keyboard focus
-  const closeButton = (
-    <button
-      type="button"
-      onClick={onClose}
-      className={`hidden md:grid absolute top-2 left-2 xl:top-0 xl:-left-9 z-10 w-6 h-6 place-items-center text-text-secondary hover:text-text-primary drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] xl:drop-shadow-none transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
-      aria-label="Close album details"
-      title="Close (Esc)"
-    >
-      <BiDockRight className="w-5 h-5" />
-    </button>
-  );
-
   const refreshLabel = refreshStatus === 'running'
     ? 'Refreshing from MusicBrainz…'
     : refreshStatus === 'done'
@@ -365,14 +350,29 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   // Compact header (tablet/desktop only): small cover with the facts beside it, vertically centred
   const compact = !coverExpanded;
-  const headClass = compact ? 'flex flex-col gap-4 md:flex-row md:items-center' : 'flex flex-col gap-4';
+  const headClass = compact ? 'flex flex-col gap-4 md:flex-row md:items-center md:pr-9 xl:pr-0' : 'flex flex-col gap-4';
   const coverWidthClass = compact ? 'w-full md:w-36 xl:w-[168px] md:shrink-0' : 'w-full';
   // Round icons on the cover, slightly smaller and closer to the edge on the compact cover
   const coverIconClass = compact
     ? 'w-8 h-8 md:w-7 md:h-7 grid place-items-center rounded-full bg-background/70'
     : 'w-8 h-8 grid place-items-center rounded-full bg-background/70';
-  const inset = compact ? { tl: 'top-2 md:top-1.5', bl: 'bottom-2 md:bottom-1.5', l: 'left-2 md:left-1.5', r: 'right-2 md:right-1.5', xlTop: 'xl:top-1.5' } : { tl: 'top-2', bl: 'bottom-2', l: 'left-2', r: 'right-2', xlTop: 'xl:top-2' };
+  const inset = compact ? { tl: 'top-2 md:top-1.5', bl: 'bottom-2 md:bottom-1.5', l: 'left-2 md:left-1.5', r: 'right-2 md:right-1.5' } : { tl: 'top-2', bl: 'bottom-2', l: 'left-2', r: 'right-2' };
   const coverIconSize = compact ? 'w-5 h-5 md:w-4 md:h-4' : 'w-5 h-5';
+
+  // Icon-only "close panel" button, never on the cover: right of the cover on large screens; on tablets
+  // top-right beside the compact header (the expanded tablet layout uses Back instead, like phones).
+  // Always shown on touch devices; with a mouse only while the panel is hovered or the button has keyboard focus
+  const closeButton = (
+    <button
+      type="button"
+      onClick={onClose}
+      className={`hidden ${compact ? 'md:grid' : 'xl:grid'} absolute top-0 right-0 xl:-right-9 z-10 w-6 h-6 place-items-center text-text-secondary hover:text-text-primary transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
+      aria-label="Close album details"
+      title="Close (Esc)"
+    >
+      <BiDockRight className="w-5 h-5" />
+    </button>
+  );
 
   return (
     <div
@@ -382,14 +382,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Everything is as wide as the cover; on large screens the close button sits in the space left of it */}
+      {/* Everything is as wide as the cover; on large screens the close button sits in the space right of it */}
       <div className="relative mx-auto w-full max-w-[488px] flex flex-col gap-4">
       {closeButton}
-      {/* Phones: the panel is a full-screen view, closed with Back */}
+      {/* Phones (full-screen view) and the expanded tablet layout: closed with Back */}
       <button
         type="button"
         onClick={onClose}
-        className="md:hidden self-start flex items-center gap-1 text-text-secondary hover:text-text-primary"
+        className={`${compact ? 'md:hidden' : 'xl:hidden'} self-start flex items-center gap-1 text-text-secondary hover:text-text-primary`}
       >
         <BiChevronLeft className="w-6 h-6" />
         Back
@@ -436,14 +436,13 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                   <SiMusicbrainz className={coverIconSize} />
                 </div>
               </a>
-              {/* Larger / smaller cover (tablet and desktop; phones always show the full-width cover). Top-left on
-                  desktop; bottom-left on tablets, where the close icon sits on the cover's top-left corner */}
+              {/* Larger / smaller cover, top-left (tablet and desktop; phones always show the full-width cover) */}
               <button
                 type="button"
                 onClick={toggleCoverExpanded}
                 aria-label={compact ? 'Show large cover' : 'Show small cover'}
                 title={compact ? 'Larger cover' : 'Smaller cover'}
-                className={`hidden md:grid absolute ${inset.bl} ${inset.l} ${inset.xlTop} xl:bottom-auto z-10 ${coverIconClass} text-white/80 hover:text-white transition-opacity focus-visible:opacity-100 group-hover/cover:opacity-100 [@media(hover:hover)]:opacity-0`}
+                className={`hidden md:grid absolute ${inset.tl} ${inset.l} z-10 ${coverIconClass} text-white/80 hover:text-white transition-opacity focus-visible:opacity-100 group-hover/cover:opacity-100 [@media(hover:hover)]:opacity-0`}
               >
                 {compact ? <BiExpandAlt className={coverIconSize} /> : <BiCollapseAlt className={coverIconSize} />}
               </button>
