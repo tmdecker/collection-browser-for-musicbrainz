@@ -285,7 +285,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
     <button
       type="button"
       onClick={onClose}
-      className={`hidden md:grid absolute top-2 left-2 xl:top-0 xl:-left-7 z-10 w-6 h-6 place-items-center text-text-secondary hover:text-text-primary drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] xl:drop-shadow-none transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
+      className={`hidden md:grid absolute top-2 left-2 xl:top-0 xl:-left-9 z-10 w-6 h-6 place-items-center text-text-secondary hover:text-text-primary drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] xl:drop-shadow-none transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
       aria-label="Close album details"
       title="Close (Esc)"
     >
