@@ -175,7 +175,6 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
                       detail={counts[s.id] !== undefined
                         ? `${counts[s.id].toLocaleString()} release group${counts[s.id] === 1 ? '' : 's'}`
                         : s.disambiguation || 'Not opened yet'}
-                      mbUrl={`https://musicbrainz.org/series/${s.id}`}
                       coverId={s.id}
                     />
                   ))}

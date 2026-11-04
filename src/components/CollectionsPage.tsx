@@ -7,7 +7,8 @@
  *   other types are plain rows under "Other collections"
  * - Login and account via the avatar button in the header
  * - Shows the last known list at once (browser copy) and refreshes it in the background
- * - Each row links to its collection page; a MusicBrainz icon opens it on musicbrainz.org
+ * - Each card or row links to its collection page (whose footnote links to musicbrainz.org); rows the app can't open
+ *   have a MusicBrainz icon instead
  * - Cover mosaics, grid or list view (remembered), and a "Recently opened" row
  * - Search filters collection names and the series inside series collections instantly
  * - Open any public collection or series by MBID or musicbrainz.org URL
@@ -339,7 +340,6 @@ export default function CollectionsPage() {
                           href={collectionPath('collection', c.id)}
                           name={c.name}
                           detail={count !== undefined ? countLabel(entityType, count) : ''}
-                          mbUrl={`https://musicbrainz.org/collection/${c.id}`}
                           // Release group collections show their cached covers, series collections one cover per opened series
                           coverId={entityType === 'release_group' ? c.id : undefined}
                           seriesCollection={entityType === 'series'}
@@ -364,7 +364,6 @@ export default function CollectionsPage() {
                         href={`${collectionPath('series', series.id)}?collection=${collectionId}`}
                         name={series.name}
                         detail={`in ${collectionName}`}
-                        mbUrl={`https://musicbrainz.org/series/${series.id}`}
                         coverId={series.id}
                       />
                     ) : (

@@ -6,7 +6,8 @@
  * @ai-features
  * - Grid view: cover mosaic with the name and detail below; list view: one compact row with a small mosaic
  * - Series collections: a stacked edge above the mosaic, one cover per opened series, or the first series names
- * - Unsupported types: plain dimmed rows without a cover
+ * - Unsupported types: plain dimmed rows without a cover, with a MusicBrainz icon (cards and rows of openable ones have none;
+ *   the opened page's footnote links to MusicBrainz)
  * - Grid/list choice remembered in this browser and shared by both pages
  */
 
@@ -79,13 +80,13 @@ export interface TileProps {
   href: string;
   name: string;
   detail: string;
-  mbUrl: string;
   coverId?: string;           // collection or series whose cached covers make the mosaic
   seriesCollection?: boolean;
   series?: SeriesSummary[];   // a series collection's series, if its page was opened in this browser
   count?: number;
 }
 
+/** Only on rows the app can't open: the tiles it can open have the link in the footnote of the opened page */
 function MusicBrainzLink({ name, mbUrl }: { name: string; mbUrl: string }) {
   return (
     <a
@@ -116,7 +117,7 @@ function SeriesNames({ series, count }: { series?: SeriesSummary[]; count?: numb
 }
 
 /** Grid view: cover mosaic with the name and detail below */
-export function TileCard({ href, name, detail, mbUrl, coverId, seriesCollection, series, count }: TileProps) {
+export function TileCard({ href, name, detail, coverId, seriesCollection, series, count }: TileProps) {
   const mosaic = seriesCollection ? (
     // A small stacked edge on top: a collection of series rather than of release groups
     <div className="relative pt-2">
@@ -136,8 +137,6 @@ export function TileCard({ href, name, detail, mbUrl, coverId, seriesCollection,
       <Link href={href} className="block hover:opacity-90 transition-opacity">{mosaic}</Link>
       <div className="mt-2 flex items-center gap-2 min-w-0">
         <Link href={href} className="min-w-0 truncate text-sm font-medium text-text-primary hover:text-white/80">{name}</Link>
-        <span className="ml-auto" />
-        <MusicBrainzLink name={name} mbUrl={mbUrl} />
       </div>
       <div className="text-[13px] text-text-tertiary truncate tabular-nums">{detail}</div>
     </div>
@@ -145,7 +144,7 @@ export function TileCard({ href, name, detail, mbUrl, coverId, seriesCollection,
 }
 
 /** List view: one compact row with a small mosaic */
-export function TileRow({ href, name, detail, mbUrl, coverId, seriesCollection, series, count }: TileProps) {
+export function TileRow({ href, name, detail, coverId, seriesCollection, series, count }: TileProps) {
   return (
     <div className="group flex items-center gap-3 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors pr-4">
       <Link href={href} className="flex-1 min-w-0 flex items-center gap-3.5 py-2 pl-2">
@@ -160,7 +159,6 @@ export function TileRow({ href, name, detail, mbUrl, coverId, seriesCollection, 
         <span className="font-medium truncate text-text-primary">{name}</span>
         <span className="ml-auto text-xs tabular-nums whitespace-nowrap text-text-tertiary">{detail}</span>
       </Link>
-      <MusicBrainzLink name={name} mbUrl={mbUrl} />
     </div>
   );
 }

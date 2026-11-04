@@ -21,6 +21,7 @@ import AlbumDetailsPanel from '@/components/AlbumDetailsPanel';
 import LazyAlbumGrid from '@/components/lazy/LazyAlbumGrid';
 import { useAlbums } from '@/hooks/useAlbums';
 import { useFilters } from '@/hooks/useFilters';
+import { useSeriesHomepage } from '@/hooks/useSeriesHomepage';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/usePreferences';
 import { albumMatchesGenreFilters } from '@/utils/genre-processor';
@@ -203,6 +204,9 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
 
   // The stored name belongs to the stored collection; until it matches the URL, show no name
   const shownCollectionName = prefs.api.collectionId === collectionId ? collectionName : '';
+
+  // A series' official homepage, linked by its domain in the footnote
+  const seriesHomepage = useSeriesHomepage(route.entityType === 'series' ? route.mbid : null);
 
   // Recently opened list on the Collections page
   useEffect(() => {
@@ -433,6 +437,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             count={albumCountLabel}
             musicBrainzUrl={collectionId ? `https://musicbrainz.org/${activeEntityType ?? 'collection'}/${collectionId}` : undefined}
             musicBrainzLabel={`this ${activeEntityType ?? 'collection'}`}
+            homepageUrl={seriesHomepage}
             onNameClick={handleTitleClick}
           />
         )}

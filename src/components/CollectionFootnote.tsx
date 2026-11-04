@@ -1,6 +1,6 @@
 /**
  * @ai-file component
- * @ai-description Floating footnote with the collection's name, count and MusicBrainz link
+ * @ai-description Floating footnote with the collection's name, count, MusicBrainz link and a series' homepage
  * @ai-dependencies React, react-icons
  * @ai-features
  * - Sticks to the bottom-left corner of the content column while the page scrolls (position: sticky),
@@ -10,10 +10,12 @@
  *   window even when the page is short (the parent column is a full-height flex column, this sits at mt-auto)
  * - Optional click handler on the name (scroll to top, close panels)
  * - Bare monochrome MusicBrainz icon, grey to white on hover
+ * - A series' official homepage as its domain name ("bluenote.com"), grey to white on hover like the icon
  */
 
 import React from 'react';
 import { SiMusicbrainz } from 'react-icons/si';
+import { homepageDomain } from '@/utils/series-homepage';
 
 interface CollectionFootnoteProps {
   name: string;
@@ -23,6 +25,8 @@ interface CollectionFootnoteProps {
   musicBrainzUrl?: string;
   /** What the MusicBrainz link opens, for its tooltip ("this collection") */
   musicBrainzLabel?: string;
+  /** Official homepage (series only), shown as its domain name */
+  homepageUrl?: string | null;
   onNameClick?: () => void;
 }
 
@@ -31,6 +35,7 @@ export default function CollectionFootnote({
   count,
   musicBrainzUrl,
   musicBrainzLabel = 'this collection',
+  homepageUrl,
   onNameClick,
 }: CollectionFootnoteProps) {
   return (
@@ -63,6 +68,17 @@ export default function CollectionFootnote({
             aria-label={`Open ${musicBrainzLabel} on MusicBrainz`}
           >
             <SiMusicbrainz size={14} />
+          </a>
+        )}
+        {homepageUrl && (
+          <a
+            href={homepageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 text-text-tertiary hover:text-white transition-colors duration-200"
+            title={`Official homepage: ${homepageUrl}`}
+          >
+            {homepageDomain(homepageUrl)}
           </a>
         )}
       </div>
