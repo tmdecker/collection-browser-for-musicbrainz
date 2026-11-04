@@ -4,7 +4,7 @@
  * @ai-dependencies React, AppMenu, SearchBar, SortDropdown, FilterButton
  * @ai-features
  * - Responsive single row: menu, search, sort, filter; breadcrumb from md up
- * - Breadcrumb "Collections / name" with release group count and a MusicBrainz link
+ * - Breadcrumb "Collections / name"; the title row (PageTitle) carries the count and MusicBrainz link
  * - App menu with auth status, Collections, reload, settings
  * - Glass morphism styling with sticky positioning
  * - Dynamic header heights via CSS variables (64px desktop, 56px mobile)
@@ -12,7 +12,6 @@
 
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import Link from 'next/link';
-import { SiMusicbrainz } from 'react-icons/si';
 import AppMenu from './AppMenu';
 import SearchBar from './SearchBar';
 import SortDropdown, { SortDropdownRef } from './SortDropdown';
@@ -22,10 +21,7 @@ import { SortOption } from '@/types/music';
 interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  totalAlbums: number | string;
-  filteredAlbums: number;
   collectionName: string;
-  collectionId: string;
   sortOption: SortOption;
   setSortOption: (option: SortOption) => void;
   entityType?: 'collection' | 'series';
@@ -43,7 +39,7 @@ interface HeaderProps {
   onReloadCollection?: () => void;
   isReloadingCollection?: boolean;
 
-  // Title click handler
+  // Title click handler (phone menu item with the current name)
   onTitleClick: () => void;
 
 }
@@ -55,10 +51,7 @@ export interface HeaderRef {
 const Header = forwardRef<HeaderRef, HeaderProps>(({
   searchQuery,
   setSearchQuery,
-  totalAlbums,
-  filteredAlbums,
   collectionName,
-  collectionId,
   sortOption,
   setSortOption,
   entityType,
@@ -81,13 +74,6 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   // Calculate the display name
   const displayName = collectionName || 'Music Collection';
 
-  // "1,226 release groups", or "10 of 1,226" while a search or filter narrows the grid
-  const albumCountLabel = typeof totalAlbums === 'number' && totalAlbums > 0
-    ? filteredAlbums < totalAlbums
-      ? `${filteredAlbums.toLocaleString()} of ${totalAlbums.toLocaleString()}`
-      : `${totalAlbums.toLocaleString()} ${totalAlbums === 1 ? 'release group' : 'release groups'}`
-    : null;
-
   return (
     <>
       <header
@@ -105,53 +91,30 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
             parentLink={parentCrumb}
           />
 
-          {/* Breadcrumb: Collections / name; for a series opened from a series collection
-              "collection / series", with "Collections /" in front only on very wide screens */}
-          <Link
-            href="/collections"
-            className={`${parentCrumb ? 'hidden 2xl:inline' : 'hidden md:inline'} text-sm text-white/50 hover:text-white transition-colors flex-shrink-0 !ml-3`}
-          >
-            Collections
-          </Link>
-          <span className={`${parentCrumb ? 'hidden 2xl:inline' : 'hidden md:inline'} text-sm text-white/30 flex-shrink-0`} aria-hidden="true">/</span>
-          {parentCrumb && (
-            <>
-              <Link
-                href={parentCrumb.href}
-                className="hidden md:inline md:!ml-3 2xl:!ml-2 text-sm text-white/50 hover:text-white transition-colors min-w-[2.5rem] truncate shrink-[4]"
-              >
-                {parentCrumb.name}
-              </Link>
-              <span className="hidden md:inline text-sm text-white/30 flex-shrink-0" aria-hidden="true">/</span>
-            </>
-          )}
-          <h1 className="hidden md:flex min-w-0">
-            <button
-              type="button"
-              className="min-w-0 max-w-full text-sm font-bold text-white/70 hover:text-white transition-colors"
-              onClick={onTitleClick}
-              title="Return to top and close panels"
+          {/* Breadcrumb from md: Collections / name; for a series opened from a series collection
+              "collection / series", with "Collections /" in front only on very wide screens.
+              The page's own title, count and MusicBrainz link sit in the title row above the grid. */}
+          <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 !ml-3 text-[15px]">
+            <Link
+              href="/collections"
+              className={`${parentCrumb ? 'hidden 2xl:inline' : 'inline'} text-text-secondary hover:text-white transition-colors flex-shrink-0`}
             >
-              <span className="block truncate">{displayName}</span>
-            </button>
-          </h1>
-          {albumCountLabel && (
-            <span className="hidden md:inline ml-2 text-xs text-text-tertiary tabular-nums whitespace-nowrap flex-shrink-0" aria-live="polite">
-              {albumCountLabel}
-            </span>
-          )}
-          {collectionId && (
-            <a
-              href={`https://musicbrainz.org/${entityType ?? 'collection'}/${collectionId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:inline-flex ml-2 text-text-secondary hover:text-white transition-colors duration-200 flex-shrink-0"
-              title={`Open this ${entityType ?? 'collection'} on MusicBrainz`}
-              aria-label={`Open this ${entityType ?? 'collection'} on MusicBrainz`}
-            >
-              <SiMusicbrainz size={16} />
-            </a>
-          )}
+              Collections
+            </Link>
+            <span className={`${parentCrumb ? 'hidden 2xl:inline' : 'inline'} text-white/30 flex-shrink-0`} aria-hidden="true">/</span>
+            {parentCrumb && (
+              <>
+                <Link
+                  href={parentCrumb.href}
+                  className="text-text-secondary hover:text-white transition-colors min-w-[2.5rem] truncate shrink-[4]"
+                >
+                  {parentCrumb.name}
+                </Link>
+                <span className="text-white/30 flex-shrink-0" aria-hidden="true">/</span>
+              </>
+            )}
+            <span className="min-w-0 truncate font-semibold text-white" aria-current="page">{displayName}</span>
+          </nav>
         </div>
 
         {/* Center: Search Bar (the md grid centers this column) */}

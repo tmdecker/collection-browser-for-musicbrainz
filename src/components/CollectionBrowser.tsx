@@ -14,6 +14,7 @@
 
 import { useEffect, useState, useRef, useMemo, useCallback, Suspense } from 'react';
 import Header, { HeaderRef } from '@/components/Header';
+import PageTitle from '@/components/PageTitle';
 import FilterPanel from '@/components/FilterPanel';
 import ActiveFiltersBar from '@/components/ActiveFiltersBar';
 import AlbumDetailsPanel from '@/components/AlbumDetailsPanel';
@@ -282,6 +283,13 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // "1,226 release groups", or "10 of 1,226" while a search or filter narrows the grid
+  const albumCountLabel = !loading && totalAlbums > 0
+    ? albums.length < totalAlbums
+      ? `${albums.length.toLocaleString()} of ${totalAlbums.toLocaleString()}`
+      : `${totalAlbums.toLocaleString()} ${totalAlbums === 1 ? 'release group' : 'release groups'}`
+    : null;
+
   return (
     <main className="flex min-h-screen flex-col">
       {/* Header, active filters and the filter tray stay pinned together at the top */}
@@ -293,11 +301,8 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
           ref={headerRef}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          totalAlbums={loading ? 'Loading...' : totalAlbums}
-          filteredAlbums={albums.length}
           collectionName={shownCollectionName}
           parentCrumb={parentCrumb}
-          collectionId={collectionId}
           sortOption={sortOption}
           setSortOption={setSortOption}
           entityType={activeEntityType}
@@ -375,7 +380,16 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
 
       {/* Grid and the docked album details side by side: the panel narrows the grid instead of covering it */}
       <div className="flex-1 flex items-start">
-      <div className="flex-1 min-w-0 pt-3">
+      <div className={`flex-1 min-w-0 ${shownCollectionName ? '' : 'pt-4'}`}>
+        {shownCollectionName && (
+          <PageTitle
+            title={shownCollectionName}
+            count={albumCountLabel}
+            musicBrainzUrl={collectionId ? `https://musicbrainz.org/${activeEntityType ?? 'collection'}/${collectionId}` : undefined}
+            musicBrainzLabel={`this ${activeEntityType ?? 'collection'}`}
+            onTitleClick={handleTitleClick}
+          />
+        )}
         <LazyAlbumGrid
           albums={albums}
           selectedAlbum={selectedAlbum}

@@ -366,7 +366,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
     <button
       type="button"
       onClick={onClose}
-      className={`hidden ${compact ? 'md:grid' : 'xl:grid'} absolute top-0 right-0 xl:-right-9 z-10 w-6 h-6 place-items-center text-text-secondary hover:text-text-primary transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
+      className={`hidden ${compact ? 'md:grid' : 'xl:grid'} absolute top-0 right-0 z-10 w-6 h-6 place-items-center text-text-secondary hover:text-text-primary transition-opacity focus-visible:opacity-100 ${isHovered ? '' : '[@media(hover:hover)]:opacity-0'}`}
       aria-label="Close album details"
       title="Close (Esc)"
     >
@@ -376,14 +376,15 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   return (
     <div
-      className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-5 flex flex-col gap-4"
+      className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-6 flex flex-col gap-4"
       role="region"
       aria-label="Album details panel"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Everything is as wide as the cover; on large screens the close button sits in the space right of it */}
-      <div className="relative mx-auto w-full max-w-[488px] flex flex-col gap-4">
+      {/* Content starts 24px from the panel's edges, like the grid covers and the page title; on large screens
+          the close button sits in a narrow column right of the content */}
+      <div className="relative w-full xl:pr-9 flex flex-col gap-4">
       {closeButton}
       {/* Phones (full-screen view) and the expanded tablet layout: closed with Back */}
       <button

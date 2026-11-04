@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { BiCheck, BiError, BiLinkExternal, BiLoaderAlt, BiX } from 'react-icons/bi';
 import { SiMusicbrainz } from 'react-icons/si';
 import AppMenu from './AppMenu';
+import PageTitle from './PageTitle';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/usePreferences';
 import { MusicBrainzCollection } from '@/types/auth';
@@ -144,12 +145,16 @@ export default function CollectionsPage() {
         <header className="relative p-3 md:px-6 md:pt-4 md:pb-4 header-surface">
           <div className="flex items-center gap-2 min-h-[40px] md:min-h-[42px]">
             <AppMenu />
-            <h1 className="ml-1 md:ml-3 text-sm font-bold text-white">Collections</h1>
+            <nav aria-label="Breadcrumb" className="hidden md:flex ml-1 text-[15px]">
+              <span className="font-semibold text-white" aria-current="page">Collections</span>
+            </nav>
           </div>
         </header>
       </div>
 
-      <div className="w-full max-w-3xl px-3 md:px-6 py-6 space-y-8">
+      <div className="w-full max-w-3xl">
+      <PageTitle title="Collections" className="px-3 pt-4 md:px-6 md:pt-6" />
+      <div className="px-3 md:px-6 pt-2 pb-6 space-y-8">
         {/* Open by MBID or URL */}
         <section>
           <label htmlFor="open-by-id" className="block text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">
@@ -260,6 +265,7 @@ export default function CollectionsPage() {
             </button>
           </section>
         )}
+      </div>
       </div>
     </main>
   );

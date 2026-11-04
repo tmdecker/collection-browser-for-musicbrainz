@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BiLoaderAlt } from 'react-icons/bi';
 import { SiMusicbrainz } from 'react-icons/si';
+import PageTitle from './PageTitle';
 import AppMenu from './AppMenu';
 import { usePreferences } from '@/hooks/usePreferences';
 import { collectionPath } from '@/utils/collection-routes';
@@ -80,31 +81,26 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
         <header className="relative p-3 md:px-6 md:pt-4 md:pb-4 header-surface">
           <div className="flex items-center gap-2 min-h-[40px] md:min-h-[42px] min-w-0">
             <AppMenu />
-            <Link href="/collections" className="hidden md:inline text-sm text-white/50 hover:text-white transition-colors flex-shrink-0 ml-1 md:ml-3">
-              Collections
-            </Link>
-            <span className="hidden md:inline text-sm text-white/30 flex-shrink-0" aria-hidden="true">/</span>
-            <h1 className="ml-1 md:ml-0 min-w-0 text-sm font-bold text-white truncate">{name || 'Series collection'}</h1>
-            {series && (
-              <span className="hidden md:inline ml-2 text-xs text-text-tertiary tabular-nums whitespace-nowrap flex-shrink-0">
-                {series.length.toLocaleString()} series
-              </span>
-            )}
-            <a
-              href={`https://musicbrainz.org/collection/${mbid}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden md:inline-flex ml-2 text-text-secondary hover:text-white transition-colors duration-200 flex-shrink-0"
-              title="Open this collection on MusicBrainz"
-              aria-label="Open this collection on MusicBrainz"
-            >
-              <SiMusicbrainz size={16} />
-            </a>
+            <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 ml-1 text-[15px]">
+              <Link href="/collections" className="text-text-secondary hover:text-white transition-colors flex-shrink-0">
+                Collections
+              </Link>
+              <span className="text-white/30 flex-shrink-0" aria-hidden="true">/</span>
+              <span className="min-w-0 truncate font-semibold text-white" aria-current="page">{name || 'Series collection'}</span>
+            </nav>
           </div>
         </header>
       </div>
 
-      <div className="w-full max-w-3xl px-3 md:px-6 py-6">
+      <div className="w-full max-w-3xl">
+      <PageTitle
+        title={name || 'Series collection'}
+        count={series ? `${series.length.toLocaleString()} series` : null}
+        musicBrainzUrl={`https://musicbrainz.org/collection/${mbid}`}
+        musicBrainzLabel="this collection"
+        className="px-3 pt-4 md:px-6 md:pt-6"
+      />
+      <div className="px-3 md:px-6 pt-2 pb-6">
         {loadError ? (
           <p className="text-red-400 text-sm">Couldn&apos;t load the series in this collection: {loadError}</p>
         ) : !sorted ? (
@@ -152,6 +148,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
             })}
           </div>
         )}
+      </div>
       </div>
     </main>
   );
