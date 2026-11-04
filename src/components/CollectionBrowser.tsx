@@ -320,6 +320,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
           setSearchQuery={setSearchQuery}
           collectionName={shownCollectionName}
           parentCrumb={parentCrumb}
+          onTitleClick={handleTitleClick}
           sortOption={sortOption}
           setSortOption={setSortOption}
           entityType={activeEntityType}

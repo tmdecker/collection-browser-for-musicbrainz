@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - The server keeps a copy of each collection's album list (SQLite), so a browser without its own copy (new device, cleared data) loads a large collection in about a second instead of about 30 s. Background refreshes and the Refresh button still load the live list from MusicBrainz and update the copy; a copy whose album count no longer matches the collection is reloaded live. Copies of private collections loaded while signed in are only served to signed-in requests
 
 ### Changed
+- Clicking the collection or series name at the end of the breadcrumb scrolls back to the top and closes panels, like the name in the footnote
 - The collection footnote shows only the name and the release group count; hovering it (or Tab) slides open the series homepage, "MusicBrainz" and "Reload" (reload from MusicBrainz, moved here from the menu). On touch screens a tap opens and closes it, with icons instead of words and without the count while open
 - The menu button is gone. Settings moved into the account button's menu; logged out, the account button is a person icon with "Log in with MusicBrainz" and Settings. On phones a back arrow (to the series collection or to Collections) takes the menu's place
 - The Collections page and series collection pages no longer show a MusicBrainz icon on each card or row; the footnote of the opened collection or series has it. Rows for types the app can't open yet keep the icon

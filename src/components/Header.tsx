@@ -38,6 +38,9 @@ interface HeaderProps {
   // Series collection a series was opened from, shown between "Collections" and the name
   parentCrumb?: { href: string; name: string };
 
+  // Click on the current name in the breadcrumb: back to the top, panels closed (like the footnote name)
+  onTitleClick?: () => void;
+
 }
 
 export interface HeaderRef {
@@ -56,6 +59,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   activeFilterCount,
   hasActiveFilters,
   parentCrumb,
+  onTitleClick,
 }, ref) => {
   const sortDropdownRef = useRef<SortDropdownRef>(null);
 
@@ -109,7 +113,15 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
                 <span className="text-white/30 flex-shrink-0" aria-hidden="true">/</span>
               </>
             )}
-            <span className="min-w-0 truncate font-semibold text-white" aria-current="page">{displayName}</span>
+            <button
+              type="button"
+              onClick={onTitleClick}
+              className="min-w-0 truncate font-semibold text-white hover:text-white/80 transition-colors"
+              aria-current="page"
+              title="Return to top and close panels"
+            >
+              {displayName}
+            </button>
           </nav>
         </div>
 
