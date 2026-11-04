@@ -27,6 +27,10 @@ Album Details:
 
 ![Album Details](docs/screenshots/album-details.jpg)
 
+Album Details with large cover:
+
+![Album Details with large cover](docs/screenshots/album-details-cover.jpg)
+
 Album Grid with Filters:
 
 ![Album Grid with Filters](docs/screenshots/filters.jpg)
