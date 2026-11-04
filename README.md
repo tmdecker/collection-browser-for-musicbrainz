@@ -10,12 +10,12 @@ Next.js-powered collection browser with advanced filtering and streaming integra
 
 ## Features
 
-- Browse MusicBrainz release-group collections, series (e.g., "Rolling Stone 500") and series collections
-- Collections home page with cover mosaics, recently opened collections and search; every collection and series has its own URL
-- Advanced filtering by genres, tags, labels, dates, and ratings with AND/OR logic
-- Streaming service links from MusicBrainz and by barcode (Spotify, Apple Music, Deezer, Tidal, Bandcamp, and more)
-- Optional OAuth for personal collection access
-- Modern design with dark theme
+- Browse MusicBrainz album collections and series collections
+- Collections home page with cover mosaics, recently opened collections and search
+- Advanced filtering by genres, tags, release dates, and ratings
+- Streaming service links (Spotify, Apple Music, Deezer, Tidal, Bandcamp, and more)
+- Plex library links
+- Log in with MusicBrainz to see your private collections
 
 ## Screenshots
 
