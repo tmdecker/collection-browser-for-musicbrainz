@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+- The "Open by MBID or URL" field on the Collections page no longer cuts off its placeholder on phones: it reads "Paste an MBID or URL", and the space for the clear and check icons is only kept while something is typed
+
 ## [0.39.0] - 2026-11-04
 
 ### Added

@@ -215,8 +215,8 @@ export default function CollectionsPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') openValidated(); }}
-            placeholder="Collection or series MBID or URL"
-            className="block w-full h-[42px] pl-4 pr-16 text-sm text-white placeholder:text-white/55 bg-background-control rounded-full border border-white/15 hover:border-white/35 focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-colors"
+            placeholder="Paste an MBID or URL"
+            className={`block w-full h-[42px] pl-4 ${input ? 'pr-16' : 'pr-4'} text-sm text-white placeholder:text-white/55 bg-background-control rounded-full border border-white/15 hover:border-white/35 focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-colors`}
           />
           {input && (
             <button
