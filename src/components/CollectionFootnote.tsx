@@ -5,7 +5,7 @@
  * @ai-features
  * - Sticks to the bottom-left corner of the content column while the page scrolls (position: sticky),
  *   and comes to rest below the last row at the end, so nothing stays hidden under it
- * - Quiet solid dark pill (no transparency or blur, which made Chromium browsers flicker; no border or shadow),
+ * - Solid pill one step lighter than the page (no transparency or blur, which made Chromium browsers flicker; no border or shadow),
  *   whose text lines up with the covers (32px from the left on md+, 18px on phones); at the bottom of the
  *   window even when the page is short (the parent column is a full-height flex column, this sits at mt-auto)
  * - Optional click handler on the name (scroll to top, close panels)
@@ -35,7 +35,7 @@ export default function CollectionFootnote({
 }: CollectionFootnoteProps) {
   return (
     <div className="sticky bottom-4 md:bottom-6 z-20 mt-auto pt-2 mb-4 md:mb-6 mx-1.5 md:mx-[19px] flex pointer-events-none">
-      <div className="pointer-events-auto flex items-center gap-2 min-w-0 max-w-full rounded-full bg-background pl-3 md:pl-[13px] pr-3 py-1.5 text-[13px] text-text-secondary whitespace-nowrap">
+      <div className="pointer-events-auto flex items-center gap-2 min-w-0 max-w-full rounded-full bg-background-control pl-3 md:pl-[13px] pr-3 py-1.5 text-[13px] text-text-secondary whitespace-nowrap">
         {onNameClick ? (
           <button
             type="button"

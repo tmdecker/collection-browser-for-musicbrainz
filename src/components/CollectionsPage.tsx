@@ -3,7 +3,9 @@
  * @ai-description Collections page (home): recently opened, "Open by MBID or URL", and the signed-in user's collections grouped by entity type
  * @ai-dependencies React, Next.js Link and router, AppMenu, useAuth, usePreferences, mbid-validation
  * @ai-features
- * - Groups collections by MusicBrainz entity type; release group and series collections open
+ * - Groups collections by MusicBrainz entity type; release group and series collections open,
+ *   other types are plain rows under "Other collections"
+ * - Login and account via the avatar button in the header
  * - Shows the last known list at once (browser copy) and refreshes it in the background
  * - Each row links to its collection page; a MusicBrainz icon opens it on musicbrainz.org
  * - Cover mosaics, grid or list view (remembered), and a "Recently opened" row
@@ -16,11 +18,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BiCheck, BiCollection, BiError, BiGridAlt, BiLinkExternal, BiListUl, BiLoaderAlt, BiX } from 'react-icons/bi';
-import { SiMusicbrainz } from 'react-icons/si';
+import { BiCheck, BiCollection, BiError, BiLoaderAlt, BiX } from 'react-icons/bi';
 import AppMenu from './AppMenu';
 import CoverMosaic from './CoverMosaic';
 import SearchBar from './SearchBar';
+import UserAvatarButton from './UserAvatarButton';
+import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, foldText, rowListClass, sectionHeadingClass, tileGridClass, useTileView } from './CollectionTiles';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/usePreferences';
 import { MusicBrainzCollection } from '@/types/auth';
@@ -52,14 +55,11 @@ const entityCount = (collection: MusicBrainzCollection): number | undefined => {
   return typeof value === 'number' ? value : undefined;
 };
 
-const VIEW_KEY = 'mb-collections-view';
 const RELEASE_GROUP_SERIES = 'Release group series';
-
-const mbIconClass = 'inline-flex text-text-secondary hover:text-white transition-colors duration-200 flex-shrink-0';
 
 export default function CollectionsPage() {
   const router = useRouter();
-  const { authState, isAuthenticated, user, login } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { preferences } = usePreferences();
   const lastId = preferences.api.collectionId;
   const lastType: EntityType = preferences.metadata.entityType ?? 'collection';
@@ -143,17 +143,7 @@ export default function CollectionsPage() {
   };
 
   // View of the collection sections, remembered in this browser; Recently opened looks the same in both
-  const [view, setView] = useState<'grid' | 'list'>('grid');
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (window.localStorage.getItem(VIEW_KEY) === 'list') setView('list');
-    } catch { /* storage blocked: grid */ }
-  }, []);
-  const chooseView = (next: 'grid' | 'list') => {
-    setView(next);
-    try { window.localStorage.setItem(VIEW_KEY, next); } catch { /* not remembered */ }
-  };
+  const [view, chooseView] = useTileView();
 
   // Recently opened, newest first; before this list existed only the last opened one was remembered
   const [recent, setRecent] = useState<RecentEntry[]>([]);
@@ -203,11 +193,13 @@ export default function CollectionsPage() {
   })();
 
   const showView = isAuthenticated && !loading && !loadError && collections.length > 0;
+  const filtered = (list: MusicBrainzCollection[]) => searching ? list.filter(c => matches(c.name)) : list;
   const visibleGroups = [...groups.entries()]
-    .map(([entityType, list]) => [entityType, searching ? list.filter(c => matches(c.name)) : list] as const)
+    .filter(([entityType]) => SUPPORTED_ENTITY_TYPES.has(entityType))
+    .map(([entityType, list]) => [entityType, filtered(list)] as const)
     .filter(([, list]) => list.length > 0);
-  const gridClass = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-5 gap-y-6';
-  const listClass = 'max-w-3xl space-y-2';
+  // Types the app can't open yet: one section of plain rows, no covers
+  const unsupported = filtered([...groups.entries()].filter(([t]) => !SUPPORTED_ENTITY_TYPES.has(t)).flatMap(([, list]) => list));
 
   const openBox = (
     <section className="w-full lg:w-[340px] lg:flex-none">
@@ -260,17 +252,17 @@ export default function CollectionsPage() {
     <main className="flex min-h-screen flex-col bg-background">
       <div className="sticky top-0 z-30 bg-background">
         <header className="relative p-3 md:px-8 md:pt-4 md:pb-4 header-surface">
-          {/* Same columns as a collection page: menu and breadcrumb, search, view switch */}
-          <div className="flex items-center gap-2 min-h-[40px] md:min-h-[42px] md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:gap-4">
-            <div className="flex items-center min-w-0 flex-shrink-0">
+          {/* Same layout as a collection page: menu and breadcrumb left; search, view switch and account right */}
+          <div className="flex items-center gap-2 md:gap-3 min-h-[40px] md:min-h-[42px]">
+            <div className="flex items-center min-w-0 flex-shrink-0 md:flex-1">
               <AppMenu />
               <nav aria-label="Breadcrumb" className={`${showView ? 'hidden md:flex' : 'flex'} ml-3 text-[15px]`}>
                 <span className="font-semibold text-white" aria-current="page">Collections</span>
               </nav>
             </div>
-            {showView && (
+            {showView ? (
               <>
-                <div className="flex-1 min-w-0 md:w-full md:justify-self-center">
+                <div className="flex-1 min-w-0 md:flex-none md:w-[260px] lg:w-[340px]">
                   <SearchBar
                     value={query}
                     onChange={setQuery}
@@ -280,23 +272,10 @@ export default function CollectionsPage() {
                     clearOnEscape
                   />
                 </div>
-                <div className="flex gap-0.5 p-[3px] rounded-full bg-background-control md:justify-self-end" role="group" aria-label="View">
-                  {(['grid', 'list'] as const).map(v => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => chooseView(v)}
-                      aria-pressed={view === v}
-                      title={v === 'grid' ? 'Grid' : 'List'}
-                      aria-label={v === 'grid' ? 'Grid view' : 'List view'}
-                      className={`w-9 h-9 grid place-items-center rounded-full transition-colors ${view === v ? 'bg-background-tertiary text-white' : 'text-text-tertiary hover:text-white'}`}
-                    >
-                      {v === 'grid' ? <BiGridAlt className="w-[18px] h-[18px]" /> : <BiListUl className="w-5 h-5" />}
-                    </button>
-                  ))}
-                </div>
+                <ViewSwitch view={view} onChange={chooseView} />
               </>
-            )}
+            ) : <span className="flex-1 md:hidden" />}
+            <UserAvatarButton />
           </div>
         </header>
       </div>
@@ -308,12 +287,12 @@ export default function CollectionsPage() {
             {recent.length > 0 && (
               <section className="flex-1 min-w-0">
                 <h2 className={sectionHeadingClass}>Recently opened</h2>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
                   {recent.slice(0, 6).map(entry => (
                     <Link
                       key={`${entry.entityType}:${entry.mbid}`}
                       href={recentHref(entry)}
-                      className="flex items-center gap-3 min-w-0 max-w-full rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors py-2 pl-2 pr-4"
+                      className="flex items-center gap-3 min-w-0 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors py-2 pl-2 pr-4"
                     >
                       <CoverMosaic
                         collectionId={entry.kind === 'series_collection' ? undefined : entry.mbid}
@@ -347,189 +326,89 @@ export default function CollectionsPage() {
             <p className="text-text-secondary text-sm">You have no collections on MusicBrainz yet.</p>
           ) : (
             <>
-              {visibleGroups.map(([entityType, list]) => {
-                const supported = SUPPORTED_ENTITY_TYPES.has(entityType);
-                return (
-                  <section key={entityType}>
-                    <h2 className={sectionHeadingClass}>
-                      {entityLabel(entityType)} collections
-                      <span className={sectionCountClass}>{list.length}</span>
-                    </h2>
-                    <div className={view === 'grid' ? gridClass : listClass}>
-                      {list.map(c => {
-                        const count = entityCount(c);
-                        const series = entityType === 'series' ? seriesLists[c.id] : undefined;
-                        const props: CollectionItemProps = {
-                          href: supported ? collectionPath('collection', c.id) : undefined,
-                          name: c.name,
-                          detail: supported ? (count !== undefined ? countLabel(entityType, count) : '') : `${entityLabel(entityType)} collection · not supported yet`,
-                          mbUrl: `https://musicbrainz.org/collection/${c.id}`,
+              {visibleGroups.map(([entityType, list]) => (
+                <section key={entityType}>
+                  <SectionHeading title={`${entityLabel(entityType)} collections`} count={list.length} />
+                  <div className={view === 'grid' ? tileGridClass : rowListClass}>
+                    {list.map(c => {
+                      const count = entityCount(c);
+                      return (
+                        <Tile
+                          key={c.id}
+                          view={view}
+                          href={collectionPath('collection', c.id)}
+                          name={c.name}
+                          detail={count !== undefined ? countLabel(entityType, count) : ''}
+                          mbUrl={`https://musicbrainz.org/collection/${c.id}`}
                           // Release group collections show their cached covers, series collections one cover per opened series
-                          coverId: entityType === 'release_group' ? c.id : undefined,
-                          seriesCollection: entityType === 'series',
-                          series,
-                          count,
-                        };
-                        return view === 'grid' ? <CollectionCard key={c.id} {...props} /> : <CollectionRow key={c.id} {...props} />;
-                      })}
-                    </div>
-                  </section>
-                );
-              })}
+                          coverId={entityType === 'release_group' ? c.id : undefined}
+                          seriesCollection={entityType === 'series'}
+                          series={entityType === 'series' ? seriesLists[c.id] : undefined}
+                          count={count}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
 
               {/* Series inside series collections that match the search */}
               {matchingSeries.length > 0 && (
                 <section>
-                  <h2 className={sectionHeadingClass}>
-                    Series
-                    <span className={sectionCountClass}>{matchingSeries.length}</span>
-                  </h2>
-                  <div className={view === 'grid' ? gridClass : listClass}>
-                    {matchingSeries.map(({ series, collectionId, collectionName }) => {
-                      const props: CollectionItemProps = {
-                        href: series.type === RELEASE_GROUP_SERIES ? `${collectionPath('series', series.id)}?collection=${collectionId}` : undefined,
-                        name: series.name,
-                        detail: series.type === RELEASE_GROUP_SERIES ? `in ${collectionName}` : `${series.type ?? 'Series'} · not supported yet`,
-                        mbUrl: `https://musicbrainz.org/series/${series.id}`,
-                        coverId: series.id,
-                      };
-                      return view === 'grid' ? <CollectionCard key={series.id} {...props} /> : <CollectionRow key={series.id} {...props} />;
+                  <SectionHeading title="Series" count={matchingSeries.length} />
+                  <div className={view === 'grid' ? tileGridClass : rowListClass}>
+                    {matchingSeries.map(({ series, collectionId, collectionName }) => series.type === RELEASE_GROUP_SERIES ? (
+                      <Tile
+                        key={series.id}
+                        view={view}
+                        href={`${collectionPath('series', series.id)}?collection=${collectionId}`}
+                        name={series.name}
+                        detail={`in ${collectionName}`}
+                        mbUrl={`https://musicbrainz.org/series/${series.id}`}
+                        coverId={series.id}
+                      />
+                    ) : (
+                      <UnsupportedRow
+                        key={series.id}
+                        name={series.name}
+                        detail={`${series.type ?? 'Series'} · not supported yet`}
+                        mbUrl={`https://musicbrainz.org/series/${series.id}`}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {unsupported.length > 0 && (
+                <section>
+                  <SectionHeading title="Other collections" count={unsupported.length} />
+                  <div className={rowListClass}>
+                    {unsupported.map(c => {
+                      const count = entityCount(c);
+                      return (
+                        <UnsupportedRow
+                          key={c.id}
+                          name={c.name}
+                          detail={`${count !== undefined ? `${countLabel(c['entity-type'], count)} · ` : `${entityLabel(c['entity-type'])} collection · `}not supported yet`}
+                          mbUrl={`https://musicbrainz.org/collection/${c.id}`}
+                        />
+                      );
                     })}
                   </div>
                 </section>
               )}
 
-              {searching && visibleGroups.length === 0 && matchingSeries.length === 0 && (
+              {searching && visibleGroups.length === 0 && matchingSeries.length === 0 && unsupported.length === 0 && (
                 <p className="text-text-secondary text-sm">No collections or series match &ldquo;{query.trim()}&rdquo;.</p>
               )}
             </>
           )
-        ) : authState.status !== 'authenticating' && (
-          <section className="max-w-3xl rounded-2xl bg-background-secondary p-5">
-            <h2 className="text-base font-semibold text-text-primary mb-1">Your collections</h2>
-            <p className="text-sm text-text-secondary mb-4">Log in with your MusicBrainz account to see your collections, including private ones.</p>
-            <button
-              type="button"
-              onClick={login}
-              className="inline-flex items-center gap-2 px-6 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
-            >
-              Login with MusicBrainz
-              <BiLinkExternal size={14} />
-            </button>
-          </section>
+        ) : (
+          <p className="text-text-secondary text-sm">Log in (top right) to see your MusicBrainz collections, including private ones.</p>
         )}
       </div>
     </main>
   );
 }
 
-// Case- and accent-insensitive text for the name filter
-const foldText = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-const sectionHeadingClass = 'text-lg font-semibold text-text-primary mb-3';
-const sectionCountClass = 'ml-2 text-sm font-normal text-text-tertiary tabular-nums';
-
-interface CollectionItemProps {
-  href?: string;          // missing: entity type the app can't show yet
-  name: string;
-  detail: string;
-  mbUrl: string;
-  coverId?: string;       // collection whose cached covers make the mosaic
-  seriesCollection?: boolean;
-  series?: SeriesSummary[]; // a series collection's series, if its page was opened in this browser
-  count?: number;
-}
-
-/** Empty series collection tile: the first series names, or an icon when they aren't known yet */
-function SeriesNames({ series, count }: { series?: SeriesSummary[]; count?: number }) {
-  if (!series || series.length === 0) return <BiCollection className="w-8 h-8" />;
-  const total = count ?? series.length;
-  return (
-    <div className="self-stretch justify-self-stretch flex flex-col justify-end p-4 text-left">
-      {series.slice(0, 3).map((s, i) => (
-        <span key={s.id} className={`block truncate text-[13px] text-text-secondary py-1.5 ${i > 0 ? 'border-t border-white/[0.07]' : ''}`}>{s.name}</span>
-      ))}
-      {total > 3 && <span className="text-xs text-text-tertiary pt-1">+ {(total - 3).toLocaleString()} more</span>}
-    </div>
-  );
-}
-
-function MusicBrainzLink({ name, mbUrl }: { name: string; mbUrl: string }) {
-  return (
-    <a
-      href={mbUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`${mbIconClass} md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100`}
-      title="Open on MusicBrainz"
-      aria-label={`Open ${name} on MusicBrainz`}
-    >
-      <SiMusicbrainz size={16} />
-    </a>
-  );
-}
-
-/** Grid view: cover mosaic with the name and count below */
-function CollectionCard({ href, name, detail, mbUrl, coverId, seriesCollection, series, count }: CollectionItemProps) {
-  const mosaic = seriesCollection ? (
-    // A small stacked edge on top: a collection of series rather than of release groups
-    <div className="relative pt-2">
-      <span className="absolute top-0 inset-x-3 h-1 rounded-t bg-white/[0.12]" aria-hidden="true" />
-      <span className="absolute top-1 inset-x-1.5 h-1 rounded-t bg-white/[0.18]" aria-hidden="true" />
-      <CoverMosaic
-        seriesIds={series?.map(s => s.id)}
-        className="relative aspect-square w-full rounded-lg"
-        emptyIcon={<SeriesNames series={series} count={count} />}
-      />
-    </div>
-  ) : (
-    <CoverMosaic
-      collectionId={coverId}
-      className="aspect-square w-full rounded-lg"
-      emptyIcon={href ? <BiCollection className="w-8 h-8" /> : undefined}
-    />
-  );
-  return (
-    <div className={`group min-w-0 ${href ? '' : 'opacity-50'}`}>
-      {href ? <Link href={href} className="block hover:opacity-90 transition-opacity">{mosaic}</Link> : mosaic}
-      <div className="mt-2 flex items-center gap-2 min-w-0">
-        {href ? (
-          <Link href={href} className="min-w-0 truncate text-sm font-medium text-text-primary hover:text-white/80">{name}</Link>
-        ) : (
-          <span className="min-w-0 truncate text-sm font-medium text-text-tertiary">{name}</span>
-        )}
-        <span className="ml-auto" />
-        <MusicBrainzLink name={name} mbUrl={mbUrl} />
-      </div>
-      <div className="text-[13px] text-text-tertiary truncate tabular-nums">{detail}</div>
-    </div>
-  );
-}
-
-/** List view: one compact row with a small mosaic */
-function CollectionRow({ href, name, detail, mbUrl, coverId, seriesCollection, series, count }: CollectionItemProps) {
-  const body = (
-    <>
-      <CoverMosaic
-        collectionId={seriesCollection ? undefined : coverId}
-        seriesIds={seriesCollection ? series?.map(s => s.id) : undefined}
-        className="w-11 h-11 rounded-md flex-shrink-0"
-        emptyIcon={!href ? undefined : seriesCollection && count !== undefined
-          ? <span className="text-xs tabular-nums">{count.toLocaleString()}</span>
-          : <BiCollection className="w-5 h-5" />}
-      />
-      <span className={`font-medium truncate ${href ? 'text-text-primary' : 'text-text-tertiary'}`}>{name}</span>
-      <span className={`ml-auto text-xs tabular-nums whitespace-nowrap ${href ? 'text-text-tertiary' : 'text-text-tertiary/70'}`}>{detail}</span>
-    </>
-  );
-  return (
-    <div className={`group flex items-center gap-3 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors pr-4 ${href ? '' : 'opacity-70'}`}>
-      {href ? (
-        <Link href={href} className="flex-1 min-w-0 flex items-center gap-3.5 py-2 pl-2">{body}</Link>
-      ) : (
-        <div className="flex-1 min-w-0 flex items-center gap-3.5 py-2 pl-2 cursor-default">{body}</div>
-      )}
-      <MusicBrainzLink name={name} mbUrl={mbUrl} />
-    </div>
-  );
-}

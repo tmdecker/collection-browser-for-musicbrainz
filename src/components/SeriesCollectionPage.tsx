@@ -3,9 +3,10 @@
  * @ai-description A series collection: the series in it, each opening its release group grid
  * @ai-dependencies React, Next.js Link, AppMenu, usePreferences, collection-info
  * @ai-features
- * - Breadcrumb "Collections / name", series count and a MusicBrainz link, like the collection header
- * - Release group series open at /series/<mbid>?collection=<mbid> (for the breadcrumb back);
- *   other series types (work, event, …) are listed but can't be opened yet
+ * - Same header as the Collections page: breadcrumb, series name search, grid/list switch, account button
+ * - Each release group series as a cover mosaic card or a compact row (covers and counts from series opened
+ *   in this browser); other series types (work, event, …) as plain rows under "Other series"
+ * - Release group series open at /series/<mbid>?collection=<mbid> (for the breadcrumb back)
  * - Shows the last known list at once and refreshes it in the background
  * - Remembered as the last opened collection, so / comes back here
  */
@@ -15,9 +16,12 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BiLoaderAlt } from 'react-icons/bi';
-import { SiMusicbrainz } from 'react-icons/si';
 import CollectionFootnote from './CollectionFootnote';
 import AppMenu from './AppMenu';
+import SearchBar from './SearchBar';
+import UserAvatarButton from './UserAvatarButton';
+import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, foldText, rowListClass, tileGridClass, useTileView } from './CollectionTiles';
+import { getCollectionMetadata } from '@/utils/db';
 import { usePreferences } from '@/hooks/usePreferences';
 import { collectionPath } from '@/utils/collection-routes';
 import { readCachedSeries, writeCachedSeries, SeriesSummary } from '@/utils/collection-info';
@@ -79,73 +83,121 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
     return () => { cancelled = true; };
   }, [mbid]);
 
-  const sorted = series ? [...series].sort((a, b) => a.name.localeCompare(b.name)) : null;
+  // Release group counts of series opened in this browser (from the cache, no MusicBrainz requests)
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!series) return;
+    let cancelled = false;
+    Promise.all(series.filter(s => s.type === RELEASE_GROUP_SERIES).map(async s => {
+      try {
+        const metadata = await getCollectionMetadata(s.id);
+        return metadata ? [s.id, metadata.albumIds.length] as const : null;
+      } catch {
+        return null;
+      }
+    })).then(entries => {
+      if (cancelled) return;
+      setCounts(Object.fromEntries(entries.filter((e): e is readonly [string, number] => e !== null)));
+    });
+    return () => { cancelled = true; };
+  }, [series]);
+
+  const [view, chooseView] = useTileView();
+  const [query, setQuery] = useState('');
+  const needle = foldText(query.trim());
+  const sorted = series
+    ? [...series].filter(s => !needle || foldText(s.name).includes(needle)).sort((a, b) => a.name.localeCompare(b.name))
+    : null;
+  const openable = sorted?.filter(s => s.type === RELEASE_GROUP_SERIES) ?? [];
+  const other = sorted?.filter(s => s.type !== RELEASE_GROUP_SERIES) ?? [];
+  const showControls = !!series && series.length > 0;
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
       <div className="sticky top-0 z-30 bg-background">
         <header className="relative p-3 md:px-8 md:pt-4 md:pb-4 header-surface">
-          <div className="flex items-center gap-2 min-h-[40px] md:min-h-[42px] min-w-0">
-            <AppMenu />
-            <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 ml-1 text-[15px]">
-              <Link href="/collections" className="text-text-secondary hover:text-white transition-colors flex-shrink-0">
-                Collections
-              </Link>
-              <span className="text-white/30 flex-shrink-0" aria-hidden="true">/</span>
-              <span className="min-w-0 truncate font-semibold text-white" aria-current="page">{name || 'Series collection'}</span>
-            </nav>
+          {/* Same layout as the other pages: menu and breadcrumb left; search, view switch and account right */}
+          <div className="flex items-center gap-2 md:gap-3 min-h-[40px] md:min-h-[42px]">
+            <div className="flex items-center min-w-0 flex-shrink-0 md:flex-1">
+              <AppMenu />
+              <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 ml-3 text-[15px]">
+                <Link href="/collections" className="text-text-secondary hover:text-white transition-colors flex-shrink-0">
+                  Collections
+                </Link>
+                <span className="text-white/30 flex-shrink-0" aria-hidden="true">/</span>
+                <span className="min-w-0 truncate font-semibold text-white" aria-current="page">{name || 'Series collection'}</span>
+              </nav>
+            </div>
+            {showControls ? (
+              <>
+                <div className="flex-1 min-w-0 md:flex-none md:w-[260px] lg:w-[340px]">
+                  <SearchBar
+                    value={query}
+                    onChange={setQuery}
+                    placeholder="Search series"
+                    id="series-search"
+                    ariaLabel="Search series"
+                    clearOnEscape
+                  />
+                </div>
+                <ViewSwitch view={view} onChange={chooseView} />
+              </>
+            ) : <span className="flex-1 md:hidden" />}
+            <UserAvatarButton />
           </div>
         </header>
       </div>
 
       <div className="flex-1 w-full flex flex-col">
-      <div className="max-w-3xl px-3 md:px-8 pt-4 md:pt-8 pb-2">
+      <div className="w-full px-3 md:px-8 pt-6 md:pt-8 pb-2 space-y-9">
         {loadError ? (
           <p className="text-red-400 text-sm">Couldn&apos;t load the series in this collection: {loadError}</p>
         ) : !sorted ? (
           <div className="flex items-center gap-3 text-text-secondary py-6">
             <BiLoaderAlt className="w-5 h-5 animate-spin" /> Loading series…
           </div>
-        ) : sorted.length === 0 ? (
+        ) : series && series.length === 0 ? (
           <p className="text-text-secondary text-sm">This collection has no series yet.</p>
+        ) : sorted.length === 0 ? (
+          <p className="text-text-secondary text-sm">No series match &ldquo;{query.trim()}&rdquo;.</p>
         ) : (
-          <div className="space-y-2">
-            {sorted.map(s => {
-              const supported = s.type === RELEASE_GROUP_SERIES;
-              const label = (
-                <>
-                  <span className={`font-medium truncate ${supported ? 'text-text-primary' : 'text-text-tertiary'}`}>{s.name}</span>
-                  {s.disambiguation && <span className="text-xs text-text-tertiary truncate">{s.disambiguation}</span>}
-                  {!supported && (
-                    <span className="ml-auto text-xs text-text-tertiary/70 whitespace-nowrap">
-                      {s.type ? `${s.type} · ` : ''}not supported yet
-                    </span>
-                  )}
-                </>
-              );
-              return (
-                <div key={s.id} className="group flex items-center gap-3 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors pr-4">
-                  {supported ? (
-                    <Link href={`${collectionPath('series', s.id)}?collection=${mbid}`} className="flex-1 min-w-0 flex items-center gap-3 py-3 pl-4">
-                      {label}
-                    </Link>
-                  ) : (
-                    <div className="flex-1 min-w-0 flex items-center gap-3 py-3 pl-4 cursor-default">{label}</div>
-                  )}
-                  <a
-                    href={`https://musicbrainz.org/series/${s.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex text-text-secondary hover:text-white transition-colors duration-200 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
-                    title="Open on MusicBrainz"
-                    aria-label={`Open ${s.name} on MusicBrainz`}
-                  >
-                    <SiMusicbrainz size={16} />
-                  </a>
+          <>
+            {openable.length > 0 && (
+              <section>
+                <SectionHeading title="Release group series" count={openable.length} />
+                <div className={view === 'grid' ? tileGridClass : rowListClass}>
+                  {openable.map(s => (
+                    <Tile
+                      key={s.id}
+                      view={view}
+                      href={`${collectionPath('series', s.id)}?collection=${mbid}`}
+                      name={s.name}
+                      detail={counts[s.id] !== undefined
+                        ? `${counts[s.id].toLocaleString()} release group${counts[s.id] === 1 ? '' : 's'}`
+                        : s.disambiguation || 'Not opened yet'}
+                      mbUrl={`https://musicbrainz.org/series/${s.id}`}
+                      coverId={s.id}
+                    />
+                  ))}
                 </div>
-              );
-            })}
-          </div>
+              </section>
+            )}
+            {other.length > 0 && (
+              <section>
+                <SectionHeading title="Other series" count={other.length} />
+                <div className={rowListClass}>
+                  {other.map(s => (
+                    <UnsupportedRow
+                      key={s.id}
+                      name={s.name}
+                      detail={`${s.type ? `${s.type} · ` : ''}not supported yet`}
+                      mbUrl={`https://musicbrainz.org/series/${s.id}`}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
       <CollectionFootnote

@@ -3,7 +3,7 @@
  * @ai-description App menu (round button + dropdown) shared by the collection header and the Collections page
  * @ai-dependencies React, Next.js Link and navigation, useAuth, Toast
  * @ai-features
- * - Login/logout with the MusicBrainz account, Collections, Settings
+ * - Collections, Settings; login/logout only on phones on collection pages (elsewhere the avatar button handles it)
  * - Optional "Reload from MusicBrainz" for the collection on screen
  * - On phones, the current collection name as the first item and a link back to the series
  *   collection a series was opened from (the header hides the breadcrumb there)
@@ -28,9 +28,11 @@ interface AppMenuProps {
   isReloadingCollection?: boolean;
   // Series collection a series was opened from: a link back to it on phones
   parentLink?: { href: string; name: string };
+  // Login/logout on phones, where this page's header has no avatar button
+  showAccountOnPhones?: boolean;
 }
 
-export default function AppMenu({ currentName, onCurrentNameClick, onReloadCollection, isReloadingCollection = false, parentLink }: AppMenuProps) {
+export default function AppMenu({ currentName, onCurrentNameClick, onReloadCollection, isReloadingCollection = false, parentLink, showAccountOnPhones = false }: AppMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -134,9 +136,9 @@ export default function AppMenu({ currentName, onCurrentNameClick, onReloadColle
             </Link>
           )}
 
-          {/* Authentication Section */}
-          {isAuthenticated && user ? (
-            <div className="w-full flex items-center justify-between px-4 py-3 border-b border-white/10">
+          {/* Account - on phones only where the header has no avatar button */}
+          {showAccountOnPhones && (isAuthenticated && user ? (
+            <div className="md:hidden w-full flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center space-x-3 min-w-0">
                 <BiUserCheck className="text-primary flex-shrink-0" size={20} />
                 <a
@@ -167,7 +169,7 @@ export default function AppMenu({ currentName, onCurrentNameClick, onReloadColle
                 login();
                 setMenuOpen(false);
               }}
-              className={itemClass}
+              className={`md:hidden ${itemClass}`}
             >
               <BiUserX className="text-white/70 flex-shrink-0" size={20} />
               <span className="text-white font-medium inline-flex items-center gap-1">
@@ -175,7 +177,7 @@ export default function AppMenu({ currentName, onCurrentNameClick, onReloadColle
                 <BiLinkExternal className="flex-shrink-0" size={12} />
               </span>
             </button>
-          )}
+          ))}
 
           <Link href="/collections" onClick={() => setMenuOpen(false)} className={itemClass}>
             <BiCollection className="text-white/70 flex-shrink-0" size={20} />
