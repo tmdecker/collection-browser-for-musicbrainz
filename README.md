@@ -10,7 +10,8 @@ Next.js-powered collection browser with advanced filtering and streaming integra
 
 ## Features
 
-- Browse MusicBrainz release-group collections and series (e.g., "Rolling Stone 500")
+- Browse MusicBrainz release-group collections, series (e.g., "Rolling Stone 500") and series collections
+- Collections home page with cover mosaics, recently opened collections and search; every collection and series has its own URL
 - Advanced filtering by genres, tags, labels, dates, and ratings with AND/OR logic
 - Streaming service links from MusicBrainz and by barcode (Spotify, Apple Music, Deezer, Tidal, Bandcamp, and more)
 - Optional OAuth for personal collection access
@@ -100,14 +101,14 @@ pm2 save
 
 ## Using the Application
 
-1. Open the application in your browser
-2. Enter a public MusicBrainz collection or series ID/URL directly on the welcome screen
-3. Or click "Login with MusicBrainz" to access your personal collections
-4. Use the Browse Collections panel (menu button) to switch between collections
-5. Apply filters to narrow down albums by genre, label, date, or rating
-6. Use Settings (menu) to choose which streaming services are shown, open Spotify, Tidal or Apple Music in their desktop apps, switch between community and personal ratings, and watch the server cache status
+1. Open the application in your browser. The Collections page is the home screen
+2. Log in with MusicBrainz (account button, top right) to see your own collections, or use "Open by MBID or URL" for any public collection or series
+3. Use the breadcrumb ("Collections / name") to go back; on phones, the back arrow
+4. Apply filters to narrow down albums by genre, label, date, or rating
+5. The footnote in the bottom-left corner shows the collection name and count. Hover it (tap on touch screens) for the series homepage, the MusicBrainz link and "Reload" (reload the collection from MusicBrainz)
+6. Open Settings from the account button's menu to choose which streaming services are shown, open Spotify, Tidal or Apple Music in their desktop apps, switch between community and personal ratings, and watch the server cache status
 
-Settings and the active collection are stored in your browser (localStorage).
+Settings and recently opened collections are stored in your browser (localStorage).
 
 ## Environment Variables
 
@@ -141,7 +142,7 @@ Register at <https://musicbrainz.org/account/applications/register> to get OAuth
 - React 19
 - TypeScript
 - Tailwind CSS
-- IndexedDB for caching
+- IndexedDB (browser) and SQLite (server) for caching
 - react-icons (Boxicons)
 
 ## Documentation
