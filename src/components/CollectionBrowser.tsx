@@ -327,9 +327,6 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
           toggleFilterPanel={toggleFilterPanel}
           activeFilterCount={activeFilterCount}
           hasActiveFilters={hasActiveFilters}
-          onReloadCollection={handleRefreshCollection}
-          isReloadingCollection={isRefreshing}
-          onTitleClick={handleTitleClick}
         />
       </Suspense>
 
@@ -439,6 +436,8 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             musicBrainzLabel={`this ${activeEntityType ?? 'collection'}`}
             homepageUrl={seriesHomepage}
             onNameClick={handleTitleClick}
+            onReload={collectionId ? handleRefreshCollection : undefined}
+            isReloading={isRefreshing}
           />
         )}
     </div>

@@ -1,7 +1,7 @@
 /**
  * @ai-file component
  * @ai-description A series collection: the series in it, each opening its release group grid
- * @ai-dependencies React, Next.js Link, AppMenu, usePreferences, collection-info
+ * @ai-dependencies React, Next.js Link, usePreferences, collection-info
  * @ai-features
  * - Same header as the Collections page: breadcrumb, series name search, grid/list switch, account button
  * - Each release group series as a cover mosaic card or a compact row (covers and counts from series opened
@@ -15,9 +15,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { BiLoaderAlt } from 'react-icons/bi';
+import { BiArrowBack, BiLoaderAlt } from 'react-icons/bi';
 import CollectionFootnote from './CollectionFootnote';
-import AppMenu from './AppMenu';
+import AuthResultToast from './AuthResultToast';
 import SearchBar from './SearchBar';
 import UserAvatarButton from './UserAvatarButton';
 import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, foldText, rowListClass, tileGridClass, useTileView } from './CollectionTiles';
@@ -114,13 +114,22 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
+      <AuthResultToast />
       <div className="sticky top-0 z-30 bg-background">
         <header className="relative p-3 md:px-8 md:pt-4 md:pb-4 header-surface">
-          {/* Same layout as the other pages: menu and breadcrumb left; search, view switch and account right */}
+          {/* Same layout as the other pages: breadcrumb left; search, view switch and account right */}
           <div className="flex items-center gap-2 md:gap-3 min-h-[40px] md:min-h-[42px]">
             <div className="flex items-center min-w-0 flex-shrink-0 md:flex-1">
-              <AppMenu />
-              <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 ml-3 text-[15px]">
+              {/* Phones have no breadcrumb: a back arrow to Collections */}
+              <Link
+                href="/collections"
+                className="md:hidden p-2 rounded-full bg-background-control hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
+                title="Back to Collections"
+                aria-label="Back to Collections"
+              >
+                <BiArrowBack className="w-5 h-5" />
+              </Link>
+              <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 text-[15px]">
                 <Link href="/collections" className="text-text-secondary hover:text-white transition-colors flex-shrink-0">
                   Collections
                 </Link>

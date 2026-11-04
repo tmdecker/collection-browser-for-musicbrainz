@@ -1,7 +1,7 @@
 /**
  * @ai-file component
  * @ai-description Collections page (home): recently opened, "Open by MBID or URL", and the signed-in user's collections grouped by entity type
- * @ai-dependencies React, Next.js Link and router, AppMenu, useAuth, usePreferences, mbid-validation
+ * @ai-dependencies React, Next.js Link and router, useAuth, usePreferences, mbid-validation
  * @ai-features
  * - Groups collections by MusicBrainz entity type; release group and series collections open,
  *   other types are plain rows under "Other collections"
@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BiCheck, BiCollection, BiError, BiLoaderAlt, BiX } from 'react-icons/bi';
-import AppMenu from './AppMenu';
+import AuthResultToast from './AuthResultToast';
 import CoverMosaic from './CoverMosaic';
 import SearchBar from './SearchBar';
 import UserAvatarButton from './UserAvatarButton';
@@ -251,13 +251,13 @@ export default function CollectionsPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
+      <AuthResultToast />
       <div className="sticky top-0 z-30 bg-background">
         <header className="relative p-3 md:px-8 md:pt-4 md:pb-4 header-surface">
-          {/* Same layout as a collection page: menu and breadcrumb left; search, view switch and account right */}
+          {/* Same layout as a collection page: breadcrumb left; search, view switch and account right */}
           <div className="flex items-center gap-2 md:gap-3 min-h-[40px] md:min-h-[42px]">
             <div className="flex items-center min-w-0 flex-shrink-0 md:flex-1">
-              <AppMenu />
-              <nav aria-label="Breadcrumb" className={`${showView ? 'hidden md:flex' : 'flex'} ml-3 text-[15px]`}>
+              <nav aria-label="Breadcrumb" className={`${showView ? 'hidden md:flex' : 'flex'} text-[15px]`}>
                 <span className="font-semibold text-white" aria-current="page">Collections</span>
               </nav>
             </div>

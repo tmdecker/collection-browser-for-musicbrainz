@@ -1,18 +1,20 @@
 /**
  * @ai-file component
- * @ai-description Collection header with menu, breadcrumb, search, sort, and filter
- * @ai-dependencies React, AppMenu, SearchBar, SortDropdown, FilterButton
+ * @ai-description Collection header with breadcrumb (back arrow on phones), search, sort, filter and account button
+ * @ai-dependencies React, SearchBar, SortDropdown, FilterButton, UserAvatarButton, AuthResultToast
  * @ai-features
- * - Responsive single row: menu and breadcrumb (from md) left; search, sort, filter and account button (from md) right
- * - Breadcrumb "Collections / name"; a floating footnote (CollectionFootnote) carries the name, count and MusicBrainz link
- * - App menu with auth status, Collections, reload, settings
+ * - Responsive single row: breadcrumb (from md) or a back arrow (phones) left; search, sort, filter and account button (from md) right
+ * - Breadcrumb "Collections / name"; a floating footnote (CollectionFootnote) carries the name, count, MusicBrainz link and reload
+ * - Phones: back arrow to the series collection a series was opened from, else to Collections (no breadcrumb there)
+ * - Settings, login and logout live in the account button's menu
  * - Glass morphism styling with sticky positioning
  * - Dynamic header heights via CSS variables (64px desktop, 56px mobile)
  */
 
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import Link from 'next/link';
-import AppMenu from './AppMenu';
+import { BiArrowBack } from 'react-icons/bi';
+import AuthResultToast from './AuthResultToast';
 import SearchBar from './SearchBar';
 import UserAvatarButton from './UserAvatarButton';
 import SortDropdown, { SortDropdownRef } from './SortDropdown';
@@ -36,13 +38,6 @@ interface HeaderProps {
   // Series collection a series was opened from, shown between "Collections" and the name
   parentCrumb?: { href: string; name: string };
 
-  // Reload the collection from MusicBrainz (menu item)
-  onReloadCollection?: () => void;
-  isReloadingCollection?: boolean;
-
-  // Title click handler (phone menu item with the current name)
-  onTitleClick: () => void;
-
 }
 
 export interface HeaderRef {
@@ -60,10 +55,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   toggleFilterPanel,
   activeFilterCount,
   hasActiveFilters,
-  onReloadCollection,
-  isReloadingCollection,
   parentCrumb,
-  onTitleClick,
 }, ref) => {
   const sortDropdownRef = useRef<SortDropdownRef>(null);
 
@@ -77,26 +69,28 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
 
   return (
     <>
+      <AuthResultToast />
       <header
         className="relative z-30 p-3 md:px-8 md:pt-4 md:pb-4 header-surface"
       >
-      {/* One row: menu and breadcrumb on the left; search, sort, filter and the account button on the right.
+      {/* One row: breadcrumb (back arrow on phones) on the left; search, sort, filter and the account button on the right.
           The breadcrumb only shows from md; on phones the search fills the row. */}
       <div className="flex items-center gap-2 md:gap-3 w-full">
         <div className="flex items-center min-w-0 flex-shrink-0 md:flex-1">
-          <AppMenu
-            currentName={displayName}
-            onCurrentNameClick={onTitleClick}
-            onReloadCollection={onReloadCollection}
-            isReloadingCollection={isReloadingCollection}
-            parentLink={parentCrumb}
-            showAccountOnPhones
-          />
+          {/* Phones have no breadcrumb: a back arrow to the series collection or to Collections */}
+          <Link
+            href={parentCrumb?.href ?? '/collections'}
+            className="md:hidden p-2 rounded-full bg-background-control hover:bg-white/20 text-white/75 hover:text-white transition-colors border border-white/15 hover:border-white/35 flex-shrink-0"
+            title={`Back to ${parentCrumb?.name ?? 'Collections'}`}
+            aria-label={`Back to ${parentCrumb?.name ?? 'Collections'}`}
+          >
+            <BiArrowBack className="w-5 h-5" />
+          </Link>
 
           {/* Breadcrumb from md: Collections / name, or "Collections / collection / series" for a series
               opened from a series collection ("Collections /" from lg there).
               The name, count and MusicBrainz link also float in the grid's bottom-left corner. */}
-          <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 ml-3 text-[15px]">
+          <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 text-[15px]">
             <Link
               href="/collections"
               className={`${parentCrumb ? 'hidden lg:inline' : 'inline'} text-text-secondary hover:text-white transition-colors flex-shrink-0`}
