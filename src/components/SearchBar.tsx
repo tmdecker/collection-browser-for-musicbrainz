@@ -15,12 +15,19 @@ interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  id?: string;
+  ariaLabel?: string;
+  /** Escape empties the field */
+  clearOnEscape?: boolean;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChange,
-  placeholder = 'Search release groups, artists...'
+  placeholder = 'Search release groups, artists...',
+  id = 'music-search',
+  ariaLabel = 'Search for albums and artists',
+  clearOnEscape = false,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dynamicPlaceholder, setDynamicPlaceholder] = useState(placeholder);
@@ -74,13 +81,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
       <input
         ref={inputRef}
         type="search"
-        id="music-search"
-        name="music-search"
+        id={id}
+        name={id}
         className="block w-full pl-10 sm:pl-12 pr-2 sm:pr-3 py-2.5 text-sm text-white placeholder:text-white/55 bg-background-control rounded-full transition-all duration-200 ease-in-out border border-white/15 hover:bg-white/20 hover:border-white/35 focus:ring-2 focus:ring-primary focus:border-primary focus:bg-white/20 focus:outline-none"
         placeholder={dynamicPlaceholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        aria-label="Search for albums and artists"
+        onKeyDown={clearOnEscape ? (e) => { if (e.key === 'Escape' && value) { e.preventDefault(); onChange(''); } } : undefined}
+        aria-label={ariaLabel}
         autoComplete="off"
       />
     </div>

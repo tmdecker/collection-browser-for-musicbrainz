@@ -4,6 +4,7 @@
  * @ai-dependencies React, CoverArtImage, IndexedDB cache (utils/db)
  * @ai-features
  * - Reads the collection's cached release group list (no MusicBrainz requests); picks the first four with a cover
+ * - Series collections: one cover from each series opened in this browser, filled up with more from the same series
  * - Same cover URLs and size as the grid, so the browser usually has them already
  * - Plain tiles (with an optional icon) when nothing is cached yet, e.g. a collection never opened in this browser
  */
@@ -15,6 +16,8 @@ import { getCollectionMetadata, getReleaseGroup } from '@/utils/db';
 interface CoverMosaicProps {
   /** Collection or series MBID whose cached release groups to show; nothing for a series collection */
   collectionId?: string;
+  /** Series of a series collection: one cover from each, instead of collectionId */
+  seriesIds?: string[];
   className?: string;
   /** Shown in the empty mosaic */
   emptyIcon?: React.ReactNode;
@@ -41,15 +44,41 @@ async function loadCovers(collectionId: string): Promise<string[]> {
   return covers;
 }
 
-export default function CoverMosaic({ collectionId, className = '', emptyIcon }: CoverMosaicProps) {
-  const [covers, setCovers] = useState<string[]>(() => (collectionId && coverCache.get(collectionId)) || []);
+// One cover from each series first; with fewer than four series, more covers of the same series fill the rest
+async function loadSeriesCovers(seriesIds: string[]): Promise<string[]> {
+  const key = `series:${seriesIds.join(',')}`;
+  const cached = coverCache.get(key);
+  if (cached) return cached;
+  const perSeries: string[][] = [];
+  for (const id of seriesIds.slice(0, 16)) {
+    const list = await loadCovers(id);
+    if (list.length > 0) perSeries.push(list);
+    if (perSeries.length === 4) break;
+  }
+  const covers: string[] = [];
+  for (let round = 0; round < 4 && covers.length < 4; round++) {
+    for (const list of perSeries) {
+      const cover = list[round];
+      if (cover && !covers.includes(cover)) covers.push(cover);
+      if (covers.length === 4) break;
+    }
+  }
+  coverCache.set(key, covers);
+  return covers;
+}
+
+export default function CoverMosaic({ collectionId, seriesIds, className = '', emptyIcon }: CoverMosaicProps) {
+  const seriesKey = seriesIds?.join(',') ?? '';
+  const cacheKey = seriesKey ? `series:${seriesKey}` : collectionId;
+  const [covers, setCovers] = useState<string[]>(() => (cacheKey && coverCache.get(cacheKey)) || []);
 
   useEffect(() => {
-    if (!collectionId) return;
+    if (!seriesKey && !collectionId) return;
     let cancelled = false;
-    loadCovers(collectionId).then(list => { if (!cancelled) setCovers(list); });
+    const load = seriesKey ? loadSeriesCovers(seriesKey.split(',')) : loadCovers(collectionId!);
+    load.then(list => { if (!cancelled) setCovers(list); });
     return () => { cancelled = true; };
-  }, [collectionId]);
+  }, [collectionId, seriesKey]);
 
   if (covers.length === 0) {
     return (
