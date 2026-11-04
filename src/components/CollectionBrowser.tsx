@@ -30,6 +30,7 @@ import { albumMatchesTagFilters } from '@/utils/tag-processor';
 import { albumMatchesDateFilter } from '@/utils/date-processor';
 import { collectionPath, type CollectionRoute } from '@/utils/collection-routes';
 import { loadCollectionInfo } from '@/utils/collection-info';
+import { rememberRecentlyOpened } from '@/utils/recently-opened';
 
 interface CollectionBrowserProps {
   // Collection or series from the URL
@@ -202,6 +203,18 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
 
   // The stored name belongs to the stored collection; until it matches the URL, show no name
   const shownCollectionName = prefs.api.collectionId === collectionId ? collectionName : '';
+
+  // Recently opened list on the Collections page
+  useEffect(() => {
+    if (!shownCollectionName) return;
+    rememberRecentlyOpened({
+      entityType: route.entityType,
+      mbid: route.mbid,
+      name: shownCollectionName,
+      kind: route.entityType === 'series' ? 'series' : 'release_group_collection',
+      parentCollectionId: route.entityType === 'series' ? parentCollectionId : undefined,
+    });
+  }, [shownCollectionName, route.entityType, route.mbid, parentCollectionId]);
 
   // Selecting an album opens the details panel (the filter tray may stay open beside it); clicking the open album again closes the panel
   const handleAlbumClick = (album: ReleaseGroup) => {

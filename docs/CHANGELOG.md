@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- Collections page as home screen: each collection shows a 2x2 mosaic of its first covers, a "Recently opened" row at the top (collections, series collections and series, up to 6), and a grid/list switch in the header (remembered; list view is compact rows with a small mosaic). "Open by MBID or URL" moved to the bottom
 - On phones, a series opened from a series collection has a menu item back to that collection (desktop has the breadcrumb)
 - Series collections: a series collection opens a list of its series (sorted by name, with a MusicBrainz icon on hover); release group series open their grid with the breadcrumb "collection / series", other series types are listed as not supported yet. Collections of other entity types say so instead of showing an empty grid
 - The Collections page and series collection pages show the last known list at once (kept in the browser) and refresh it in the background, at most once a minute

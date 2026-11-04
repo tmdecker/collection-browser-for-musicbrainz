@@ -21,6 +21,7 @@ import AppMenu from './AppMenu';
 import { usePreferences } from '@/hooks/usePreferences';
 import { collectionPath } from '@/utils/collection-routes';
 import { readCachedSeries, writeCachedSeries, SeriesSummary } from '@/utils/collection-info';
+import { rememberRecentlyOpened } from '@/utils/recently-opened';
 
 const PAGE_SIZE = 100;
 const RELEASE_GROUP_SERIES = 'Release group series';
@@ -53,6 +54,11 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
     updateApi({ collectionId: mbid });
     updateMetadata({ entityType: 'collection', collectionName: name });
   }, [isInitialized, mbid, name, updateApi, updateMetadata]);
+
+  // Recently opened list on the Collections page
+  useEffect(() => {
+    if (name) rememberRecentlyOpened({ entityType: 'collection', mbid, name, kind: 'series_collection' });
+  }, [mbid, name]);
 
   // Show the last known list at once and refresh it in the background
   useEffect(() => {
