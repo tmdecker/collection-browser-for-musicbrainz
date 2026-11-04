@@ -10,7 +10,7 @@
  * - Singleton export for app-wide use
  */
 
-import { getCacheDatabase } from './database';
+import { checkpointCacheDatabase, getCacheDatabase } from './database';
 import { releaseStore } from './release-store';
 import { releaseGroupCache } from './release-group-cache';
 import { streamingLinksCache, urlCheckCache } from './streaming-links-cache';
@@ -41,6 +41,7 @@ class CacheManager {
     for (const cache of [releaseStore, releaseGroupCache, streamingLinksCache, urlCheckCache]) {
       await cache.importLegacyFile();
     }
+    checkpointCacheDatabase();
 
     this.initialized = true;
     console.log('✅ Cache manager initialized');

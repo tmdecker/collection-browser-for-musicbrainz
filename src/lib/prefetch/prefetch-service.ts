@@ -16,6 +16,7 @@ import { cacheManager } from '../cache/cache-manager';
 import { ALBUM_DATA_TTL_SECONDS, releaseGroupCache } from '../cache/release-group-cache';
 import { releaseStore } from '../cache/release-store';
 import { prefetchQueue, type QueueStats } from './prefetch-queue';
+import { checkpointCacheDatabase } from '../cache/database';
 import { getUserAgent } from '@/utils/config/userAgent';
 import { getAlbumStreamingLinks } from '../album-streaming-links';
 import { getRgStreamingLinks } from '../cache/streaming-links-cache';
@@ -300,12 +301,16 @@ export async function startPrefetchForCollection(
  * Start queue processing in the background (non-blocking; does nothing while it runs)
  */
 function startQueue(): void {
-  prefetchQueue.start(async (mbid: string) => {
+  if (prefetchQueue.running) return; // The running loop picks up new items
+  void prefetchQueue.start(async (mbid: string) => {
     await fetchAndCacheReleaseGroup(mbid, prefetchCountry);
 
     // Log progress periodically
     const stats = prefetchQueue.getStats();
     logProgress(stats);
+  }).then(() => {
+    // Queue empty: a run can write hundreds of albums, so truncate the WAL now instead of leaving it large
+    checkpointCacheDatabase();
   });
 }
 

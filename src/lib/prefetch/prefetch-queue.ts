@@ -115,6 +115,13 @@ class PrefetchQueue {
   }
 
   /**
+   * Whether the processing loop is running (start() returns at once while it is)
+   */
+  get running(): boolean {
+    return this.isRunning;
+  }
+
+  /**
    * Stop processing queue
    */
   stop(): void {
