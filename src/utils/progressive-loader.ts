@@ -70,7 +70,7 @@ export async function getBasicData(collectionId: string, entityType?: 'collectio
         if (cacheAge > FULL_REFRESH_INTERVAL_MS) {
           // Daily full refresh also picks up edits (genres, ratings) and add+remove swaps
           console.log('🔄 Cache is older than 24 hours, starting background refresh');
-          refreshDataInBackground(collectionId);
+          refreshDataInBackground(collectionId, entityType);
         } else if (entityType !== 'series' && cacheAge > MIN_REFRESH_INTERVAL_MS) {
           // Cheap check: one request for the item count; refresh only when albums were added or removed
           checkCollectionCountInBackground(collectionId, collectionMetadata.itemCount);
@@ -214,14 +214,14 @@ async function fetchAndCacheCollection(
  * Force refresh collection data by clearing collection metadata and fetching fresh data
  * Used by manual refresh button to bypass cache while preserving individual album data
  */
-export async function forceRefreshCollection(collectionId: string): Promise<ReleaseGroup[]> {
+export async function forceRefreshCollection(collectionId: string, entityType?: 'collection' | 'series'): Promise<ReleaseGroup[]> {
   console.log('🔄 Force refreshing collection:', collectionId);
 
   // Clear only collection metadata to force re-fetch (preserves album details cache)
   await db.clearCollectionMetadata(collectionId);
 
   // Fetch fresh data and cache it
-  return await fetchAndCacheCollection(collectionId, undefined, { fresh: true });
+  return await fetchAndCacheCollection(collectionId, entityType, { fresh: true });
 }
 
 /**
@@ -273,7 +273,7 @@ export async function enhanceSeriesMetadata(releaseGroups: ReleaseGroup[]): Prom
 /**
  * Start a background refresh of the data without blocking UI
  */
-export function refreshDataInBackground(collectionId: string): void {
+export function refreshDataInBackground(collectionId: string, entityType?: 'collection' | 'series'): void {
   if (isRefreshing) {
     console.log('🔄 Background refresh already in progress, skipping');
     return;
@@ -304,12 +304,10 @@ export function refreshDataInBackground(collectionId: string): void {
         console.log(`📢 Background refresh: Dispatched mb-preferences-updated event for collection: "${name}"`);
       };
 
-      const { releaseGroups, collectionName } = await fetchAllReleaseGroupsInCollection(
-        collectionId,
-        userAgent,
-        handleCollectionNameFetched,
-        { fresh: true }
-      );
+      // A series has no collection endpoint (asking for it as a collection answers 404)
+      const { releaseGroups, collectionName } = entityType === 'series'
+        ? await fetchAllReleaseGroupsInSeries(collectionId, userAgent, handleCollectionNameFetched)
+        : await fetchAllReleaseGroupsInCollection(collectionId, userAgent, handleCollectionNameFetched, { fresh: true });
 
       // Add cover art URLs to each release group BEFORE storing
       const freshData = releaseGroups.map(rg => ({
@@ -324,7 +322,7 @@ export function refreshDataInBackground(collectionId: string): void {
       const normalizedFreshData = normalizeReleaseGroups(freshData);
 
       // Update cache with new data (including collection name)
-      await db.storeCollection(normalizedFreshData, collectionId, collectionName);
+      await db.storeCollection(normalizedFreshData, collectionId, collectionName, entityType);
 
       console.log('✅ Background data refresh completed successfully');
 

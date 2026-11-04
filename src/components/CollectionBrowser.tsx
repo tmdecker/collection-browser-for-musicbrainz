@@ -259,7 +259,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     setIsRefreshing(true);
     try {
       const { forceRefreshCollection } = await import('@/utils/progressive-loader');
-      await forceRefreshCollection(collectionId);
+      await forceRefreshCollection(collectionId, route.entityType === 'series' ? 'series' : 'collection');
 
       // Trigger UI refresh
       refreshAlbums();
