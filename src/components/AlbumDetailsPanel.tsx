@@ -350,7 +350,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   // Compact header (tablet/desktop only): small cover with the facts beside it, vertically centred
   const compact = !coverExpanded;
-  const headClass = compact ? 'flex flex-col gap-4 md:flex-row md:items-center md:pr-9 xl:pr-0' : 'flex flex-col gap-4';
+  const headClass = compact ? 'flex flex-col gap-4 md:flex-row md:items-center md:pr-9' : 'flex flex-col gap-4 xl:pr-9';
   const coverWidthClass = compact ? 'w-full md:w-36 xl:w-[168px] md:shrink-0' : 'w-full';
   // Round icons on the cover, slightly smaller and closer to the edge on the compact cover
   const coverIconClass = compact
@@ -376,15 +376,15 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   return (
     <div
-      className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-6 flex flex-col gap-4"
+      className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-8 flex flex-col gap-4"
       role="region"
       aria-label="Album details panel"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Content starts 24px from the panel's edges, like the grid covers and the page title; on large screens
-          the close button sits in a narrow column right of the content */}
-      <div className="relative w-full xl:pr-9 flex flex-col gap-4">
+      {/* Content starts 32px from the panel's edges, like the grid covers; the close button sits top-right,
+          in a narrow column that only the header row (cover and facts) leaves free */}
+      <div className="relative w-full flex flex-col gap-4">
       {closeButton}
       {/* Phones (full-screen view) and the expanded tablet layout: closed with Back */}
       <button

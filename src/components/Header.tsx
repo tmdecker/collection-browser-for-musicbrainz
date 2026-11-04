@@ -4,7 +4,7 @@
  * @ai-dependencies React, AppMenu, SearchBar, SortDropdown, FilterButton
  * @ai-features
  * - Responsive single row: menu, search, sort, filter; breadcrumb from md up
- * - Breadcrumb "Collections / name"; the title row (PageTitle) carries the count and MusicBrainz link
+ * - Breadcrumb "Collections / name"; a floating footnote (CollectionFootnote) carries the name, count and MusicBrainz link
  * - App menu with auth status, Collections, reload, settings
  * - Glass morphism styling with sticky positioning
  * - Dynamic header heights via CSS variables (64px desktop, 56px mobile)
@@ -77,7 +77,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
   return (
     <>
       <header
-        className="relative z-30 p-3 md:px-6 md:pt-4 md:pb-4 header-surface"
+        className="relative z-30 p-3 md:px-8 md:pt-4 md:pb-4 header-surface"
       >
       {/* One row at every width: the collection name only shows from md, where the row becomes a three-column grid */}
       <div className="flex items-center gap-2 w-full md:grid md:grid-cols-[1fr_minmax(auto,28rem)_1fr] md:gap-4">
@@ -93,7 +93,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
 
           {/* Breadcrumb from md: Collections / name; for a series opened from a series collection
               "collection / series", with "Collections /" in front only on very wide screens.
-              The page's own title, count and MusicBrainz link sit in the title row above the grid. */}
+              The name, count and MusicBrainz link also float in the grid's bottom-left corner. */}
           <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-2 min-w-0 !ml-3 text-[15px]">
             <Link
               href="/collections"

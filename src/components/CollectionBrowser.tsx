@@ -14,7 +14,7 @@
 
 import { useEffect, useState, useRef, useMemo, useCallback, Suspense } from 'react';
 import Header, { HeaderRef } from '@/components/Header';
-import PageTitle from '@/components/PageTitle';
+import CollectionFootnote from '@/components/CollectionFootnote';
 import FilterPanel from '@/components/FilterPanel';
 import ActiveFiltersBar from '@/components/ActiveFiltersBar';
 import AlbumDetailsPanel from '@/components/AlbumDetailsPanel';
@@ -380,16 +380,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
 
       {/* Grid and the docked album details side by side: the panel narrows the grid instead of covering it */}
       <div className="flex-1 flex items-start">
-      <div className={`flex-1 min-w-0 ${shownCollectionName ? '' : 'pt-4'}`}>
-        {shownCollectionName && (
-          <PageTitle
-            title={shownCollectionName}
-            count={albumCountLabel}
-            musicBrainzUrl={collectionId ? `https://musicbrainz.org/${activeEntityType ?? 'collection'}/${collectionId}` : undefined}
-            musicBrainzLabel={`this ${activeEntityType ?? 'collection'}`}
-            onTitleClick={handleTitleClick}
-          />
-        )}
+      <div className="flex-1 min-w-0 self-stretch flex flex-col pt-3 md:pt-6">
         <LazyAlbumGrid
           albums={albums}
           selectedAlbum={selectedAlbum}
@@ -423,6 +414,15 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             </>
           ) : undefined}
         />
+        {shownCollectionName && (
+          <CollectionFootnote
+            name={shownCollectionName}
+            count={albumCountLabel}
+            musicBrainzUrl={collectionId ? `https://musicbrainz.org/${activeEntityType ?? 'collection'}/${collectionId}` : undefined}
+            musicBrainzLabel={`this ${activeEntityType ?? 'collection'}`}
+            onNameClick={handleTitleClick}
+          />
+        )}
     </div>
         <aside aria-label="Album details" className={`details-dock ${detailsPanelOpen ? 'open' : ''}`}>
           <AlbumDetailsPanel

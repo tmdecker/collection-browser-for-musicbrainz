@@ -72,7 +72,7 @@ const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
       role="region"
       aria-label="Active filters"
     >
-      <div className="px-4 sm:px-6 py-2.5">
+      <div className="px-4 sm:px-6 md:px-8 py-2.5">
         <div className="flex items-center justify-between">
           {/* Round X button for clear all */}
           <button
