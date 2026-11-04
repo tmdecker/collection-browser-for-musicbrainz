@@ -7,8 +7,10 @@ A one-page map of how the app works. Details live in the code; each module start
 ```
 Browser                                   Next.js server                         External
 ───────                                   ──────────────                         ────────
-useAlbums ─► progressive-loader ─► /api/musicbrainz/[...path] ─► rate limiter ─► MusicBrainz
-  │            (IndexedDB copy)    /api/musicbrainz/collections                   (~1 req/s per IP)
+CollectionsPage ─────────────────► /api/musicbrainz/collections ─┐
+  (collection list in localStorage)                                │
+useAlbums ─► progressive-loader ─► /api/musicbrainz/[...path] ─────┴► rate limiter ─► MusicBrainz
+  │            (IndexedDB copy)      (collection page copy, SQLite)                    (~1 req/s per IP)
   │
   ├─► /api/prefetch/start ─► prefetch queue ('low' priority) ─► MusicBrainz, barcode lookups
   │
@@ -21,11 +23,25 @@ AlbumDetailsPanel
 CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .image-cache/ (WebP, plus .missing markers for covers that don't exist, 7 days)
 ```
 
+## Pages and navigation
+
+| Route | Page |
+|---|---|
+| `/` | Redirects to the collection or series opened last, or to `/collections` on a first visit |
+| `/collections` | Home (`CollectionsPage`): recently opened, "Open by MBID or URL", the signed-in user's collections grouped by entity type |
+| `/collection/<mbid>` | A release group collection (album grid) or a series collection (`SeriesCollectionPage`, its series as cards or rows) |
+| `/series/<mbid>` | A release group series; `?collection=<mbid>` when opened from a series collection, for the breadcrumb back |
+| `/config` | Settings |
+
+- `/collection/<mbid>` needs the collection's entity type before it renders; it comes from the stored collection list or is looked up once and remembered (`utils/collection-info.ts`). Paths are built in `utils/collection-routes.ts`.
+- The header has the breadcrumb ("Collections / name", on phones a back arrow) and the account button (`UserAvatarButton`: profile, Settings, Log in or Log out).
+- `CollectionFootnote` floats in the bottom-left corner with the name and count; it opens to the series homepage (`useSeriesHomepage`, from the series' URL relationships), the MusicBrainz link and Reload.
+
 ## Loading a collection
 
-1. The page reads the active collection ID from preferences (`usePreferences`, localStorage).
+1. The page takes the collection or series MBID from its URL and stores it as the last opened one (`usePreferences`, localStorage).
 2. `progressive-loader.ts` serves the IndexedDB copy if one exists. It checks the album count on MusicBrainz (one request, at most every 10 minutes) and reloads in the background only when the count changed, plus a full reload once a day.
-3. Without a copy, `release-groups-helper.ts` loads the collection in pages of 100 through the `/api/musicbrainz` proxy.
+3. Without a copy, `release-groups-helper.ts` loads the collection in pages of 100 through the `/api/musicbrainz` proxy (a series in one request through the series lookup). The proxy answers collection pages from its own copy (`collection-page-cache`), so a new browser loads a large collection in about a second; background refreshes send `x-mb-refresh: 1` for live data, which also updates the copy. A copy made while signed in is only served to signed-in requests.
 4. Series lack genres, tags and ratings in the initial response; `/api/enhance-metadata` fills them in the background.
 5. After loading, the client posts all MBIDs to `/api/prefetch/start` (skipped with `PREFETCH_ENABLED=false`).
 
@@ -40,7 +56,7 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 
 ## Server caches (`src/lib/cache/`)
 
-All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/cache.db`), table `cache_entries` (`database.ts`). Every write goes to disk at once (WAL mode), so there is no periodic save and nothing to lose on a crash or deploy.
+All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/cache.db`), table `cache_entries` (`database.ts`). Every write goes to disk at once (WAL mode), so there is no periodic save and nothing to lose on a crash or deploy. The WAL file is kept small: `journal_size_limit` is 64 MB, and a `wal_checkpoint(TRUNCATE)` runs after the startup import and after each prefetch run.
 
 | Cache | Content | Fresh for |
 |---|---|---|
@@ -48,6 +64,7 @@ All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/
 | `release-store` | Individual releases (group key: their release group) | 60 days |
 | `streaming-links-cache` | Album streaming links and barcode lookups | 30 days (1 hour after a failed lookup) |
 | `url-checks` (in `streaming-links-cache.ts`) | Whether a streaming URL is alive, per URL | 30 days |
+| `collection-page-cache` | Collection listing pages (100 release groups each), per URL and signed in or not | Served at any age; refreshed by the browser's count check and daily reload |
 
 - Stale-while-revalidate: entries are never deleted for age. Past its fresh time an entry is still served; a stale album is queued for a low-priority refresh (click, or the next collection load), stale album links are refreshed in the background, and stale barcode results and URL checks are looked up again inside that refresh.
 - Fresh times of a day or more get ±15% random jitter (`jitteredTtlMs`), so albums loaded in one prefetch do not all go stale on the same day. At 60 days, a 1,700-album collection needs about 28 album refreshes a day.
@@ -55,7 +72,7 @@ All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/
 - Clicks and the prefetch share in-flight fetches (`release-group-fetches.ts`), so the same album is never fetched twice at once.
 - Singletons live on `globalThis`, so every route bundle shares one instance and one database connection.
 
-Client side, IndexedDB (`utils/db/`) keeps the collection and album details for offline-fast loading (the daily collection refresh keeps stored details); preferences live in localStorage.
+Client side, IndexedDB (`utils/db/`) keeps the collection and album details for offline-fast loading (the daily collection refresh keeps stored details). localStorage holds the preferences, the recently opened list (`utils/recently-opened.ts`, at most 8), the signed-in user's collection list and each collection's type and name (`utils/collection-info.ts`, refreshed in the background at most once a minute), and series homepages (`utils/series-homepage.ts`, one week).
 
 ## Rate limiting
 
@@ -66,7 +83,7 @@ Client side, IndexedDB (`utils/db/`) keeps the collection and album details for 
 
 ## Authentication
 
-OAuth2 with PKCE against MusicBrainz (`/api/auth/*`). Tokens stay in httpOnly cookies; the client only knows the expiry. `AuthProvider` and `PreferencesProvider` (root layout) hold one shared instance each, with one refresh timer for the whole app. Setup: [oauth_setup.md](oauth_setup.md).
+OAuth2 with PKCE against MusicBrainz (`/api/auth/*`). Tokens stay in httpOnly cookies; the client only knows the expiry. `/api/auth/login?returnTo=<path>` keeps the page the login started from in a short-lived cookie (5 minutes, same-site paths only, `utils/return-to.ts`); the callback returns there with `auth_success` or `auth_error`, which `AuthResultToast` shows and removes from the address. `AuthProvider` and `PreferencesProvider` (root layout) hold one shared instance each, with one refresh timer for the whole app. Setup: [oauth_setup.md](oauth_setup.md).
 
 ## Security notes
 
