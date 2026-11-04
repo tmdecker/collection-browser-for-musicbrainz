@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Album details panel opens with a compact header on tablet and desktop: a small cover with the type, year, title, artist, rating and links beside it, so the tracklist starts higher. An icon on the cover switches to the large cover and back, and the choice is remembered
 
 ### Fixed
+- Release groups whose cached details were more than 30 days old dropped out of collections and series after the first load (all showed for a moment, then fewer, e.g. 5 of 59). Expired details now only mean "refresh due"; the grid, counts and cover mosaics keep every release group
 - A series cached for more than a day, or reloaded from the menu, was refreshed as if it were a collection, which MusicBrainz answered with 404 (console AxiosError); series now refresh through the series lookup
 - The server cache's write-ahead log (`.cache/cache.db-wal`) no longer stays at its largest size forever (it was 62 MB on the server after the one-time JSON import): it is truncated after the start-up import and after every prefetch run, and capped at 64 MB in between
 - The collections list request now pauses all MusicBrainz requests when MusicBrainz answers "busy" (503) and tries once more, like the other MusicBrainz requests

@@ -33,7 +33,7 @@ async function loadCovers(collectionId: string): Promise<string[]> {
   try {
     const metadata = await getCollectionMetadata(collectionId);
     for (const id of metadata?.albumIds.slice(0, 24) ?? []) {
-      const rg = await getReleaseGroup(id);
+      const rg = await getReleaseGroup(id, { includeExpired: true });
       if (rg?.cover && rg.cover !== '/placeholder.svg') covers.push(rg.cover);
       if (covers.length === 4) break;
     }

@@ -428,10 +428,11 @@ export const getCollection = async (collectionId?: string): Promise<ReleaseGroup
     return [];
   }
 
-  // Get all albums for this collection
+  // Get all albums for this collection. Expired details still belong to the collection: the expiry
+  // only says the details are due for a refresh (dropping them made albums vanish from the grid)
   const albums: ReleaseGroup[] = [];
   for (const albumId of metadata.albumIds) {
-    const album = await getReleaseGroup(albumId);
+    const album = await getReleaseGroup(albumId, { includeExpired: true });
     if (album) {
       albums.push(album);
     }
@@ -520,11 +521,15 @@ export const updateReleaseGroupMetadata = async (
  * Retrieve detailed information about a single release group
  * Returns null if not found or expired
  */
-export const getReleaseGroup = async (id: string): Promise<ReleaseGroup | null> => {
+export const getReleaseGroup = async (
+  id: string,
+  { includeExpired = false }: { includeExpired?: boolean } = {}
+): Promise<ReleaseGroup | null> => {
   // If using memory fallback, get from memory
   if (usingMemoryFallback) {
     const cached = memoryCache.albums.get(id);
     if (cached) {
+      if (includeExpired) return cached;
       // Check expiration
       if (cached._expiresAt && Date.now() < cached._expiresAt) {
         console.log(`📝 Cache hit for release group ${id} (memory)`);
@@ -565,7 +570,9 @@ export const getReleaseGroup = async (id: string): Promise<ReleaseGroup | null> 
 
           if (cached) {
             // Check expiration
-            if (cached._expiresAt && Date.now() < cached._expiresAt) {
+            if (includeExpired) {
+              resolve(cached);
+            } else if (cached._expiresAt && Date.now() < cached._expiresAt) {
               console.log(`🗃️ Cache hit for release group ${id}`);
               resolve(cached);
             } else if (cached._expiresAt) {
