@@ -2,12 +2,13 @@
  * @ai-file api
  * @ai-description OAuth2 login initiation endpoint
  * @ai-dependencies PKCE utilities, cookies
- * @ai-features PKCE generation, CSRF protection, redirect to MusicBrainz
+ * @ai-features PKCE generation, CSRF protection, redirect to MusicBrainz, remembers the starting page
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '@/utils/pkce';
 import { buildAuthorizationUrl } from '@/utils/oauth';
+import { RETURN_TO_COOKIE, safeReturnTo } from '@/utils/return-to';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
@@ -55,6 +56,8 @@ export async function GET(request: NextRequest) {
 
     response.cookies.set('mb_code_verifier', codeVerifier, cookieConfig);
     response.cookies.set('mb_oauth_state', state, cookieConfig);
+    // Page the login started from (?returnTo=/collections), so the callback can send the user back there
+    response.cookies.set(RETURN_TO_COOKIE, safeReturnTo(request.nextUrl.searchParams.get('returnTo')), cookieConfig);
 
     return response;
   } catch (error) {

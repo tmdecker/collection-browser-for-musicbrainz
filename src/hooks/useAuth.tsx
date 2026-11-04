@@ -199,9 +199,11 @@ const useAuthStore = (): UseAuthReturn => {
 
   // Login function
   const login = useCallback(() => {
-    // Full page navigation to the OAuth API route (it redirects to MusicBrainz), not a client-side route
+    // Full page navigation to the OAuth API route (it redirects to MusicBrainz), not a client-side route.
+    // returnTo brings the user back to this page after logging in
+    const returnTo = `${window.location.pathname}${window.location.search}`;
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = '/api/auth/login';
+    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
   }, []);
 
   // Logout function

@@ -50,6 +50,15 @@ export default function AppMenu({ currentName, onCurrentNameClick, onReloadColle
 
   // Check for auth success/error from OAuth callback
   useEffect(() => {
+    // Drop only the login result from the address, keep the page's own query
+    const withoutAuthParams = () => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('auth_success');
+      params.delete('auth_error');
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    };
+
     const authSuccess = searchParams.get('auth_success');
     const authError = searchParams.get('auth_error');
 
@@ -60,11 +69,11 @@ export default function AppMenu({ currentName, onCurrentNameClick, onReloadColle
       // Only show message once user info is available
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAuthMessage({ type: 'success', text: `Successfully logged in as ${user.name}!` });
-      router.replace(pathname);
+      router.replace(withoutAuthParams());
       setTimeout(() => setAuthMessage(null), 3000);
     } else if (authError) {
       setAuthMessage({ type: 'error', text: `Login failed: ${authError}` });
-      router.replace(pathname);
+      router.replace(withoutAuthParams());
       setTimeout(() => setAuthMessage(null), 5000);
     }
   }, [searchParams, router, pathname, user]);
