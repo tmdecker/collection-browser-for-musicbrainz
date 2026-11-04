@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-04
+
 ### Added
 - Collections page as home screen: each collection shows a 2x2 mosaic of its first covers, a "Recently opened" row at the top (collections, series collections and series, up to 6), and a grid/list switch in the header (remembered; list view is compact rows with a small mosaic). Larger section titles with counts; "Open by MBID or URL" sits top right (below Recently opened on narrow screens) with pill-shaped field and button. Series collections show one cover per series opened in this browser, under a small stacked edge, or their first series names. A search bar filters collection names and the series inside series collections as you type (Escape clears)
 - Account button at the right end of the header: your initial with a menu (MusicBrainz profile, Log out), or "Log in" when logged out. It replaces the login section on the Collections page and the login items in the menu (on phones the collection page menu keeps them)
