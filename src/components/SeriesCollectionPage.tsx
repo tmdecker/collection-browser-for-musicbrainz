@@ -5,7 +5,8 @@
  * @ai-features
  * - Same header as the Collections page: breadcrumb, series name search, grid/list switch, account button
  * - Each release group series as a cover mosaic card or a compact row (covers and counts from series opened
- *   in this browser); other series types (work, event, …) as plain rows under "Other series"
+ *   in this browser, otherwise from one lookup per series); other series types (work, event, …) as plain
+ *   rows under "Other series"
  * - Release group series open at /series/<mbid>?collection=<mbid> (for the breadcrumb back)
  * - Shows the last known list at once and refreshes it in the background
  * - Remembered as the last opened collection, so / comes back here
@@ -26,6 +27,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { collectionPath } from '@/utils/collection-routes';
 import { readCachedSeries, writeCachedSeries, SeriesSummary } from '@/utils/collection-info';
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
+import { loadSeriesContents } from '@/utils/mosaic-candidates';
 
 const PAGE_SIZE = 100;
 const RELEASE_GROUP_SERIES = 'Release group series';
@@ -83,22 +85,30 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
     return () => { cancelled = true; };
   }, [mbid]);
 
-  // Release group counts of series opened in this browser (from the cache, no MusicBrainz requests)
+  // Release group counts: from series opened in this browser, otherwise from a lookup of the series
+  // (remembered for a week and shared with its mosaic, one request at a time)
   const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     if (!series) return;
     let cancelled = false;
-    Promise.all(series.filter(s => s.type === RELEASE_GROUP_SERIES).map(async s => {
+    const show = (id: string, count: number) => {
+      if (!cancelled) setCounts(prev => prev[id] === count ? prev : { ...prev, [id]: count });
+    };
+    const openable = series.filter(s => s.type === RELEASE_GROUP_SERIES).sort((a, b) => a.name.localeCompare(b.name));
+    Promise.all(openable.map(async s => {
       try {
         const metadata = await getCollectionMetadata(s.id);
-        return metadata ? [s.id, metadata.albumIds.length] as const : null;
+        if (metadata) return show(s.id, metadata.albumIds.length);
       } catch {
-        return null;
+        // No cache available (private window, blocked storage): look it up
       }
-    })).then(entries => {
       if (cancelled) return;
-      setCounts(Object.fromEntries(entries.filter((e): e is readonly [string, number] => e !== null)));
-    });
+      try {
+        show(s.id, (await loadSeriesContents(s.id)).count);
+      } catch {
+        // MusicBrainz unavailable: the tile keeps its plain text
+      }
+    }));
     return () => { cancelled = true; };
   }, [series]);
 
@@ -183,7 +193,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
                       name={s.name}
                       detail={counts[s.id] !== undefined
                         ? `${counts[s.id].toLocaleString()} release group${counts[s.id] === 1 ? '' : 's'}`
-                        : s.disambiguation || 'Not opened yet'}
+                        : s.disambiguation || ''}
                       coverId={s.id}
                       fetchCovers="series"
                     />
