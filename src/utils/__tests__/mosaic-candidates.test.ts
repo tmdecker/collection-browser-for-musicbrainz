@@ -43,7 +43,7 @@ describe('mosaic candidates', () => {
         { id: 's1', name: 'Best of', type: 'Release group series' },
       ] })
       : json({ relations: [
-        { type: 'part of', 'target-type': 'release_group', 'release-group': { id: 'rg-a' } },
+        { type: 'part of', 'target-type': 'release_group', release_group: { id: 'rg-a' } },
         { type: 'other', 'target-type': 'url' },
         { type: 'part of', 'target-type': 'release_group', 'release-group': { id: 'rg-b' } },
       ] }));

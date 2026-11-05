@@ -16,15 +16,16 @@
 import React, { useEffect, useState } from 'react';
 import CoverArtImage from './CoverArtImage';
 import { getCollectionMetadata, getReleaseGroup } from '@/utils/db';
-import { loadCollectionCandidates, loadSeriesCollectionCandidates, coverUrlFor } from '@/utils/mosaic-candidates';
+import { loadCollectionCandidates, loadSeriesCandidates, loadSeriesCollectionCandidates, coverUrlFor } from '@/utils/mosaic-candidates';
 
 interface CoverMosaicProps {
   /** Collection or series MBID whose cached release groups to show; nothing for a series collection */
   collectionId?: string;
   /** Series of a series collection: one cover from each, instead of collectionId */
   seriesIds?: string[];
-  /** collectionId is a release group collection: look its first page up when this browser has no covers */
-  fetchMissing?: boolean;
+  /** What collectionId is, to look it up when this browser has no covers for it: a release group
+   *  collection (its first page) or a release group series (its lookup); nothing looks nothing up */
+  fetchMissing?: 'collection' | 'series';
   /** Series collection MBID: used to look its series up when this browser has no covers for it */
   seriesCollectionId?: string;
   className?: string;
@@ -67,18 +68,21 @@ async function loadBrowserCovers(collectionId: string): Promise<string[]> {
   return covers;
 }
 
-const loadCovers = (collectionId: string, fetchMissing: boolean) =>
+const loadCovers = (collectionId: string, fetchMissing?: 'collection' | 'series') =>
   once(fetchMissing ? collectionId : `local:${collectionId}`, async () => {
     const local = await loadBrowserCovers(collectionId);
     if (local.length > 0 || !fetchMissing) return local;
-    return (await loadCollectionCandidates(collectionId)).map(coverUrlFor);
+    const ids = fetchMissing === 'series'
+      ? await loadSeriesCandidates(collectionId)
+      : await loadCollectionCandidates(collectionId);
+    return ids.map(coverUrlFor);
   });
 
 // One cover from each series first; with fewer than four series, more covers of the same series fill the rest
 async function interleave(seriesIds: string[]): Promise<string[]> {
   const perSeries: string[][] = [];
   for (const id of seriesIds.slice(0, 16)) {
-    const list = await loadCovers(id, false);
+    const list = await loadCovers(id);
     if (list.length > 0) perSeries.push(list);
     if (perSeries.length === SLOTS) break;
   }
@@ -100,7 +104,7 @@ const loadSeriesCovers = (seriesIds: string[], seriesCollectionId?: string) =>
     return (await loadSeriesCollectionCandidates(seriesCollectionId)).map(coverUrlFor);
   });
 
-export default function CoverMosaic({ collectionId, fetchMissing = false, seriesIds, seriesCollectionId, className = '', emptyIcon }: CoverMosaicProps) {
+export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, seriesCollectionId, className = '', emptyIcon }: CoverMosaicProps) {
   const seriesKey = seriesIds?.join(',') ?? '';
   const isSeries = !!seriesKey || !!seriesCollectionId;
   const cacheKey = isSeries

@@ -185,6 +185,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
                         ? `${counts[s.id].toLocaleString()} release group${counts[s.id] === 1 ? '' : 's'}`
                         : s.disambiguation || 'Not opened yet'}
                       coverId={s.id}
+                      fetchCovers="series"
                     />
                   ))}
                 </div>

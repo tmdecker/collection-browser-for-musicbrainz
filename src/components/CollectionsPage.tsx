@@ -264,7 +264,7 @@ export default function CollectionsPage() {
           >
             <CoverMosaic
               collectionId={entry.kind === 'series_collection' ? undefined : entry.mbid}
-              fetchMissing={entry.kind === 'release_group_collection'}
+              fetchMissing={entry.kind === 'release_group_collection' ? 'collection' : entry.kind === 'series' ? 'series' : undefined}
               seriesIds={entry.kind === 'series_collection' ? seriesLists[entry.mbid]?.map(x => x.id) : undefined}
               seriesCollectionId={entry.kind === 'series_collection' ? entry.mbid : undefined}
               className="w-10 h-10 rounded-md flex-shrink-0"
@@ -310,7 +310,7 @@ export default function CollectionsPage() {
                         // Release group collections show their covers, series collections one cover per opened series;
                         // looked up in the background when this browser has none
                         coverId={c.id}
-                        fetchCovers
+                        fetchCovers="collection"
                         seriesCollection={entityType === 'series'}
                         series={entityType === 'series' ? seriesLists[c.id] : undefined}
                         count={count}
@@ -334,6 +334,7 @@ export default function CollectionsPage() {
                       name={series.name}
                       detail={`in ${collectionName}`}
                       coverId={series.id}
+                      fetchCovers="series"
                     />
                   ) : (
                     <UnsupportedRow

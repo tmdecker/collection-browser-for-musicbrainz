@@ -81,8 +81,9 @@ export interface TileProps {
   name: string;
   detail: string;
   coverId?: string;           // collection or series whose cached covers make the mosaic
-  /** coverId is a MusicBrainz collection: look its covers up when this browser has none */
-  fetchCovers?: boolean;
+  /** What coverId is, to look its covers up when this browser has none: a MusicBrainz collection
+   *  (release group or, with seriesCollection, series collection) or a release group series */
+  fetchCovers?: 'collection' | 'series';
   seriesCollection?: boolean;
   series?: SeriesSummary[];   // a series collection's series, if its page was opened in this browser
   count?: number;
@@ -127,7 +128,7 @@ export function TileCard({ href, name, detail, coverId, fetchCovers, seriesColle
       <span className="absolute top-1 inset-x-1.5 h-1 rounded-t bg-white/[0.18]" aria-hidden="true" />
       <CoverMosaic
         seriesIds={series?.map(s => s.id)}
-        seriesCollectionId={fetchCovers ? coverId : undefined}
+        seriesCollectionId={fetchCovers === 'collection' ? coverId : undefined}
         className="relative aspect-square w-full rounded-lg"
         emptyIcon={<SeriesNames series={series} count={count} />}
       />
@@ -154,8 +155,8 @@ export function TileRow({ href, name, detail, coverId, fetchCovers, seriesCollec
         <CoverMosaic
           collectionId={seriesCollection ? undefined : coverId}
           seriesIds={seriesCollection ? series?.map(s => s.id) : undefined}
-          seriesCollectionId={seriesCollection && fetchCovers ? coverId : undefined}
-          fetchMissing={!seriesCollection && fetchCovers}
+          seriesCollectionId={seriesCollection && fetchCovers === 'collection' ? coverId : undefined}
+          fetchMissing={seriesCollection ? undefined : fetchCovers}
           className="w-11 h-11 rounded-md flex-shrink-0"
           emptyIcon={seriesCollection && count !== undefined
             ? <span className="text-xs tabular-nums">{count.toLocaleString()}</span>

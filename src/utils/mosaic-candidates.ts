@@ -4,13 +4,15 @@
  * @ai-features
  * - Release group collection: the same first page the collection page asks for, so the server's copy
  *   usually answers and a live MusicBrainz request also fills that copy for the next visit
- * - Series collection: its series list (remembered like on its own page) and the first release group series
+ * - Series: one series lookup; series collection: its series list (remembered like on its own page) and
+ *   the lookup of its first release group series
  * - A dozen candidates per collection, remembered in this browser for a week, so a reload asks for nothing
  */
 
 import { writeCachedSeries, type SeriesSummary } from './collection-info';
 
-const STORAGE_KEY = 'mb-mosaic-candidates';
+// v2: v1 could hold empty lists for series from a bug, which would have kept those mosaics empty for a week
+const STORAGE_KEY = 'mb-mosaic-candidates-v2';
 const MAX_CANDIDATES = 12;
 const KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 const RELEASE_GROUP_SERIES = 'Release group series';
@@ -31,6 +33,8 @@ const readAll = (): Record<string, Remembered> => {
 };
 
 function remember(id: string, ids: string[]) {
+  // Nothing found is not remembered, so a collection that gets its first release group shows it next time
+  if (ids.length === 0) return;
   try {
     const all = readAll();
     const now = Date.now();
@@ -78,6 +82,22 @@ export async function loadCollectionCandidates(collectionId: string): Promise<st
   return ids;
 }
 
+/** Release group ids of a release group series (one lookup, like opening the series) */
+export async function loadSeriesCandidates(seriesId: string): Promise<string[]> {
+  const known = recall(seriesId);
+  if (known) return known;
+  const detail = await getJson(`/api/musicbrainz/series/${seriesId}?fmt=json&inc=release-group-rels`);
+  const relations = Array.isArray(detail.relations) ? detail.relations as Record<string, unknown>[] : [];
+  const ids = relations
+    .filter(r => r.type === 'part of' && r['target-type'] === 'release_group')
+    // MusicBrainz names the related entity after its type: release_group
+    .map(r => ((r.release_group ?? r['release-group']) as { id?: unknown } | undefined)?.id)
+    .filter((id): id is string => typeof id === 'string')
+    .slice(0, MAX_CANDIDATES);
+  remember(seriesId, ids);
+  return ids;
+}
+
 /** Release group ids from the first release group series of a series collection */
 export async function loadSeriesCollectionCandidates(seriesCollectionId: string): Promise<string[]> {
   const known = recall(seriesCollectionId);
@@ -89,16 +109,7 @@ export async function loadSeriesCollectionCandidates(seriesCollectionId: string)
   // The whole list fits in one page for most collections: keep it, like the series collection page does
   if (series.length >= total) writeCachedSeries(seriesCollectionId, series);
   const first = series.find(s => s.type === RELEASE_GROUP_SERIES);
-  let ids: string[] = [];
-  if (first) {
-    const detail = await getJson(`/api/musicbrainz/series/${first.id}?fmt=json&inc=release-group-rels`);
-    const relations = Array.isArray(detail.relations) ? detail.relations as Record<string, unknown>[] : [];
-    ids = relations
-      .filter(r => r.type === 'part of' && r['target-type'] === 'release_group')
-      .map(r => (r['release-group'] as { id?: unknown } | undefined)?.id)
-      .filter((id): id is string => typeof id === 'string')
-      .slice(0, MAX_CANDIDATES);
-  }
+  const ids = first ? await loadSeriesCandidates(first.id) : [];
   remember(seriesCollectionId, ids);
   return ids;
 }
