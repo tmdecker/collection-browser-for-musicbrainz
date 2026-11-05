@@ -4,7 +4,7 @@
  * @ai-dependencies React, Next.js Link, usePreferences, collection-info
  * @ai-features
  * - Same header as the Collections page: breadcrumb, series name search, grid/list switch, account button
- * - Each release group series as a cover mosaic card or a compact row (covers and counts from series opened
+ * - Each release group series as a colour tile or a compact row with one cover (covers and counts from series opened
  *   in this browser, otherwise from one lookup per series); other series types (work, event, …) as plain
  *   rows under "Other series"
  * - Release group series open at /series/<mbid>?collection=<mbid> (for the breadcrumb back)
@@ -86,7 +86,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
   }, [mbid]);
 
   // Release group counts: from series opened in this browser, otherwise from a lookup of the series
-  // (remembered for a week and shared with its mosaic, one request at a time)
+  // (remembered for a week and shared with its covers, one request at a time)
   const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     if (!series) return;

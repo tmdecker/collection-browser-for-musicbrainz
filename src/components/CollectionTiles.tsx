@@ -2,7 +2,7 @@
  * @ai-file component
  * @ai-description Shared pieces of the Collections page and series collection pages: section headings,
  *   cover cards and rows, plain rows for types the app can't open yet, the grid/list switch and the name filter
- * @ai-dependencies React, Next.js Link, CoverMosaic, CoverMix, react-icons
+ * @ai-dependencies React, Next.js Link, CoverThumb, CoverMix, react-icons
  * @ai-features
  * - Grid view: tile tinted by its first cover with the name inside (CoverMix); list view: one compact row with a small cover
  * - Series collections: a stacked edge above the tile, covers from their series
@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BiCollection, BiGridAlt, BiListUl } from 'react-icons/bi';
 import { SiMusicbrainz } from 'react-icons/si';
-import CoverMosaic from './CoverMosaic';
+import CoverThumb from './CoverThumb';
 import CoverMix from './CoverMix';
 import type { SeriesSummary } from '@/utils/collection-info';
 
@@ -81,7 +81,7 @@ export interface TileProps {
   href: string;
   name: string;
   detail: string;
-  coverId?: string;           // collection or series whose cached covers make the mosaic
+  coverId?: string;           // collection or series whose cached covers make the tile or thumbnail
   /** What coverId is, to look its covers up when this browser has none: a MusicBrainz collection
    *  (release group or, with seriesCollection, series collection) or a release group series */
   fetchCovers?: 'collection' | 'series';
@@ -141,13 +141,12 @@ export function TileRow({ href, name, detail, coverId, fetchCovers, seriesCollec
   return (
     <div className="group flex items-center gap-3 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors pr-4">
       <Link href={href} className="flex-1 min-w-0 flex items-center gap-3.5 py-2 pl-2">
-        <CoverMosaic
+        <CoverThumb
           collectionId={seriesCollection ? undefined : coverId}
           seriesIds={seriesCollection ? series?.map(s => s.id) : undefined}
           seriesCollectionId={seriesCollection && fetchCovers === 'collection' ? coverId : undefined}
           fetchMissing={seriesCollection ? undefined : fetchCovers}
           className="w-11 h-11 rounded-md flex-shrink-0"
-          single
           emptyIcon={seriesCollection && count !== undefined
             ? <span className="text-xs tabular-nums">{count.toLocaleString()}</span>
             : <BiCollection className="w-5 h-5" />}

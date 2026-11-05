@@ -9,7 +9,8 @@
  * - Shows the last known list at once (browser copy) and refreshes it in the background
  * - Each card or row links to its collection page (whose footnote links to musicbrainz.org); rows the app can't open
  *   have a MusicBrainz icon instead
- * - Cover mosaics (looked up in the background on a new browser), grid or list view (remembered), and a
+ * - Colour tiles in the grid, single covers in the list (looked up in the background on a new browser),
+ *   grid or list view (remembered), and a
  *   "Recently opened" row (one cover per entry) that can be hidden in Settings; without it the collections start at the top
  * - Search filters collection names and the series inside series collections instantly
  * - Open any public collection or series by MBID or musicbrainz.org URL
@@ -22,7 +23,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BiCheck, BiCollection, BiError, BiLoaderAlt, BiX } from 'react-icons/bi';
 import AuthResultToast from './AuthResultToast';
-import CoverMosaic from './CoverMosaic';
+import CoverThumb from './CoverThumb';
 import SearchBar from './SearchBar';
 import UserAvatarButton from './UserAvatarButton';
 import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, foldText, rowListClass, sectionHeadingClass, tileGridClass, useTileView } from './CollectionTiles';
@@ -262,14 +263,13 @@ export default function CollectionsPage() {
             href={recentHref(entry)}
             className="flex items-center gap-3 min-w-0 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors py-2 pl-2 pr-4"
           >
-            <CoverMosaic
+            <CoverThumb
               collectionId={entry.kind === 'series_collection' ? undefined : entry.mbid}
               fetchMissing={entry.kind === 'release_group_collection' ? 'collection' : entry.kind === 'series' ? 'series' : undefined}
               seriesIds={entry.kind === 'series_collection' ? seriesLists[entry.mbid]?.map(x => x.id) : undefined}
               seriesCollectionId={entry.kind === 'series_collection' ? entry.mbid : undefined}
               className="w-10 h-10 rounded-md flex-shrink-0"
               emptyIcon={<BiCollection className="w-5 h-5" />}
-              single
             />
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium text-text-primary">{entry.name}</span>

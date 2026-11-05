@@ -5,7 +5,7 @@
  *   and the name in a light shade of that tint
  * @ai-dependencies React, CoverArtImage, useMosaicCovers, cover-colour
  * @ai-features
- * - Same covers as the mosaic (first three of up to four candidates), so no extra requests
+ * - Same covers as the list thumbnail (first three of up to four candidates), so no extra requests
  * - Middle cover alternates between the left and right edge (flip), half covers on the opposite sides
  * - Colour read from the first cover once it has loaded; neutral grey until then and for grey covers
  * - Name centred in the bottom quarter, up to two lines
@@ -13,7 +13,7 @@
 
 import React, { useState } from 'react';
 import CoverArtImage from './CoverArtImage';
-import { useMosaicCovers, type MosaicSource } from './CoverMosaic';
+import { useMosaicCovers, type MosaicSource } from './CoverThumb';
 import { coverColourOf, rememberedCoverColour, tileColours, type CoverColour } from '@/utils/cover-colour';
 
 interface CoverMixProps extends MosaicSource {

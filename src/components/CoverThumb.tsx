@@ -1,7 +1,8 @@
 /**
  * @ai-file component
- * @ai-description 2x2 cover mosaic for a collection or series, from release groups cached in this browser
- *   or, when this browser has none, from a few background requests that are remembered afterwards
+ * @ai-description Small cover thumbnail for a collection, series or series collection (list rows, Recently opened),
+ *   plus the shared useMosaicCovers hook (also used by CoverMix) that picks covers from release groups cached in
+ *   this browser or, when this browser has none, from a few background requests that are remembered afterwards
  * @ai-dependencies React, CoverArtImage, IndexedDB cache (utils/db), mosaic-candidates
  * @ai-features
  * - Reads the collection's cached release group list first (no MusicBrainz requests); picks the first four with a cover
@@ -10,8 +11,7 @@
  *   for a series collection, its series list and the first release group series, then fills in by itself
  * - A cover that fails to load is replaced by the next candidate, so only about four images are requested
  * - Same cover URLs and size as the grid, so the browser usually has them already
- * - Plain tiles (with an optional icon) while nothing is known yet
- * - single: just the first cover (Recently opened)
+ * - Plain thumbnail (with an optional icon) while nothing is known yet
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ import CoverArtImage from './CoverArtImage';
 import { getCollectionMetadata, getReleaseGroup } from '@/utils/db';
 import { loadCollectionCandidates, loadSeriesCandidates, loadSeriesCollectionCandidates, coverUrlFor } from '@/utils/mosaic-candidates';
 
-interface CoverMosaicProps {
+interface CoverThumbProps {
   /** Collection or series MBID whose cached release groups to show; nothing for a series collection */
   collectionId?: string;
   /** Series of a series collection: one cover from each, instead of collectionId */
@@ -30,19 +30,17 @@ interface CoverMosaicProps {
   /** Series collection MBID: used to look its series up when this browser has no covers for it */
   seriesCollectionId?: string;
   className?: string;
-  /** Shown in the empty mosaic */
+  /** Shown while there is no cover */
   emptyIcon?: React.ReactNode;
-  /** Only the first cover instead of a 2x2 mosaic */
-  single?: boolean;
 }
 
 const SLOTS = 4;
 
-// Cover candidates per id, shared by every mosaic on the page and kept for the session
+// Cover candidates per id, shared by every tile and thumbnail on the page and kept for the session
 const coverCache = new Map<string, string[]>();
 const pending = new Map<string, Promise<string[]>>();
 
-// Shared, so several mosaics of the same collection (tile and recent row) make one set of requests
+// Shared, so several covers of the same collection (tile and recent row) make one set of requests
 function once(key: string, load: () => Promise<string[]>): Promise<string[]> {
   const cached = coverCache.get(key);
   if (cached) return Promise.resolve(cached);
@@ -140,7 +138,7 @@ export function useMosaicCovers({ collectionId, fetchMissing, seriesIds, seriesC
   return { shown, markFailed };
 }
 
-export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, seriesCollectionId, className = '', emptyIcon, single = false }: CoverMosaicProps) {
+export default function CoverThumb({ collectionId, fetchMissing, seriesIds, seriesCollectionId, className = '', emptyIcon }: CoverThumbProps) {
   const { shown, markFailed } = useMosaicCovers({ collectionId, fetchMissing, seriesIds, seriesCollectionId });
 
   if (shown.length === 0) {
@@ -151,28 +149,9 @@ export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, ser
     );
   }
 
-  if (single) {
-    return (
-      <div className={`relative bg-background-tertiary overflow-hidden ${className}`} aria-hidden="true">
-        <CoverArtImage src={shown[0]} alt="" className="object-cover" onError={() => markFailed(shown[0])} />
-      </div>
-    );
-  }
-
   return (
-    <div className={`grid grid-cols-2 grid-rows-2 gap-px bg-background overflow-hidden ${className}`} aria-hidden="true">
-      {Array.from({ length: SLOTS }, (_, i) => (
-        <div key={shown[i] ?? `empty-${i}`} className="relative bg-background-tertiary">
-          {shown[i] && (
-            <CoverArtImage
-              src={shown[i]}
-              alt=""
-              className="object-cover"
-              onError={() => markFailed(shown[i])}
-            />
-          )}
-        </div>
-      ))}
+    <div className={`relative bg-background-tertiary overflow-hidden ${className}`} aria-hidden="true">
+      <CoverArtImage src={shown[0]} alt="" className="object-cover" onError={() => markFailed(shown[0])} />
     </div>
   );
 }

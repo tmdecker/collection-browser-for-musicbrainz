@@ -11,7 +11,7 @@ Next.js-powered collection browser with advanced filtering and streaming integra
 ## Features
 
 - Browse MusicBrainz album collections and series collections
-- Collections home page with cover mosaics, recently opened collections and search
+- Collections home page with colour tiles, recently opened collections and search
 - Advanced filtering by genres, tags, release dates, and ratings
 - Streaming service links (Spotify, Apple Music, Deezer, Tidal, Bandcamp, and more)
 - Plex library links
