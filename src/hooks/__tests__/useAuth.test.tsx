@@ -105,4 +105,34 @@ describe('useAuth', () => {
     expect(calls('/api/auth/refresh')).toBe(2);
     expect(result.current.isAuthenticated).toBe(true);
   });
+
+  it('keeps the session and retries when the refresh fails temporarily', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setExpiryCookie(Date.now() + HOUR);
+    let unavailable = true;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/auth/refresh') {
+        return unavailable
+          ? new Response(null, { status: 503 })
+          : json({ expires_at: Date.now() + HOUR, scope: 'profile' });
+      }
+      if (url === '/api/auth/profile') return json(user);
+      return new Response(null, { status: 404 });
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HOUR);
+    });
+    expect(calls('/api/auth/refresh')).toBe(1);
+    expect(result.current.isAuthenticated).toBe(true);
+
+    unavailable = false;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60 * 1000);
+    });
+    expect(calls('/api/auth/refresh')).toBe(2);
+    expect(result.current.isAuthenticated).toBe(true);
+  });
 });

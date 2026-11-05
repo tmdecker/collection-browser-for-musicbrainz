@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { refreshAccessToken } from '@/utils/oauth';
+import { isTokenRejected, refreshAccessToken } from '@/utils/oauth';
 import { setAuthCookies, clearAuthCookies } from '@/utils/auth-cookies';
 
 // Force dynamic runtime for this API route
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const refreshToken = request.cookies.get('mb_refresh_token')?.value;
 
     if (!refreshToken) {
+      console.warn('⚠️ Token refresh without refresh token cookie');
       return NextResponse.json(
         { error: 'No refresh token found' },
         { status: 401 }
@@ -59,7 +60,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error refreshing token:', error);
 
-    // If refresh fails, clear all auth cookies
+    // Network errors, rate limits and server errors: keep the refresh token for the next try
+    // (clearing it here logged the user out for good)
+    if (!isTokenRejected(error)) {
+      return NextResponse.json(
+        { error: 'Token refresh temporarily failed' },
+        { status: 503 }
+      );
+    }
+
+    // MusicBrainz rejected the refresh token: clear all auth cookies
     const response = NextResponse.json(
       { error: 'Failed to refresh token' },
       { status: 401 }

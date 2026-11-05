@@ -107,6 +107,9 @@ export async function GET(request: NextRequest) {
     setAuthCookies(response, tokenResponse);
 
     console.log('✅ OAuth authentication successful');
+    if (!tokenResponse.refresh_token) {
+      console.warn('⚠️ No refresh token from MusicBrainz, the login ends when the access token expires');
+    }
     return response;
   } catch (error) {
     console.error('❌ Error in OAuth callback:', error);

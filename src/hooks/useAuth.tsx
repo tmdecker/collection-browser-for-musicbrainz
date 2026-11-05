@@ -25,6 +25,9 @@ interface UseAuthReturn {
 // Refresh this long before the token expires (must exceed isTokenExpired's 60 s buffer)
 const REFRESH_BEFORE_EXPIRY_MS = 2 * 60 * 1000;
 
+// Retry delay when MusicBrainz is temporarily unreachable (the refresh token is kept)
+const REFRESH_RETRY_MS = 60 * 1000;
+
 const UNAUTHENTICATED: AuthState = {
   status: 'unauthenticated',
   user: null,
@@ -79,6 +82,22 @@ const useAuthStore = (): UseAuthReturn => {
     const refresh = async (): Promise<number | null> => {
       try {
         const response = await fetch('/api/auth/refresh', { method: 'POST' });
+
+        // Temporary failure: an open session tries again shortly; on page load the user
+        // shows as logged out, but the cookies stay and the next reload refreshes again
+        if (response.status === 503) {
+          setAuthState(prev =>
+            prev.status === 'authenticated'
+              ? { ...prev, expiresAt: Date.now() + REFRESH_BEFORE_EXPIRY_MS + REFRESH_RETRY_MS }
+              : {
+                  ...prev,
+                  status: 'error',
+                  error: { type: 'refresh_failed', message: 'MusicBrainz is not reachable, try again later' },
+                }
+          );
+          return null;
+        }
+
         if (!response.ok) {
           throw new Error('Token refresh failed');
         }

@@ -7,6 +7,31 @@
 const MUSICBRAINZ_OAUTH_BASE = 'https://musicbrainz.org/oauth2';
 
 /**
+ * Error answer from the MusicBrainz OAuth endpoints, with the HTTP status and OAuth error code
+ * (e.g. invalid_grant) so callers can tell a rejected token from a temporary failure
+ */
+export class OAuthError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | null
+  ) {
+    super(message);
+    this.name = 'OAuthError';
+  }
+}
+
+/**
+ * True if MusicBrainz rejected the token or client for good (the user has to log in again);
+ * false for network errors, rate limits and server errors, where the refresh token stays valid
+ */
+export function isTokenRejected(error: unknown): boolean {
+  if (!(error instanceof OAuthError)) return false;
+  if (error.code) return ['invalid_grant', 'invalid_client', 'unauthorized_client'].includes(error.code);
+  return error.status === 400 || error.status === 401;
+}
+
+/**
  * Shared OAuth request handler for token and revoke endpoints
  * @internal
  */
@@ -35,7 +60,13 @@ async function oauthRequest(
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`OAuth ${endpoint} failed: ${error}`);
+    let code: string | null = null;
+    try {
+      code = (JSON.parse(error) as { error?: string }).error ?? null;
+    } catch {
+      // Not JSON (e.g. an HTML error page), keep only the status
+    }
+    throw new OAuthError(`OAuth ${endpoint} failed (${response.status}): ${error}`, response.status, code);
   }
 
   // Only parse JSON for token endpoint, revoke returns void
@@ -60,6 +91,9 @@ export function buildAuthorizationUrl(params: {
   url.searchParams.set('code_challenge_method', 'S256');
   url.searchParams.set('state', params.state);
   url.searchParams.set('scope', params.scope.join(' '));
+  // Without offline access MusicBrainz issues no refresh token, so the login ended with the
+  // first access token (1 hour)
+  url.searchParams.set('access_type', 'offline');
 
   return url.toString();
 }
@@ -77,7 +111,7 @@ export async function exchangeCodeForToken(params: {
   access_token: string;
   token_type: string;
   expires_in: number;
-  refresh_token: string;
+  refresh_token?: string; // Only with access_type=offline
   scope: string;
 }> {
   return oauthRequest(
