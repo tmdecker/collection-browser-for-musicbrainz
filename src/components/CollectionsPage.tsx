@@ -298,7 +298,7 @@ export default function CollectionsPage() {
               <section key={entityType}>
                 <SectionHeading title={`${entityLabel(entityType)} collections`} count={list.length} />
                 <div className={view === 'grid' ? tileGridClass : rowListClass}>
-                  {list.map(c => {
+                  {list.map((c, i) => {
                     const count = entityCount(c);
                     return (
                       <Tile
@@ -314,6 +314,7 @@ export default function CollectionsPage() {
                         seriesCollection={entityType === 'series'}
                         series={entityType === 'series' ? seriesLists[c.id] : undefined}
                         count={count}
+                        index={i}
                       />
                     );
                   })}
@@ -326,7 +327,7 @@ export default function CollectionsPage() {
               <section>
                 <SectionHeading title="Series" count={matchingSeries.length} />
                 <div className={view === 'grid' ? tileGridClass : rowListClass}>
-                  {matchingSeries.map(({ series, collectionId, collectionName }) => series.type === RELEASE_GROUP_SERIES ? (
+                  {matchingSeries.map(({ series, collectionId, collectionName }, i) => series.type === RELEASE_GROUP_SERIES ? (
                     <Tile
                       key={series.id}
                       view={view}
@@ -335,6 +336,7 @@ export default function CollectionsPage() {
                       detail={`in ${collectionName}`}
                       coverId={series.id}
                       fetchCovers="series"
+                      index={i}
                     />
                   ) : (
                     <UnsupportedRow

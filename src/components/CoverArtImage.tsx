@@ -34,7 +34,8 @@ interface CoverArtImageProps {
   alt?: string;
   size?: number;
   priority?: boolean;
-  onLoad?: () => void;
+  /** Gets the loaded image, e.g. to read its colours */
+  onLoad?: (img: HTMLImageElement) => void;
   onError?: () => void;
   className?: string;
 }
@@ -142,7 +143,8 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
     if (onError) onError();
   };
   
-  const handleLoad = () => {
+  const handleLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
     // Save the loaded image to cache
     if (actualSrc) {
       const cacheKey = generateCacheKey(actualSrc);
@@ -162,7 +164,7 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
       }
     }
     
-    if (onLoad) onLoad();
+    if (onLoad) onLoad(img);
   };
   
   if (error || !imageUrl) {

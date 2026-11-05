@@ -13,7 +13,7 @@
  * - Plain tiles (with an optional icon) while nothing is known yet
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import CoverArtImage from './CoverArtImage';
 import { getCollectionMetadata, getReleaseGroup } from '@/utils/db';
 import { loadCollectionCandidates, loadSeriesCandidates, loadSeriesCollectionCandidates, coverUrlFor } from '@/utils/mosaic-candidates';
@@ -104,7 +104,15 @@ const loadSeriesCovers = (seriesIds: string[], seriesCollectionId?: string) =>
     return (await loadSeriesCollectionCandidates(seriesCollectionId)).map(coverUrlFor);
   });
 
-export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, seriesCollectionId, className = '', emptyIcon }: CoverMosaicProps) {
+export interface MosaicSource {
+  collectionId?: string;
+  seriesIds?: string[];
+  fetchMissing?: 'collection' | 'series';
+  seriesCollectionId?: string;
+}
+
+/** The first covers of a collection, series or series collection, and a way to drop one whose image failed */
+export function useMosaicCovers({ collectionId, fetchMissing, seriesIds, seriesCollectionId }: MosaicSource) {
   const seriesKey = seriesIds?.join(',') ?? '';
   const isSeries = !!seriesKey || !!seriesCollectionId;
   const cacheKey = isSeries
@@ -125,6 +133,12 @@ export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, ser
   }, [collectionId, fetchMissing, seriesKey, seriesCollectionId, isSeries]);
 
   const shown = covers.filter(c => !failed.has(c)).slice(0, SLOTS);
+  const markFailed = useCallback((cover: string) => setFailed(prev => new Set(prev).add(cover)), []);
+  return { shown, markFailed };
+}
+
+export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, seriesCollectionId, className = '', emptyIcon }: CoverMosaicProps) {
+  const { shown, markFailed } = useMosaicCovers({ collectionId, fetchMissing, seriesIds, seriesCollectionId });
 
   if (shown.length === 0) {
     return (
@@ -143,7 +157,7 @@ export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, ser
               src={shown[i]}
               alt=""
               className="object-cover"
-              onError={() => setFailed(prev => new Set(prev).add(shown[i]))}
+              onError={() => markFailed(shown[i])}
             />
           )}
         </div>

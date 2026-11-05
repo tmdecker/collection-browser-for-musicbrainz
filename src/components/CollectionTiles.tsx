@@ -2,10 +2,10 @@
  * @ai-file component
  * @ai-description Shared pieces of the Collections page and series collection pages: section headings,
  *   cover cards and rows, plain rows for types the app can't open yet, the grid/list switch and the name filter
- * @ai-dependencies React, Next.js Link, CoverMosaic, react-icons
+ * @ai-dependencies React, Next.js Link, CoverMosaic, CoverMix, react-icons
  * @ai-features
- * - Grid view: cover mosaic with the name and detail below; list view: one compact row with a small mosaic
- * - Series collections: a stacked edge above the mosaic, one cover per opened series, or the first series names
+ * - Grid view: tile tinted by its first cover with the name inside (CoverMix); list view: one compact row with a small mosaic
+ * - Series collections: a stacked edge above the tile, covers from their series
  * - Unsupported types: plain dimmed rows without a cover, with a MusicBrainz icon (cards and rows of openable ones have none;
  *   the opened page's footnote links to MusicBrainz)
  * - Grid/list choice remembered in this browser and shared by both pages
@@ -18,11 +18,12 @@ import Link from 'next/link';
 import { BiCollection, BiGridAlt, BiListUl } from 'react-icons/bi';
 import { SiMusicbrainz } from 'react-icons/si';
 import CoverMosaic from './CoverMosaic';
+import CoverMix from './CoverMix';
 import type { SeriesSummary } from '@/utils/collection-info';
 
 export const sectionHeadingClass = 'text-lg font-semibold text-text-primary mb-3';
 export const sectionCountClass = 'ml-2 text-sm font-normal text-text-tertiary tabular-nums';
-export const tileGridClass = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-5 gap-y-6';
+export const tileGridClass = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-5';
 export const rowListClass = 'max-w-3xl space-y-2';
 
 /** Case- and accent-insensitive text for the name filters */
@@ -87,6 +88,8 @@ export interface TileProps {
   seriesCollection?: boolean;
   series?: SeriesSummary[];   // a series collection's series, if its page was opened in this browser
   count?: number;
+  /** Position in its grid: every other tile has its cover on the right */
+  index?: number;
 }
 
 /** Only on rows the app can't open: the tiles it can open have the link in the footnote of the opened page */
@@ -105,45 +108,31 @@ function MusicBrainzLink({ name, mbUrl }: { name: string; mbUrl: string }) {
   );
 }
 
-/** Empty series collection tile: the first series names, or an icon when they aren't known yet */
-function SeriesNames({ series, count }: { series?: SeriesSummary[]; count?: number }) {
-  if (!series || series.length === 0) return <BiCollection className="w-8 h-8" />;
-  const total = count ?? series.length;
-  return (
-    <div className="self-stretch justify-self-stretch flex flex-col justify-end p-4 text-left">
-      {series.slice(0, 3).map((s, i) => (
-        <span key={s.id} className={`block truncate text-[13px] text-text-secondary py-1.5 ${i > 0 ? 'border-t border-white/[0.07]' : ''}`}>{s.name}</span>
-      ))}
-      {total > 3 && <span className="text-xs text-text-tertiary pt-1">+ {(total - 3).toLocaleString()} more</span>}
-    </div>
-  );
-}
-
-/** Grid view: cover mosaic with the name and detail below */
-export function TileCard({ href, name, detail, coverId, fetchCovers, seriesCollection, series, count }: TileProps) {
-  const mosaic = seriesCollection ? (
+/** Grid view: tile tinted by its first cover, one cover across the middle and the name at the bottom.
+ *  Nothing below it: the detail (count) shows as a tooltip and in the accessible name */
+export function TileCard({ href, name, detail, coverId, fetchCovers, seriesCollection, series, index = 0 }: TileProps) {
+  const flip = index % 2 === 1;
+  const art = seriesCollection ? (
     // A small stacked edge on top: a collection of series rather than of release groups
     <div className="relative pt-2">
       <span className="absolute top-0 inset-x-3 h-1 rounded-t bg-white/[0.12]" aria-hidden="true" />
       <span className="absolute top-1 inset-x-1.5 h-1 rounded-t bg-white/[0.18]" aria-hidden="true" />
-      <CoverMosaic
+      <CoverMix
+        name={name}
+        flip={flip}
         seriesIds={series?.map(s => s.id)}
         seriesCollectionId={fetchCovers === 'collection' ? coverId : undefined}
-        className="relative aspect-square w-full rounded-lg"
-        emptyIcon={<SeriesNames series={series} count={count} />}
+        emptyIcon={<BiCollection className="w-8 h-8" />}
       />
     </div>
   ) : (
-    <CoverMosaic collectionId={coverId} fetchMissing={fetchCovers} className="aspect-square w-full rounded-lg" emptyIcon={<BiCollection className="w-8 h-8" />} />
+    <CoverMix name={name} flip={flip} collectionId={coverId} fetchMissing={fetchCovers} emptyIcon={<BiCollection className="w-8 h-8" />} />
   );
+  const label = detail ? `${name} · ${detail}` : name;
   return (
-    <div className="group min-w-0">
-      <Link href={href} className="block hover:opacity-90 transition-opacity">{mosaic}</Link>
-      <div className="mt-2 flex items-center gap-2 min-w-0">
-        <Link href={href} className="min-w-0 truncate text-sm font-medium text-text-primary hover:text-white/80">{name}</Link>
-      </div>
-      <div className="text-[13px] text-text-tertiary truncate tabular-nums">{detail}</div>
-    </div>
+    <Link href={href} title={label} aria-label={label} className="group block min-w-0 rounded-md hover:brightness-110 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/60">
+      {art}
+    </Link>
   );
 }
 

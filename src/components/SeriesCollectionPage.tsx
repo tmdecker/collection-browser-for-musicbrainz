@@ -185,7 +185,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
               <section>
                 <SectionHeading title="Release group series" count={openable.length} />
                 <div className={view === 'grid' ? tileGridClass : rowListClass}>
-                  {openable.map(s => (
+                  {openable.map((s, i) => (
                     <Tile
                       key={s.id}
                       view={view}
@@ -196,6 +196,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
                         : s.disambiguation || ''}
                       coverId={s.id}
                       fetchCovers="series"
+                      index={i}
                     />
                   ))}
                 </div>
