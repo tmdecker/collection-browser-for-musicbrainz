@@ -1,7 +1,7 @@
 /**
  * @ai-file api
  * @ai-description Fetch authenticated user's MusicBrainz profile
- * @ai-features OAuth userinfo endpoint, Bearer token authentication
+ * @ai-features OAuth userinfo endpoint (POST), Bearer token authentication, 502 for non-JSON answers
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,8 +25,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user profile using OAuth2 userinfo endpoint
+    // POST, not GET: MusicBrainz answers GET with an HTML "Verifying your browser" page (200)
     const response = await fetch(`${MB_OAUTH_URL}/userinfo`, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Accept': 'application/json',
         'User-Agent': getUserAgent(),
@@ -40,6 +41,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Failed to fetch user profile' },
         { status: response.status }
+      );
+    }
+
+    // A bot check or error page instead of JSON: temporary, the client retries
+    if (!response.headers.get('content-type')?.includes('application/json')) {
+      const body = await response.text();
+      console.error(`❌ User profile answer is not JSON (${response.status}): ${body.slice(0, 200)}`);
+      return NextResponse.json(
+        { error: 'Unexpected answer from MusicBrainz' },
+        { status: 502 }
       );
     }
 

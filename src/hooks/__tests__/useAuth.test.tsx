@@ -179,4 +179,22 @@ describe('useAuth', () => {
     expect(result.current.isAuthenticated).toBe(false);
     expect(calls('/api/auth/profile')).toBe(0);
   });
+
+  it('retries the profile when it fails temporarily (502)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setExpiryCookie(Date.now() + HOUR);
+    let unavailable = true;
+    fetchMock.mockImplementation(async (url: string) =>
+      url === '/api/auth/profile' && unavailable ? new Response(null, { status: 502 }) : json(user)
+    );
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(calls('/api/auth/profile')).toBe(1));
+    expect(result.current.authState.status).toBe('authenticating');
+
+    unavailable = false;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 1000);
+    });
+    await waitFor(() => expect(result.current.user).toEqual(user));
+  });
 });

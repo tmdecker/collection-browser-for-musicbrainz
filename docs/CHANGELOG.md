@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 - Logins no longer end after about an hour: the app now asks MusicBrainz for a refresh token (offline access) and no longer logs you out when MusicBrainz is briefly unavailable (it retries after 30 s, doubling up to 5 min). If MusicBrainz returns no refresh token because the app was approved before, the login shows the consent page once more
+- Your MusicBrainz profile loads again after logging in: MusicBrainz now answers profile requests by GET with a "Verifying your browser" page, so the app asks with POST (an unexpected page is retried instead of failing)
 - The "Open by MBID or URL" field on the Collections page no longer cuts off its placeholder on phones: it reads "Paste an MBID or URL", and the space for the clear and check icons is only kept while something is typed
 
 ## [0.39.0] - 2026-11-04
