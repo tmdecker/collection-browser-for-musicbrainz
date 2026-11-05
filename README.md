@@ -106,7 +106,7 @@ pm2 save
 ## Using the Application
 
 1. Open the application in your browser. The Collections page is the home screen
-2. Log in with MusicBrainz (account button, top right) to see your own collections, or use "Open by MBID or URL" for any public collection or series
+2. Log in with MusicBrainz (account button, top right) to see your own collections, or paste the MBID or musicbrainz.org link of any public collection or series into the search bar
 3. Use the breadcrumb ("Collections / name") to go back; on phones, the back arrow
 4. Apply filters to narrow down albums by genre, label, date, or rating
 5. The footnote in the bottom-left corner shows the collection name and count. Hover it (tap on touch screens) for the series homepage, the MusicBrainz link and "Reload" (reload the collection from MusicBrainz)

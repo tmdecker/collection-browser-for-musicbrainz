@@ -5,7 +5,8 @@
  * @ai-features
  * - Rounded search input with custom clear button styling
  * - Hover and focus states with visual feedback
- * - Multi-level responsive placeholder text (3 breakpoints)
+ * - Shorter placeholder text on small screens
+ * - Optional result popup (combobox) wiring: Enter handler, aria-controls/aria-expanded
  * - Responsive padding and icon sizing for optimal mobile layout
  */
 
@@ -19,6 +20,13 @@ interface SearchBarProps {
   ariaLabel?: string;
   /** Escape empties the field */
   clearOnEscape?: boolean;
+  /** Placeholder on screens under 640px */
+  compactPlaceholder?: string;
+  /** Called for every key press after the Escape handling, e.g. Enter to open a result */
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  /** id of a popup the field controls (a result list) and whether it is showing */
+  controlsId?: string;
+  expanded?: boolean;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
@@ -28,20 +36,21 @@ const SearchBar: React.FC<SearchBarProps> = ({
   id = 'music-search',
   ariaLabel = 'Search for albums and artists',
   clearOnEscape = false,
+  compactPlaceholder = 'Search...',
+  onKeyDown,
+  controlsId,
+  expanded,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dynamicPlaceholder, setDynamicPlaceholder] = useState(placeholder);
 
   // Detect screen size and set appropriate placeholder text with 3-tier system:
-  // < 400px: "Search..." (ultra-compact)
-  // 400-640px: "Search..." too ("release groups" doesn't fit)
-  // > 640px: "Search release groups, artists..." (full)
+  // < 640px: compactPlaceholder ("Search..." unless given)
+  // >= 640px: the full placeholder
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 400) { // Very small screens
-        setDynamicPlaceholder('Search...');
-      } else if (window.innerWidth < 640) { // Small screens (sm breakpoint)
-        setDynamicPlaceholder('Search...');
+      if (window.innerWidth < 640) { // Small screens (sm breakpoint): the full text doesn't fit
+        setDynamicPlaceholder(compactPlaceholder);
       } else {
         setDynamicPlaceholder(placeholder);
       }
@@ -57,7 +66,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [placeholder]);
+  }, [placeholder, compactPlaceholder]);
 
   // The clear (x) button is styled in globals.css
   return (
@@ -87,8 +96,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
         placeholder={dynamicPlaceholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={clearOnEscape ? (e) => { if (e.key === 'Escape' && value) { e.preventDefault(); onChange(''); } } : undefined}
+        onKeyDown={(e) => {
+          if (clearOnEscape && e.key === 'Escape' && value) { e.preventDefault(); onChange(''); }
+          onKeyDown?.(e);
+        }}
         aria-label={ariaLabel}
+        role={controlsId ? 'combobox' : undefined}
+        aria-controls={controlsId}
+        aria-expanded={controlsId ? Boolean(expanded) : undefined}
         autoComplete="off"
       />
     </div>

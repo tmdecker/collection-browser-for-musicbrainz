@@ -28,7 +28,7 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 | Route | Page |
 |---|---|
 | `/` | Redirects to the collection or series opened last, or to `/collections` on a first visit |
-| `/collections` | Home (`CollectionsPage`): recently opened, "Open by MBID or URL", the signed-in user's collections grouped by entity type |
+| `/collections` | Home (`CollectionsPage`): recently opened and the signed-in user's collections grouped by entity type; the search bar filters them or opens a pasted MBID or collection/series link (`classifyOpenInput` in `utils/mbid-validation.ts`) |
 | `/collection/<mbid>` | A release group collection (album grid) or a series collection (`SeriesCollectionPage`, its series as cards or rows) |
 | `/series/<mbid>` | A release group series; `?collection=<mbid>` when opened from a series collection, for the breadcrumb back |
 | `/config` | Settings |

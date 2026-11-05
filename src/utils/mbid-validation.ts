@@ -52,6 +52,36 @@ export function extractMbidFromUrl(input: string): ExtractedEntity | null {
   return null;
 }
 
+export type OpenInput =
+  | { kind: 'id'; mbid: string; entityType: EntityType | null }
+  | { kind: 'unsupported'; message: string };
+
+const ANY_MBID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/**
+ * Decide whether search text is something to open (an MBID or a musicbrainz.org link) instead of a name to filter by.
+ * Returns null for plain text. Collection and series links keep their type; a bare MBID could be either.
+ */
+export function classifyOpenInput(input: string): OpenInput | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const isLink = /musicbrainz\.org\//i.test(trimmed);
+  const mbid = trimmed.match(ANY_MBID)?.[0].toLowerCase();
+  if (!isLink && !mbid) return null;
+  if (isLink) {
+    const extracted = extractMbidFromUrl(trimmed);
+    if (extracted) return { kind: 'id', mbid: extracted.mbid.toLowerCase(), entityType: extracted.entityType };
+    const type = trimmed.match(/musicbrainz\.org\/([a-z-]+)\/[0-9a-f]{8}-/i)?.[1].toLowerCase();
+    return {
+      kind: 'unsupported',
+      message: type
+        ? `That is a ${type.replace(/-/g, ' ')} link. Only collection and series links can be opened here.`
+        : 'Paste a collection or series link with an MBID in it.',
+    };
+  }
+  return { kind: 'id', mbid: mbid!, entityType: null };
+}
+
 /**
  * Strict MBID check for untrusted API input (no trimming, any type accepted)
  */
@@ -66,15 +96,20 @@ export function isValidMbidFormat(mbid: string): boolean {
   return MBID_REGEX.test(mbid.trim());
 }
 
+export interface ValidationResult {
+  valid: boolean;
+  mbid: string | null;
+  message: string;
+  /** Name and release group count of a valid collection or series */
+  name?: string;
+  count?: number;
+}
+
 /**
  * Validate if a MusicBrainz collection ID exists and is a release-group collection
  * Returns validation result with status and message
  */
-export async function validateCollectionId(input: string): Promise<{
-  valid: boolean;
-  mbid: string | null;
-  message: string;
-}> {
+export async function validateCollectionId(input: string): Promise<ValidationResult & { notFound?: boolean }> {
   const trimmed = input.trim();
 
   if (!trimmed) {
@@ -114,6 +149,7 @@ export async function validateCollectionId(input: string): Promise<{
           valid: false,
           mbid,
           message: 'Collection not found. Make sure the collection is public or log in to access private collections.',
+          notFound: true,
         };
       }
       if (response.status === 401) {
@@ -137,7 +173,7 @@ export async function validateCollectionId(input: string): Promise<{
       return {
         valid: false,
         mbid,
-        message: `This is a ${data['entity-type']} collection. Please use a release-group collection.`,
+        message: `This is ${/^[aeiou]/i.test(data['entity-type']) ? 'an' : 'a'} ${String(data['entity-type']).replace(/_/g, ' ')} collection. Only release group collections and series can be opened.`,
       };
     }
 
@@ -145,6 +181,8 @@ export async function validateCollectionId(input: string): Promise<{
       valid: true,
       mbid,
       message: `Valid release-group collection with ${data['release-group-count'] || 0} items`,
+      name: typeof data.name === 'string' ? data.name : undefined,
+      count: typeof data['release-group-count'] === 'number' ? data['release-group-count'] : undefined,
     };
   } catch (error) {
     console.error('Collection validation error:', error);
@@ -160,11 +198,7 @@ export async function validateCollectionId(input: string): Promise<{
  * Validate if a MusicBrainz series ID exists and contains release-groups
  * Returns validation result with status and message
  */
-export async function validateSeriesId(input: string): Promise<{
-  valid: boolean;
-  mbid: string | null;
-  message: string;
-}> {
+export async function validateSeriesId(input: string): Promise<ValidationResult> {
   const trimmed = input.trim();
 
   if (!trimmed) {
@@ -223,9 +257,9 @@ export async function validateSeriesId(input: string): Promise<{
     const data = await response.json();
 
     // Check if the series has release-group relationships
-    const hasReleaseGroups = data.relations?.some((rel: any) => rel.type === 'part of' && rel['target-type'] === 'release_group');
+    const releaseGroupCount = (data.relations ?? []).filter((rel: any) => rel.type === 'part of' && rel['target-type'] === 'release_group').length;
 
-    if (!hasReleaseGroups) {
+    if (releaseGroupCount === 0) {
       return {
         valid: false,
         mbid,
@@ -237,6 +271,8 @@ export async function validateSeriesId(input: string): Promise<{
       valid: true,
       mbid,
       message: `Valid series: ${data.name || 'Unknown'}`,
+      name: typeof data.name === 'string' ? data.name : undefined,
+      count: releaseGroupCount,
     };
   } catch (error) {
     console.error('Series validation error:', error);
@@ -252,12 +288,7 @@ export async function validateSeriesId(input: string): Promise<{
  * Unified validation function that auto-detects entity type (collection or series)
  * Returns validation result with status, message, and entity type
  */
-export async function validateEntityId(input: string): Promise<{
-  valid: boolean;
-  mbid: string | null;
-  entityType: EntityType | null;
-  message: string;
-}> {
+export async function validateEntityId(input: string): Promise<ValidationResult & { entityType: EntityType | null }> {
   const trimmed = input.trim();
 
   if (!trimmed) {
@@ -308,6 +339,11 @@ export async function validateEntityId(input: string): Promise<{
     };
   }
 
+  // A collection of another entity type: say so instead of "not found"
+  if (!collectionResult.notFound && collectionResult.mbid && /^This is an? /.test(collectionResult.message)) {
+    return { ...collectionResult, entityType: null };
+  }
+
   const seriesResult = await validateSeriesId(trimmed);
   if (seriesResult.valid) {
     return {
@@ -321,6 +357,6 @@ export async function validateEntityId(input: string): Promise<{
     valid: false,
     mbid: trimmed,
     entityType: null,
-    message: 'Not a valid collection or series ID',
+    message: 'No public collection or series with this MBID. If it is a private collection of yours, log in first.',
   };
 }

@@ -7,7 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
-- Settings: "Show Recently opened on the Collections page" (on by default). Without the row, or in a browser that has opened nothing yet, your collections start at the top of the Collections page, with "Open by MBID or URL" on the right (above them on phones)
+- The search bar on the Collections page also opens collections and series: paste an MBID or a musicbrainz.org collection or series link and the match shows under the bar (your own at once, others after a MusicBrainz lookup); Enter or a click opens it. Other links (releases, artist collections, …) get a short reason instead. The bar shows when logged out too. The separate "Open by MBID or URL" box is gone
+- Settings: "Show Recently opened on the Collections page" (on by default). Without the row, or in a browser that has opened nothing yet, your collections start at the top of the Collections page
 
 ### Fixed
 - Cover mosaics on the Collections page fill in by themselves in a new browser: when the browser has no copy of a collection, the mosaic asks for its first page (the same request the collection page makes, so the server's copy usually answers, and a live request fills that copy) and shows its first covers; series collections use their first release group series. A cover that is missing is replaced by the next one, so only about four images are loaded per collection, and the choice is remembered in the browser for a week

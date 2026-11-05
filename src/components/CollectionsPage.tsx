@@ -1,6 +1,7 @@
 /**
  * @ai-file component
- * @ai-description Collections page (home): recently opened, "Open by MBID or URL", and the signed-in user's collections grouped by entity type
+ * @ai-description Collections page (home): recently opened and the signed-in user's collections grouped by entity type;
+ *   the search bar also opens any collection or series from a pasted MBID or musicbrainz.org link
  * @ai-dependencies React, Next.js Link and router, useAuth, usePreferences, mbid-validation
  * @ai-features
  * - Groups collections by MusicBrainz entity type; release group and series collections open,
@@ -13,15 +14,16 @@
  *   grid or list view (remembered), and a
  *   "Recently opened" row (one cover per entry) that can be hidden in Settings; without it the collections start at the top
  * - Search filters collection names and the series inside series collections instantly
- * - Open any public collection or series by MBID or musicbrainz.org URL
+ * - A pasted MBID or collection/series link shows one result under the search bar instead (Enter opens it):
+ *   own collections and series at once, anything else after a MusicBrainz lookup; shown when logged out too
  */
 
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BiCheck, BiCollection, BiError, BiLoaderAlt, BiX } from 'react-icons/bi';
+import { BiCollection, BiLoaderAlt } from 'react-icons/bi';
 import AuthResultToast from './AuthResultToast';
 import CoverThumb from './CoverThumb';
 import SearchBar from './SearchBar';
@@ -30,7 +32,7 @@ import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, foldText, rowListClas
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/usePreferences';
 import { MusicBrainzCollection } from '@/types/auth';
-import { validateEntityId, EntityType } from '@/utils/mbid-validation';
+import { classifyOpenInput, validateEntityId, EntityType } from '@/utils/mbid-validation';
 import { collectionPath } from '@/utils/collection-routes';
 import { readCachedCollections, readCachedSeries, writeCachedCollections, type SeriesSummary } from '@/utils/collection-info';
 import { readRecentlyOpened, recentHref, recentKindLabel, type RecentEntry } from '@/utils/recently-opened';
@@ -59,6 +61,12 @@ const entityCount = (collection: MusicBrainzCollection): number | undefined => {
 };
 
 const RELEASE_GROUP_SERIES = 'Release group series';
+
+// What a pasted MBID or link would open, shown under the search bar
+type OpenResult =
+  | { status: 'validating' }
+  | { status: 'error'; message: string }
+  | { status: 'valid'; name: string; detail: string; href: string; coverId?: string; seriesCollectionId?: string };
 
 export default function CollectionsPage() {
   const router = useRouter();
@@ -115,37 +123,6 @@ export default function CollectionsPage() {
     .forEach(c => groups.set(c['entity-type'], [...(groups.get(c['entity-type']) ?? []), c]));
 
 
-  // Open by MBID or URL
-  const [input, setInput] = useState('');
-  const [validation, setValidation] = useState<{ status: 'idle' | 'validating' | 'valid' | 'error'; message: string; mbid?: string; entityType?: EntityType }>({ status: 'idle', message: '' });
-  const validationRunRef = useRef(0);
-
-  const validate = useCallback(async (value: string) => {
-    const run = ++validationRunRef.current;
-    if (!value.trim()) {
-      setValidation({ status: 'idle', message: '' });
-      return;
-    }
-    setValidation({ status: 'validating', message: '' });
-    const result = await validateEntityId(value);
-    if (run !== validationRunRef.current) return;
-    if (result.valid && result.mbid && result.entityType) {
-      setValidation({ status: 'valid', message: result.message, mbid: result.mbid, entityType: result.entityType });
-    } else {
-      setValidation({ status: 'error', message: result.message });
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => validate(input), 600);
-    return () => clearTimeout(timer);
-  }, [input, validate]);
-
-  const openValidated = () => {
-    if (validation.status !== 'valid' || !validation.mbid || !validation.entityType) return;
-    router.push(collectionPath(validation.entityType, validation.mbid));
-  };
-
   // View of the collection sections, remembered in this browser; Recently opened looks the same in both
   const [view, chooseView] = useTileView();
 
@@ -176,9 +153,11 @@ export default function CollectionsPage() {
     setSeriesLists(lists);
   }, [collections, recent]);
 
-  // Instant name filter for collections and the series inside series collections
+  // Instant name filter for collections and the series inside series collections,
+  // unless the text is an MBID or musicbrainz.org link: then it offers to open that instead
   const [query, setQuery] = useState('');
-  const needle = foldText(query.trim());
+  const openInput = classifyOpenInput(query);
+  const needle = openInput ? '' : foldText(query.trim());
   const searching = needle.length > 0;
   const matches = (name: string) => foldText(name).includes(needle);
 
@@ -196,6 +175,78 @@ export default function CollectionsPage() {
     return hits.sort((a, b) => a.series.name.localeCompare(b.series.name));
   })();
 
+  // A pasted MBID or link: own collections and series are known at once, anything else is looked up
+  const openTarget = openInput?.kind === 'id' ? openInput : null;
+  const ownResult = ((): OpenResult | null => {
+    if (!openTarget) return null;
+    const { mbid, entityType } = openTarget;
+    if (entityType !== 'series') {
+      const own = collections.find(c => c.id.toLowerCase() === mbid);
+      if (own) {
+        const type = own['entity-type'];
+        if (!SUPPORTED_ENTITY_TYPES.has(type)) {
+          return { status: 'error', message: `“${own.name}” is your ${entityLabel(type).toLowerCase()} collection. Only release group collections and series can be opened.` };
+        }
+        const count = entityCount(own);
+        return {
+          status: 'valid',
+          name: own.name,
+          detail: `Your ${type === 'series' ? 'series collection' : 'collection'}${count !== undefined ? ` · ${countLabel(type, count)}` : ''}`,
+          href: collectionPath('collection', own.id),
+          coverId: type === 'series' ? undefined : own.id,
+          seriesCollectionId: type === 'series' ? own.id : undefined,
+        };
+      }
+    }
+    if (entityType !== 'collection') {
+      for (const c of collections.filter(x => x['entity-type'] === 'series')) {
+        const series = seriesLists[c.id]?.find(x => x.id.toLowerCase() === mbid);
+        if (series && series.type === RELEASE_GROUP_SERIES) {
+          return {
+            status: 'valid',
+            name: series.name,
+            detail: `Series in ${c.name}`,
+            href: `${collectionPath('series', series.id)}?collection=${c.id}`,
+            coverId: series.id,
+          };
+        }
+      }
+    }
+    return null;
+  })();
+
+  const lookupKey = openTarget && !ownResult ? `${openTarget.entityType ?? 'any'}:${openTarget.mbid}` : null;
+  const [lookup, setLookup] = useState<{ key: string; result: OpenResult } | null>(null);
+  useEffect(() => {
+    if (!lookupKey) return;
+    let cancelled = false;
+    const [type, mbid] = lookupKey.split(':');
+    const timer = setTimeout(async () => {
+      const result = await validateEntityId(type === 'any' ? mbid : `https://musicbrainz.org/${type}/${mbid}`);
+      if (cancelled) return;
+      setLookup({
+        key: lookupKey,
+        result: result.valid && result.entityType ? {
+          status: 'valid',
+          name: result.name || 'Untitled',
+          detail: `${result.entityType === 'series' ? 'Series' : 'Collection'}${result.count !== undefined ? ` · ${countLabel('release_group', result.count)}` : ''}`,
+          href: collectionPath(result.entityType, mbid),
+          coverId: mbid,
+        } : { status: 'error', message: result.message },
+      });
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [lookupKey]);
+
+  const openResult: OpenResult | null = openInput?.kind === 'unsupported'
+    ? { status: 'error', message: openInput.message }
+    : ownResult ?? (lookupKey ? (lookup?.key === lookupKey ? lookup.result : { status: 'validating' }) : null);
+  const [popupOpen, setPopupOpen] = useState(true);
+  const showPopup = popupOpen && openResult !== null;
+  const openFromSearch = () => {
+    if (openResult?.status === 'valid') router.push(openResult.href);
+  };
+
   const showView = isAuthenticated && !loading && !loadError && collections.length > 0;
   const filtered = (list: MusicBrainzCollection[]) => searching ? list.filter(c => matches(c.name)) : list;
   const visibleGroups = [...groups.entries()]
@@ -204,53 +255,6 @@ export default function CollectionsPage() {
     .filter(([, list]) => list.length > 0);
   // Types the app can't open yet: one section of plain rows, no covers
   const unsupported = filtered([...groups.entries()].filter(([t]) => !SUPPORTED_ENTITY_TYPES.has(t)).flatMap(([, list]) => list));
-
-  const openBox = (
-    <section className="w-full lg:w-[340px] lg:flex-none">
-      <label htmlFor="open-by-id" className={`block ${sectionHeadingClass}`}>
-        Open by MBID or URL
-      </label>
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 min-w-0">
-          <input
-            id="open-by-id"
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') openValidated(); }}
-            placeholder="Paste an MBID or URL"
-            className={`block w-full h-[42px] pl-4 ${input ? 'pr-16' : 'pr-4'} text-sm text-white placeholder:text-white/55 bg-background-control rounded-full border border-white/15 hover:border-white/35 focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none transition-colors`}
-          />
-          {input && (
-            <button
-              type="button"
-              onClick={() => setInput('')}
-              className="absolute right-9 top-1/2 -translate-y-1/2 p-1 text-white/60 hover:text-white/90 transition-colors"
-              aria-label="Clear input"
-            >
-              <BiX className="w-5 h-5" />
-            </button>
-          )}
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            {validation.status === 'validating' && <BiLoaderAlt className="w-4 h-4 text-white/40 animate-spin" />}
-            {validation.status === 'valid' && <BiCheck className="w-5 h-5 text-green-500" />}
-            {validation.status === 'error' && <BiError className="w-5 h-5 text-red-500" />}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={openValidated}
-          disabled={validation.status !== 'valid'}
-          className="h-[42px] px-6 bg-primary text-white text-sm font-medium rounded-full hover:bg-primary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-        >
-          Open
-        </button>
-      </div>
-      <p className={`mt-2 text-xs ${validation.status === 'error' ? 'text-red-400' : 'text-text-tertiary'}`}>
-        {validation.status === 'error' ? validation.message : 'Any public collection or series.'}
-      </p>
-    </section>
-  );
 
   const showRecent = recentAllowed && recent.length > 0;
   const recentSection = (
@@ -376,7 +380,10 @@ export default function CollectionsPage() {
           </>
         )
       ) : (
-        <p className="text-text-secondary text-sm">Log in (top right) to see your MusicBrainz collections, including private ones.</p>
+        <p className="text-text-secondary text-sm">
+          Log in (top right) to see your MusicBrainz collections, including private ones.
+          Any public collection or series opens from its MBID or link in the search bar.
+        </p>
       )}
     </>
   );
@@ -389,50 +396,76 @@ export default function CollectionsPage() {
           {/* Same layout as a collection page: breadcrumb left; search, view switch and account right */}
           <div className="flex items-center gap-2 md:gap-3 min-h-[40px] md:min-h-[42px]">
             <div className="flex items-center min-w-0 flex-shrink-0 md:flex-1">
-              <nav aria-label="Breadcrumb" className={`${showView ? 'hidden md:flex' : 'flex'} text-[15px]`}>
+              <nav aria-label="Breadcrumb" className="hidden md:flex text-[15px]">
                 <span className="font-semibold text-white" aria-current="page">Collections</span>
               </nav>
             </div>
-            {showView ? (
-              <>
-                <div className="flex-1 min-w-0 md:flex-none md:w-[260px] lg:w-[340px]">
-                  <SearchBar
-                    value={query}
-                    onChange={setQuery}
-                    placeholder="Search collections and series"
-                    id="collections-search"
-                    ariaLabel="Search collections and series"
-                    clearOnEscape
-                  />
+            {/* On phones the result spans the header; from md on it sits under the search bar */}
+            <div
+              className="flex-1 min-w-0 md:flex-none md:w-[300px] lg:w-[340px] md:relative"
+              onFocus={() => setPopupOpen(true)}
+              onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPopupOpen(false); }}
+            >
+              <SearchBar
+                value={query}
+                onChange={value => { setQuery(value); setPopupOpen(true); }}
+                placeholder={isAuthenticated ? 'Search, or paste an MBID or URL' : 'Paste an MBID or URL'}
+                compactPlaceholder={isAuthenticated ? 'Search or paste MBID' : 'Paste an MBID or URL'}
+                id="collections-search"
+                ariaLabel="Search collections and series, or paste an MBID or MusicBrainz link"
+                clearOnEscape
+                onKeyDown={e => { if (e.key === 'Enter') openFromSearch(); }}
+                controlsId="open-result"
+                expanded={showPopup}
+              />
+              {showPopup && openResult && (
+                <div
+                  id="open-result"
+                  role={openResult.status === 'valid' ? 'listbox' : 'status'}
+                  // Keep the focus in the field while clicking the result (Safari doesn't focus links on click)
+                  onMouseDown={e => e.preventDefault()}
+                  className="absolute z-40 left-3 right-3 top-full mt-1 md:left-0 md:right-0 md:mt-2 p-1.5 rounded-2xl bg-background-secondary border border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.5)]"
+                >
+                  {openResult.status === 'valid' ? (
+                    <Link
+                      href={openResult.href}
+                      role="option"
+                      aria-selected="true"
+                      className="flex items-center gap-3 min-w-0 rounded-xl p-2 bg-background-tertiary hover:bg-white/15 transition-colors"
+                    >
+                      <CoverThumb
+                        collectionId={openResult.coverId}
+                        seriesIds={openResult.seriesCollectionId ? seriesLists[openResult.seriesCollectionId]?.map(x => x.id) : undefined}
+                        seriesCollectionId={openResult.seriesCollectionId}
+                        className="w-10 h-10 rounded-md flex-shrink-0"
+                        emptyIcon={<BiCollection className="w-5 h-5" />}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-text-primary">{openResult.name}</span>
+                        <span className="block truncate text-xs text-text-tertiary">{openResult.detail}</span>
+                      </span>
+                      <kbd className="hidden md:inline flex-shrink-0 px-1.5 rounded border border-white/15 text-[11px] font-sans text-text-tertiary">Enter</kbd>
+                    </Link>
+                  ) : openResult.status === 'validating' ? (
+                    <p className="flex items-center gap-2.5 p-2.5 text-sm text-text-secondary">
+                      <BiLoaderAlt className="w-4 h-4 animate-spin flex-shrink-0" /> Looking it up on MusicBrainz…
+                    </p>
+                  ) : (
+                    <p className="p-2.5 text-sm text-red-400">{openResult.message}</p>
+                  )}
                 </div>
-                <ViewSwitch view={view} onChange={chooseView} />
-              </>
-            ) : <span className="flex-1 md:hidden" />}
+              )}
+            </div>
+            {showView && <ViewSwitch view={view} onChange={chooseView} />}
             <UserAvatarButton />
           </div>
         </header>
       </div>
 
       <div className="w-full px-3 md:px-8 pt-6 md:pt-8 pb-8 space-y-9">
-        {showRecent ? (
-          <>
-            {/* Recently opened, and Open by MBID or URL top right (below it on narrow screens); hidden while searching */}
-            {!searching && (
-              <div className="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-10">
-                {recentSection}
-                {openBox}
-              </div>
-            )}
-            {collectionSections}
-          </>
-        ) : (
-          // Nothing recent (or hidden in Settings): the collections move up, Open by MBID or URL stays
-          // top right (above them on narrow screens); hidden while searching
-          <div className="flex flex-col-reverse lg:flex-row lg:items-start gap-8 lg:gap-10">
-            <div className="flex-1 min-w-0 space-y-9">{collectionSections}</div>
-            {!searching && openBox}
-          </div>
-        )}
+        {/* Recently opened (hidden while searching), then the collections */}
+        {showRecent && !searching && recentSection}
+        {collectionSections}
       </div>
     </main>
   );
