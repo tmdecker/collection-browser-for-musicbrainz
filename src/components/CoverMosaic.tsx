@@ -11,6 +11,7 @@
  * - A cover that fails to load is replaced by the next candidate, so only about four images are requested
  * - Same cover URLs and size as the grid, so the browser usually has them already
  * - Plain tiles (with an optional icon) while nothing is known yet
+ * - single: just the first cover (Recently opened)
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -31,6 +32,8 @@ interface CoverMosaicProps {
   className?: string;
   /** Shown in the empty mosaic */
   emptyIcon?: React.ReactNode;
+  /** Only the first cover instead of a 2x2 mosaic */
+  single?: boolean;
 }
 
 const SLOTS = 4;
@@ -137,13 +140,21 @@ export function useMosaicCovers({ collectionId, fetchMissing, seriesIds, seriesC
   return { shown, markFailed };
 }
 
-export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, seriesCollectionId, className = '', emptyIcon }: CoverMosaicProps) {
+export default function CoverMosaic({ collectionId, fetchMissing, seriesIds, seriesCollectionId, className = '', emptyIcon, single = false }: CoverMosaicProps) {
   const { shown, markFailed } = useMosaicCovers({ collectionId, fetchMissing, seriesIds, seriesCollectionId });
 
   if (shown.length === 0) {
     return (
       <div className={`grid place-items-center bg-background-tertiary text-text-tertiary overflow-hidden ${className}`} aria-hidden="true">
         {emptyIcon}
+      </div>
+    );
+  }
+
+  if (single) {
+    return (
+      <div className={`relative bg-background-tertiary overflow-hidden ${className}`} aria-hidden="true">
+        <CoverArtImage src={shown[0]} alt="" className="object-cover" onError={() => markFailed(shown[0])} />
       </div>
     );
   }

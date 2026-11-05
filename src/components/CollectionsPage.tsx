@@ -10,7 +10,7 @@
  * - Each card or row links to its collection page (whose footnote links to musicbrainz.org); rows the app can't open
  *   have a MusicBrainz icon instead
  * - Cover mosaics (looked up in the background on a new browser), grid or list view (remembered), and a
- *   "Recently opened" row that can be hidden in Settings; without it the collections start at the top
+ *   "Recently opened" row (one cover per entry) that can be hidden in Settings; without it the collections start at the top
  * - Search filters collection names and the series inside series collections instantly
  * - Open any public collection or series by MBID or musicbrainz.org URL
  */
@@ -269,6 +269,7 @@ export default function CollectionsPage() {
               seriesCollectionId={entry.kind === 'series_collection' ? entry.mbid : undefined}
               className="w-10 h-10 rounded-md flex-shrink-0"
               emptyIcon={<BiCollection className="w-5 h-5" />}
+              single
             />
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium text-text-primary">{entry.name}</span>
