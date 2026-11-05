@@ -10,7 +10,6 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import {
   BiLogoSpotify,
   BiLogoDeezer,
@@ -251,6 +250,12 @@ const transformAppleMusicUrl = (url: string, useDesktopApp: boolean): string => 
   return url;
 };
 
+// Web links open in a new tab. App links (spotify://, tidal://, music://)
+// open in the current tab: the browser hands them to the app and the page
+// stays, so no empty tab is left behind.
+export const linkTargetProps = (href: string) =>
+  /^https?:/i.test(href) ? { target: '_blank', rel: 'noopener noreferrer' } : {};
+
 const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
   streamingLinks,
   loading = false,
@@ -333,34 +338,32 @@ const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
           if (!config) {
             // Fallback for unknown platforms
             return (
-              <Link
+              <a
                 key={platform}
                 href={finalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...linkTargetProps(finalUrl)}
                 className="flex items-center justify-center w-[34px] h-[34px] md:w-6 md:h-6 text-text-secondary hover:text-white transition-colors duration-200"
                 title={`Open on ${platform}`}
                 aria-label={`Open on ${platform}`}
               >
                 <BiMusic className="w-[34px] h-[34px] md:w-6 md:h-6" />
-              </Link>
+              </a>
             );
           }
 
           const IconComponent = config.icon;
 
           return (
-            <Link
+            <a
               key={platform}
               href={finalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...linkTargetProps(finalUrl)}
               className={`flex items-center justify-center w-[34px] h-[34px] md:w-6 md:h-6 text-text-secondary transition-colors duration-200 ${config.color}`}
               title={`Open on ${config.name}`}
               aria-label={`Open on ${config.name}`}
             >
               <IconComponent className="w-[34px] h-[34px] md:w-6 md:h-6" />
-            </Link>
+            </a>
           );
         })}
       </div>
