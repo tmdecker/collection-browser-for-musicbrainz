@@ -2,12 +2,13 @@
  * @ai-file api
  * @ai-description OAuth2 login initiation endpoint
  * @ai-dependencies PKCE utilities, cookies
- * @ai-features PKCE generation, CSRF protection, redirect to MusicBrainz, remembers the starting page
+ * @ai-features PKCE generation, CSRF protection, redirect to MusicBrainz, remembers the starting page,
+ *   ?force=1 re-prompts consent (to get a refresh token)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '@/utils/pkce';
-import { buildAuthorizationUrl } from '@/utils/oauth';
+import { OAUTH_FORCED_COOKIE, buildAuthorizationUrl } from '@/utils/oauth';
 import { RETURN_TO_COOKIE, safeReturnTo } from '@/utils/return-to';
 
 // Force dynamic runtime for this API route
@@ -32,6 +33,9 @@ export async function GET(request: NextRequest) {
     // Generate state for CSRF protection
     const state = generateState();
 
+    // ?force=1 from the callback when MusicBrainz returned no refresh token
+    const forceApproval = request.nextUrl.searchParams.get('force') === '1';
+
     // Build authorization URL
     const authUrl = buildAuthorizationUrl({
       clientId,
@@ -39,6 +43,7 @@ export async function GET(request: NextRequest) {
       codeChallenge,
       state,
       scope: ['profile', 'collection'], // Request profile and collection access
+      forceApproval,
     });
 
     // Create response with redirect
@@ -58,6 +63,12 @@ export async function GET(request: NextRequest) {
     response.cookies.set('mb_oauth_state', state, cookieConfig);
     // Page the login started from (?returnTo=/collections), so the callback can send the user back there
     response.cookies.set(RETURN_TO_COOKIE, safeReturnTo(request.nextUrl.searchParams.get('returnTo')), cookieConfig);
+    // Remembers the forced consent, so the callback asks only once (no redirect loop)
+    if (forceApproval) {
+      response.cookies.set(OAUTH_FORCED_COOKIE, '1', cookieConfig);
+    } else {
+      response.cookies.delete(OAUTH_FORCED_COOKIE);
+    }
 
     return response;
   } catch (error) {

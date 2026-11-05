@@ -6,9 +6,12 @@
 
 const MUSICBRAINZ_OAUTH_BASE = 'https://musicbrainz.org/oauth2';
 
+// Short-lived cookie: this login already re-prompted consent to get a refresh token
+export const OAUTH_FORCED_COOKIE = 'mb_oauth_forced';
+
 /**
- * Error answer from the MusicBrainz OAuth endpoints, with the HTTP status and OAuth error code
- * (e.g. invalid_grant) so callers can tell a rejected token from a temporary failure
+ * Failed request to the MusicBrainz OAuth endpoints, with the HTTP status (0 for a network failure)
+ * and OAuth error code (e.g. invalid_grant) so callers can tell a rejected token from a temporary failure
  */
 export class OAuthError extends Error {
   constructor(
@@ -26,9 +29,7 @@ export class OAuthError extends Error {
  * false for network errors, rate limits and server errors, where the refresh token stays valid
  */
 export function isTokenRejected(error: unknown): boolean {
-  if (!(error instanceof OAuthError)) return false;
-  if (error.code) return ['invalid_grant', 'invalid_client', 'unauthorized_client'].includes(error.code);
-  return error.status === 400 || error.status === 401;
+  return error instanceof OAuthError && (error.status === 400 || error.status === 401);
 }
 
 /**
@@ -50,13 +51,19 @@ async function oauthRequest(
     requestBody.client_secret = params.clientSecret;
   }
 
-  const response = await fetch(`${MUSICBRAINZ_OAUTH_BASE}/${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams(requestBody),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${MUSICBRAINZ_OAUTH_BASE}/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(requestBody),
+    });
+  } catch (error) {
+    // Network failure (TLS block, DNS, timeout): status 0
+    throw new OAuthError(`OAuth ${endpoint} failed: ${error instanceof Error ? error.message : error}`, 0, null);
+  }
 
   if (!response.ok) {
     const error = await response.text();
@@ -82,6 +89,7 @@ export function buildAuthorizationUrl(params: {
   codeChallenge: string;
   state: string;
   scope: string[];
+  forceApproval?: boolean;
 }): string {
   const url = new URL(`${MUSICBRAINZ_OAUTH_BASE}/authorize`);
   url.searchParams.set('response_type', 'code');
@@ -94,6 +102,11 @@ export function buildAuthorizationUrl(params: {
   // Without offline access MusicBrainz issues no refresh token, so the login ended with the
   // first access token (1 hour)
   url.searchParams.set('access_type', 'offline');
+  // MusicBrainz issues the refresh token only with the first consent; forcing the consent
+  // page again gets one for users who approved the app before it asked for offline access
+  if (params.forceApproval) {
+    url.searchParams.set('approval_prompt', 'force');
+  }
 
   return url.toString();
 }

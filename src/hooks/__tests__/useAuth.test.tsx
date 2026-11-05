@@ -106,9 +106,47 @@ describe('useAuth', () => {
     expect(result.current.isAuthenticated).toBe(true);
   });
 
-  it('keeps the session and retries when the refresh fails temporarily', async () => {
+  it('keeps the session and retries with backoff when the refresh fails temporarily', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     setExpiryCookie(Date.now() + HOUR);
+    let unavailableFor = 2;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/auth/refresh') {
+        return unavailableFor-- > 0
+          ? new Response(null, { status: 503 })
+          : json({ expires_at: Date.now() + HOUR, scope: 'profile' });
+      }
+      if (url === '/api/auth/profile') return json(user);
+      return new Response(null, { status: 404 });
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HOUR - 2 * 60 * 1000); // Refresh runs 2 min before expiry
+    });
+    expect(calls('/api/auth/refresh')).toBe(1);
+    expect(result.current.isAuthenticated).toBe(true);
+
+    // First retry after 30 s, the next one 60 s later
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 1000);
+    });
+    expect(calls('/api/auth/refresh')).toBe(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 1000);
+    });
+    expect(calls('/api/auth/refresh')).toBe(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 1000);
+    });
+    expect(calls('/api/auth/refresh')).toBe(3);
+    expect(result.current.isAuthenticated).toBe(true);
+  });
+
+  it('keeps authenticating on page load while MusicBrainz is unavailable, then logs in', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setExpiryCookie(Date.now() - HOUR);
     let unavailable = true;
     fetchMock.mockImplementation(async (url: string) => {
       if (url === '/api/auth/refresh') {
@@ -120,19 +158,25 @@ describe('useAuth', () => {
       return new Response(null, { status: 404 });
     });
     const { result } = renderHook(() => useAuth(), { wrapper });
-    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(HOUR);
-    });
-    expect(calls('/api/auth/refresh')).toBe(1);
-    expect(result.current.isAuthenticated).toBe(true);
+    await waitFor(() => expect(calls('/api/auth/refresh')).toBe(1));
+    expect(result.current.authState.status).toBe('authenticating');
 
     unavailable = false;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60 * 1000);
+      await vi.advanceTimersByTimeAsync(30 * 1000);
     });
+    await waitFor(() => expect(result.current.user).toEqual(user));
     expect(calls('/api/auth/refresh')).toBe(2);
-    expect(result.current.isAuthenticated).toBe(true);
+  });
+
+  it('logs out when the refresh token is rejected', async () => {
+    setExpiryCookie(Date.now() - HOUR);
+    fetchMock.mockImplementation(async (url: string) =>
+      url === '/api/auth/refresh' ? new Response(null, { status: 401 }) : json(user)
+    );
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.authState.status).toBe('error'));
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(calls('/api/auth/profile')).toBe(0);
   });
 });

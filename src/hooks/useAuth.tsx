@@ -6,6 +6,7 @@
  * - One shared instance via AuthProvider (a single refresh timer for the whole app)
  * - Concurrent refresh calls share one in-flight request
  * - Refresh timer is re-scheduled from each new expiry
+ * - Only a rejected refresh token (401) logs out; temporary failures retry with backoff
  */
 
 import { createContext, useState, useEffect, useCallback, useContext, useMemo, useRef, type ReactNode } from 'react';
@@ -25,8 +26,9 @@ interface UseAuthReturn {
 // Refresh this long before the token expires (must exceed isTokenExpired's 60 s buffer)
 const REFRESH_BEFORE_EXPIRY_MS = 2 * 60 * 1000;
 
-// Retry delay when MusicBrainz is temporarily unreachable (the refresh token is kept)
-const REFRESH_RETRY_MS = 60 * 1000;
+// Retry backoff when MusicBrainz is temporarily unreachable (the refresh token is kept)
+const RETRY_MIN_MS = 30 * 1000;
+const RETRY_MAX_MS = 5 * 60 * 1000;
 
 const UNAUTHENTICATED: AuthState = {
   status: 'unauthenticated',
@@ -53,17 +55,20 @@ const getTokenExpiryFromCookie = (): number | null => {
   return cookies['mb_token_expires_at'] ? parseInt(cookies['mb_token_expires_at']) : null;
 };
 
-const fetchUserProfile = async (): Promise<MusicBrainzUser | null> => {
+// Profile, or why there is none: 'rejected' (no valid access token) or 'temporary' (MusicBrainz unreachable)
+const fetchUserProfile = async (): Promise<MusicBrainzUser | 'rejected' | 'temporary'> => {
   try {
     const response = await fetch('/api/auth/profile');
-    if (!response.ok) {
-      throw new Error('Failed to fetch user profile');
-    }
+    if (response.status === 401) return 'rejected';
+    if (!response.ok) return 'temporary';
     return (await response.json()) as MusicBrainzUser;
   } catch {
-    return null;
+    return 'temporary';
   }
 };
+
+// New expiry after a refresh, or why it failed: 'rejected' (401, log out) or 'temporary' (keep the session)
+type RefreshResult = number | 'rejected' | 'temporary';
 
 const useAuthStore = (): UseAuthReturn => {
   const { updateAuth } = usePreferences();
@@ -71,49 +76,40 @@ const useAuthStore = (): UseAuthReturn => {
 
   // Shared promise so concurrent callers wait for the same refresh instead of getting false
   // (the old guard returned false, which made the startup check give up without a profile)
-  const refreshPromiseRef = useRef<Promise<number | null> | null>(null);
+  const refreshPromiseRef = useRef<Promise<RefreshResult> | null>(null);
 
-  // Refresh access token, resolves to the new expiry or null on failure
-  const refreshAccessToken = useCallback((): Promise<number | null> => {
+  // One retry timer for temporary failures, with backoff (30 s doubling to 5 min, reset after a success)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryDelayRef = useRef(RETRY_MIN_MS);
+
+  const scheduleRetry = useCallback((retry: () => void) => {
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = setTimeout(retry, retryDelayRef.current);
+    retryDelayRef.current = Math.min(retryDelayRef.current * 2, RETRY_MAX_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    },
+    []
+  );
+
+  // Refresh access token; only a 401 (refresh token rejected) logs out
+  const refreshAccessToken = useCallback((): Promise<RefreshResult> => {
     if (refreshPromiseRef.current) {
       return refreshPromiseRef.current;
     }
 
-    const refresh = async (): Promise<number | null> => {
+    const refresh = async (): Promise<RefreshResult> => {
+      let response: Response;
       try {
-        const response = await fetch('/api/auth/refresh', { method: 'POST' });
-
-        // Temporary failure: an open session tries again shortly; on page load the user
-        // shows as logged out, but the cookies stay and the next reload refreshes again
-        if (response.status === 503) {
-          setAuthState(prev =>
-            prev.status === 'authenticated'
-              ? { ...prev, expiresAt: Date.now() + REFRESH_BEFORE_EXPIRY_MS + REFRESH_RETRY_MS }
-              : {
-                  ...prev,
-                  status: 'error',
-                  error: { type: 'refresh_failed', message: 'MusicBrainz is not reachable, try again later' },
-                }
-          );
-          return null;
-        }
-
-        if (!response.ok) {
-          throw new Error('Token refresh failed');
-        }
-
-        const data: { expires_at: number } = await response.json();
-
-        setAuthState(prev => ({
-          ...prev,
-          accessToken: 'httponly', // Placeholder - real token is in an httpOnly cookie
-          expiresAt: data.expires_at,
-          status: 'authenticated',
-          error: null,
-        }));
-
-        return data.expires_at;
+        response = await fetch('/api/auth/refresh', { method: 'POST' });
       } catch {
+        return 'temporary';
+      }
+
+      if (response.status === 401) {
         setAuthState(prev => ({
           ...prev,
           status: 'error',
@@ -130,22 +126,40 @@ const useAuthStore = (): UseAuthReturn => {
           userId: null,
         });
 
-        return null;
-      } finally {
-        refreshPromiseRef.current = null;
+        return 'rejected';
       }
+
+      // 503 from the server (MusicBrainz unreachable) or anything else: keep the session
+      if (!response.ok) {
+        return 'temporary';
+      }
+
+      const data: { expires_at: number } = await response.json();
+      retryDelayRef.current = RETRY_MIN_MS;
+
+      setAuthState(prev => ({
+        ...prev,
+        accessToken: 'httponly', // Placeholder - real token is in an httpOnly cookie
+        expiresAt: data.expires_at,
+        status: 'authenticated',
+        error: null,
+      }));
+
+      return data.expires_at;
     };
 
-    refreshPromiseRef.current = refresh();
+    refreshPromiseRef.current = refresh().finally(() => {
+      refreshPromiseRef.current = null;
+    });
     return refreshPromiseRef.current;
   }, [updateAuth]);
 
   const refreshToken = useCallback(
-    async (): Promise<boolean> => (await refreshAccessToken()) !== null,
+    async (): Promise<boolean> => typeof (await refreshAccessToken()) === 'number',
     [refreshAccessToken]
   );
 
-  // Check auth status once on mount
+  // Check auth status once on mount; temporary failures keep 'authenticating' and retry
   useEffect(() => {
     let cancelled = false;
 
@@ -156,19 +170,32 @@ const useAuthStore = (): UseAuthReturn => {
         return; // No token, user is not authenticated (initial state)
       }
 
+      setAuthState(prev => ({ ...prev, status: 'authenticating' }));
+
       // Expired token: refresh first and continue with the new expiry
       if (isTokenExpired(expiresAt)) {
-        expiresAt = await refreshAccessToken();
-        if (!expiresAt || cancelled) {
-          return; // Refresh failed, state already updated
+        const result = await refreshAccessToken();
+        if (cancelled || result === 'rejected') {
+          return; // Refresh token rejected, state already updated
         }
+        if (result === 'temporary') {
+          setAuthState(prev => ({ ...prev, status: 'authenticating' }));
+          scheduleRetry(checkAuthStatus);
+          return;
+        }
+        expiresAt = result;
       }
 
-      setAuthState(prev => ({ ...prev, status: 'authenticating' }));
       const userData = await fetchUserProfile();
       if (cancelled) return;
 
-      if (userData) {
+      if (userData === 'temporary') {
+        scheduleRetry(checkAuthStatus);
+        return;
+      }
+
+      if (userData !== 'rejected') {
+        retryDelayRef.current = RETRY_MIN_MS;
         setAuthState({
           status: 'authenticated',
           user: userData,
@@ -199,7 +226,7 @@ const useAuthStore = (): UseAuthReturn => {
     return () => {
       cancelled = true;
     };
-  }, [refreshAccessToken, updateAuth]);
+  }, [refreshAccessToken, scheduleRetry, updateAuth]);
 
   // Schedule the next refresh from the current expiry; runs again after every refresh,
   // so a tab left open keeps its session (previously the timer was only set once at mount)
@@ -208,13 +235,17 @@ const useAuthStore = (): UseAuthReturn => {
       return;
     }
 
+    const refreshWithRetry = async () => {
+      if ((await refreshAccessToken()) === 'temporary') {
+        scheduleRetry(refreshWithRetry);
+      }
+    };
+
     const refreshIn = Math.max(authState.expiresAt - Date.now() - REFRESH_BEFORE_EXPIRY_MS, 0);
-    const refreshTimer = setTimeout(() => {
-      refreshAccessToken();
-    }, refreshIn);
+    const refreshTimer = setTimeout(refreshWithRetry, refreshIn);
 
     return () => clearTimeout(refreshTimer);
-  }, [authState.status, authState.expiresAt, refreshAccessToken]);
+  }, [authState.status, authState.expiresAt, refreshAccessToken, scheduleRetry]);
 
   // Login function
   const login = useCallback(() => {

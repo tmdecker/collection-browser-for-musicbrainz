@@ -2,11 +2,12 @@
  * @ai-file api
  * @ai-description OAuth2 callback endpoint
  * @ai-dependencies OAuth utilities, cookies
- * @ai-features CSRF protection, code exchange, token storage, return to the page the login started from
+ * @ai-features CSRF protection, code exchange, token storage, return to the page the login started from,
+ *   one forced-consent retry when MusicBrainz returns no refresh token
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForToken } from '@/utils/oauth';
+import { OAUTH_FORCED_COOKIE, exchangeCodeForToken } from '@/utils/oauth';
 import { setAuthCookies } from '@/utils/auth-cookies';
 import { RETURN_TO_COOKIE, safeReturnTo, withAuthResult } from '@/utils/return-to';
 
@@ -45,6 +46,7 @@ function redirectBack(
   response.cookies.delete('mb_code_verifier');
   response.cookies.delete('mb_oauth_state');
   response.cookies.delete(RETURN_TO_COOKIE);
+  response.cookies.delete(OAUTH_FORCED_COOKIE);
   return response;
 }
 
@@ -100,6 +102,20 @@ export async function GET(request: NextRequest) {
       redirectUri,
     });
 
+    // No refresh token (the user approved the app before it asked for offline access):
+    // log in once more with the consent page forced, at most once per login
+    if (!tokenResponse.refresh_token && !request.cookies.get(OAUTH_FORCED_COOKIE)) {
+      console.warn('⚠️ No refresh token from MusicBrainz, logging in again with forced consent');
+      const returnTo = safeReturnTo(request.cookies.get(RETURN_TO_COOKIE)?.value);
+      const loginUrl = new URL('/api/auth/login', baseUrl);
+      loginUrl.searchParams.set('force', '1');
+      loginUrl.searchParams.set('returnTo', returnTo);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete('mb_code_verifier');
+      response.cookies.delete('mb_oauth_state');
+      return response;
+    }
+
     // Back to the page the login started from (clears the temporary cookies)
     const response = redirectBack(request, baseUrl, 'auth_success', 'true');
 
@@ -108,7 +124,7 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ OAuth authentication successful');
     if (!tokenResponse.refresh_token) {
-      console.warn('⚠️ No refresh token from MusicBrainz, the login ends when the access token expires');
+      console.warn('⚠️ No refresh token from MusicBrainz; session will end when the access token expires');
     }
     return response;
   } catch (error) {

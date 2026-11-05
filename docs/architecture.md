@@ -83,7 +83,7 @@ Client side, IndexedDB (`utils/db/`) keeps the collection and album details for 
 
 ## Authentication
 
-OAuth2 with PKCE against MusicBrainz (`/api/auth/*`). Tokens stay in httpOnly cookies; the client only knows the expiry. `/api/auth/login?returnTo=<path>` keeps the page the login started from in a short-lived cookie (5 minutes, same-site paths only, `utils/return-to.ts`); the callback returns there with `auth_success` or `auth_error`, which `AuthResultToast` shows and removes from the address. `AuthProvider` and `PreferencesProvider` (root layout) hold one shared instance each, with one refresh timer for the whole app. Setup: [oauth_setup.md](oauth_setup.md).
+OAuth2 with PKCE against MusicBrainz (`/api/auth/*`). Tokens stay in httpOnly cookies; the client only knows the expiry. `/api/auth/login?returnTo=<path>` keeps the page the login started from in a short-lived cookie (5 minutes, same-site paths only, `utils/return-to.ts`); the callback returns there with `auth_success` or `auth_error`, which `AuthResultToast` shows and removes from the address. `AuthProvider` and `PreferencesProvider` (root layout) hold one shared instance each, with one refresh timer for the whole app. The login asks for offline access (`access_type=offline`) so MusicBrainz issues a refresh token; if none comes back, the callback repeats the login once with the consent page forced (`approval_prompt=force`). Only a rejected refresh token (400/401 from MusicBrainz) clears the auth cookies; network errors, 429 and 5xx answer 503 and the client retries with backoff (30 s doubling to 5 min). Setup: [oauth_setup.md](oauth_setup.md).
 
 ## Security notes
 
