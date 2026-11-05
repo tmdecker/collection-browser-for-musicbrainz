@@ -48,6 +48,7 @@ export default function ConfigPage() {
   // Get preferences from centralized hook
   const {
     preferences,
+    updateDisplay,
     updateStreaming,
     setUseGenresOnly,
     setEnableLabelFilter,
@@ -138,6 +139,21 @@ export default function ConfigPage() {
               When checked, record label filtering is available in the filter panel.
               <strong className="text-text-secondary"> Note:</strong> This feature is currently in development
               and only works for albums where you&apos;ve viewed the release details.
+            </p>
+
+            <label className="flex items-center cursor-pointer mt-4">
+              <input
+                type="checkbox"
+                checked={preferences.display.showRecentlyOpened}
+                onChange={(e) => updateDisplay({ showRecentlyOpened: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <span className="ml-2 block text-sm text-text-secondary">
+                Show Recently opened on the Collections page
+              </span>
+            </label>
+            <p className="mt-1 text-sm text-text-tertiary ml-6">
+              When unchecked, the Collections page starts with your collections.
             </p>
           </div>
 

@@ -34,6 +34,8 @@ export interface DisplayPreferences {
   showRatings: boolean;
   ratingDisplayMode: RatingDisplayMode;
   enableLabelFilter: boolean;
+  /** "Recently opened" row on the Collections page */
+  showRecentlyOpened: boolean;
 }
 
 export interface StreamingPreferences {
@@ -96,6 +98,7 @@ export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
   showRatings: true,
   ratingDisplayMode: 'average',
   enableLabelFilter: false,
+  showRecentlyOpened: true,
 };
 
 export const DEFAULT_STREAMING_PREFERENCES: StreamingPreferences = {

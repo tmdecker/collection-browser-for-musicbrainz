@@ -9,7 +9,8 @@
  * - Shows the last known list at once (browser copy) and refreshes it in the background
  * - Each card or row links to its collection page (whose footnote links to musicbrainz.org); rows the app can't open
  *   have a MusicBrainz icon instead
- * - Cover mosaics, grid or list view (remembered), and a "Recently opened" row
+ * - Cover mosaics (looked up in the background on a new browser), grid or list view (remembered), and a
+ *   "Recently opened" row that can be hidden in Settings; without it the collections start at the top
  * - Search filters collection names and the series inside series collections instantly
  * - Open any public collection or series by MBID or musicbrainz.org URL
  */
@@ -65,6 +66,7 @@ export default function CollectionsPage() {
   const lastId = preferences.api.collectionId;
   const lastType: EntityType = preferences.metadata.entityType ?? 'collection';
   const lastName = preferences.metadata.collectionName;
+  const recentAllowed = preferences.display.showRecentlyOpened;
 
   // The signed-in user's collections
   const [collections, setCollections] = useState<MusicBrainzCollection[]>([]);
@@ -249,6 +251,132 @@ export default function CollectionsPage() {
     </section>
   );
 
+  const showRecent = recentAllowed && recent.length > 0;
+  const recentSection = (
+    <section className="flex-1 min-w-0">
+      <h2 className={sectionHeadingClass}>Recently opened</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+        {recent.slice(0, 6).map(entry => (
+          <Link
+            key={`${entry.entityType}:${entry.mbid}`}
+            href={recentHref(entry)}
+            className="flex items-center gap-3 min-w-0 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors py-2 pl-2 pr-4"
+          >
+            <CoverMosaic
+              collectionId={entry.kind === 'series_collection' ? undefined : entry.mbid}
+              fetchMissing={entry.kind === 'release_group_collection'}
+              seriesIds={entry.kind === 'series_collection' ? seriesLists[entry.mbid]?.map(x => x.id) : undefined}
+              seriesCollectionId={entry.kind === 'series_collection' ? entry.mbid : undefined}
+              className="w-10 h-10 rounded-md flex-shrink-0"
+              emptyIcon={<BiCollection className="w-5 h-5" />}
+            />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium text-text-primary">{entry.name}</span>
+              <span className="block truncate text-xs text-text-tertiary">{recentKindLabel[entry.kind]}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+
+  const collectionSections = (
+    <>
+      {/* Your collections */}
+      {isAuthenticated ? (
+        loading ? (
+          <div className="flex items-center gap-3 text-text-secondary py-6">
+            <BiLoaderAlt className="w-5 h-5 animate-spin" /> Loading your collections…
+          </div>
+        ) : loadError ? (
+          <p className="text-red-400 text-sm">Couldn&apos;t load your collections: {loadError}</p>
+        ) : collections.length === 0 ? (
+          <p className="text-text-secondary text-sm">You have no collections on MusicBrainz yet.</p>
+        ) : (
+          <>
+            {visibleGroups.map(([entityType, list]) => (
+              <section key={entityType}>
+                <SectionHeading title={`${entityLabel(entityType)} collections`} count={list.length} />
+                <div className={view === 'grid' ? tileGridClass : rowListClass}>
+                  {list.map(c => {
+                    const count = entityCount(c);
+                    return (
+                      <Tile
+                        key={c.id}
+                        view={view}
+                        href={collectionPath('collection', c.id)}
+                        name={c.name}
+                        detail={count !== undefined ? countLabel(entityType, count) : ''}
+                        // Release group collections show their covers, series collections one cover per opened series;
+                        // looked up in the background when this browser has none
+                        coverId={c.id}
+                        fetchCovers
+                        seriesCollection={entityType === 'series'}
+                        series={entityType === 'series' ? seriesLists[c.id] : undefined}
+                        count={count}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+
+            {/* Series inside series collections that match the search */}
+            {matchingSeries.length > 0 && (
+              <section>
+                <SectionHeading title="Series" count={matchingSeries.length} />
+                <div className={view === 'grid' ? tileGridClass : rowListClass}>
+                  {matchingSeries.map(({ series, collectionId, collectionName }) => series.type === RELEASE_GROUP_SERIES ? (
+                    <Tile
+                      key={series.id}
+                      view={view}
+                      href={`${collectionPath('series', series.id)}?collection=${collectionId}`}
+                      name={series.name}
+                      detail={`in ${collectionName}`}
+                      coverId={series.id}
+                    />
+                  ) : (
+                    <UnsupportedRow
+                      key={series.id}
+                      name={series.name}
+                      detail={`${series.type ?? 'Series'} · not supported yet`}
+                      mbUrl={`https://musicbrainz.org/series/${series.id}`}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {unsupported.length > 0 && (
+              <section>
+                <SectionHeading title="Other collections" count={unsupported.length} />
+                <div className={rowListClass}>
+                  {unsupported.map(c => {
+                    const count = entityCount(c);
+                    return (
+                      <UnsupportedRow
+                        key={c.id}
+                        name={c.name}
+                        detail={`${count !== undefined ? `${countLabel(c['entity-type'], count)} · ` : `${entityLabel(c['entity-type'])} collection · `}not supported yet`}
+                        mbUrl={`https://musicbrainz.org/collection/${c.id}`}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {searching && visibleGroups.length === 0 && matchingSeries.length === 0 && unsupported.length === 0 && (
+              <p className="text-text-secondary text-sm">No collections or series match &ldquo;{query.trim()}&rdquo;.</p>
+            )}
+          </>
+        )
+      ) : (
+        <p className="text-text-secondary text-sm">Log in (top right) to see your MusicBrainz collections, including private ones.</p>
+      )}
+    </>
+  );
+
   return (
     <main className="flex min-h-screen flex-col bg-background">
       <AuthResultToast />
@@ -282,128 +410,24 @@ export default function CollectionsPage() {
       </div>
 
       <div className="w-full px-3 md:px-8 pt-6 md:pt-8 pb-8 space-y-9">
-        {/* Recently opened, and Open by MBID or URL top right (below it on narrow screens); hidden while searching */}
-        {!searching && (
-          <div className="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-10">
-            {recent.length > 0 && (
-              <section className="flex-1 min-w-0">
-                <h2 className={sectionHeadingClass}>Recently opened</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
-                  {recent.slice(0, 6).map(entry => (
-                    <Link
-                      key={`${entry.entityType}:${entry.mbid}`}
-                      href={recentHref(entry)}
-                      className="flex items-center gap-3 min-w-0 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors py-2 pl-2 pr-4"
-                    >
-                      <CoverMosaic
-                        collectionId={entry.kind === 'series_collection' ? undefined : entry.mbid}
-                        seriesIds={entry.kind === 'series_collection' ? seriesLists[entry.mbid]?.map(x => x.id) : undefined}
-                        className="w-10 h-10 rounded-md flex-shrink-0"
-                        emptyIcon={<BiCollection className="w-5 h-5" />}
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-text-primary">{entry.name}</span>
-                        <span className="block truncate text-xs text-text-tertiary">{recentKindLabel[entry.kind]}</span>
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </section>
+        {showRecent ? (
+          <>
+            {/* Recently opened, and Open by MBID or URL top right (below it on narrow screens); hidden while searching */}
+            {!searching && (
+              <div className="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-10">
+                {recentSection}
+                {openBox}
+              </div>
             )}
-            {recent.length === 0 && <div className="hidden lg:block flex-1" />}
-            {openBox}
-          </div>
-        )}
-
-        {/* Your collections */}
-        {isAuthenticated ? (
-          loading ? (
-            <div className="flex items-center gap-3 text-text-secondary py-6">
-              <BiLoaderAlt className="w-5 h-5 animate-spin" /> Loading your collections…
-            </div>
-          ) : loadError ? (
-            <p className="text-red-400 text-sm">Couldn&apos;t load your collections: {loadError}</p>
-          ) : collections.length === 0 ? (
-            <p className="text-text-secondary text-sm">You have no collections on MusicBrainz yet.</p>
-          ) : (
-            <>
-              {visibleGroups.map(([entityType, list]) => (
-                <section key={entityType}>
-                  <SectionHeading title={`${entityLabel(entityType)} collections`} count={list.length} />
-                  <div className={view === 'grid' ? tileGridClass : rowListClass}>
-                    {list.map(c => {
-                      const count = entityCount(c);
-                      return (
-                        <Tile
-                          key={c.id}
-                          view={view}
-                          href={collectionPath('collection', c.id)}
-                          name={c.name}
-                          detail={count !== undefined ? countLabel(entityType, count) : ''}
-                          // Release group collections show their cached covers, series collections one cover per opened series
-                          coverId={entityType === 'release_group' ? c.id : undefined}
-                          seriesCollection={entityType === 'series'}
-                          series={entityType === 'series' ? seriesLists[c.id] : undefined}
-                          count={count}
-                        />
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-
-              {/* Series inside series collections that match the search */}
-              {matchingSeries.length > 0 && (
-                <section>
-                  <SectionHeading title="Series" count={matchingSeries.length} />
-                  <div className={view === 'grid' ? tileGridClass : rowListClass}>
-                    {matchingSeries.map(({ series, collectionId, collectionName }) => series.type === RELEASE_GROUP_SERIES ? (
-                      <Tile
-                        key={series.id}
-                        view={view}
-                        href={`${collectionPath('series', series.id)}?collection=${collectionId}`}
-                        name={series.name}
-                        detail={`in ${collectionName}`}
-                        coverId={series.id}
-                      />
-                    ) : (
-                      <UnsupportedRow
-                        key={series.id}
-                        name={series.name}
-                        detail={`${series.type ?? 'Series'} · not supported yet`}
-                        mbUrl={`https://musicbrainz.org/series/${series.id}`}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {unsupported.length > 0 && (
-                <section>
-                  <SectionHeading title="Other collections" count={unsupported.length} />
-                  <div className={rowListClass}>
-                    {unsupported.map(c => {
-                      const count = entityCount(c);
-                      return (
-                        <UnsupportedRow
-                          key={c.id}
-                          name={c.name}
-                          detail={`${count !== undefined ? `${countLabel(c['entity-type'], count)} · ` : `${entityLabel(c['entity-type'])} collection · `}not supported yet`}
-                          mbUrl={`https://musicbrainz.org/collection/${c.id}`}
-                        />
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-
-              {searching && visibleGroups.length === 0 && matchingSeries.length === 0 && unsupported.length === 0 && (
-                <p className="text-text-secondary text-sm">No collections or series match &ldquo;{query.trim()}&rdquo;.</p>
-              )}
-            </>
-          )
+            {collectionSections}
+          </>
         ) : (
-          <p className="text-text-secondary text-sm">Log in (top right) to see your MusicBrainz collections, including private ones.</p>
+          // Nothing recent (or hidden in Settings): the collections move up, Open by MBID or URL stays
+          // top right (above them on narrow screens); hidden while searching
+          <div className="flex flex-col-reverse lg:flex-row lg:items-start gap-8 lg:gap-10">
+            <div className="flex-1 min-w-0 space-y-9">{collectionSections}</div>
+            {!searching && openBox}
+          </div>
         )}
       </div>
     </main>

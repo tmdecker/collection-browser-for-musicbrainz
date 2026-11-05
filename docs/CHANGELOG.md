@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+- Settings: "Show Recently opened on the Collections page" (on by default). Without the row, or in a browser that has opened nothing yet, your collections start at the top of the Collections page, with "Open by MBID or URL" on the right (above them on phones)
+
 ### Fixed
+- Cover mosaics on the Collections page fill in by themselves in a new browser: when the browser has no copy of a collection, the mosaic asks for its first page (the same request the collection page makes, so the server's copy usually answers, and a live request fills that copy) and shows its first covers; series collections use their first release group series. A cover that is missing is replaced by the next one, so only about four images are loaded per collection, and the choice is remembered in the browser for a week
 - Logins no longer end after about an hour: the app now asks MusicBrainz for a refresh token (offline access) and no longer logs you out when MusicBrainz is briefly unavailable (it retries after 30 s, doubling up to 5 min). If MusicBrainz returns no refresh token because the app was approved before, the login shows the consent page once more
 - Your MusicBrainz profile loads again after logging in: MusicBrainz now answers profile requests by GET with a "Verifying your browser" page, so the app asks with POST (an unexpected page is retried instead of failing)
 - The "Open by MBID or URL" field on the Collections page no longer cuts off its placeholder on phones: it reads "Paste an MBID or URL", and the space for the clear and check icons is only kept while something is typed

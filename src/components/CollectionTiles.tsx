@@ -81,6 +81,8 @@ export interface TileProps {
   name: string;
   detail: string;
   coverId?: string;           // collection or series whose cached covers make the mosaic
+  /** coverId is a MusicBrainz collection: look its covers up when this browser has none */
+  fetchCovers?: boolean;
   seriesCollection?: boolean;
   series?: SeriesSummary[];   // a series collection's series, if its page was opened in this browser
   count?: number;
@@ -117,7 +119,7 @@ function SeriesNames({ series, count }: { series?: SeriesSummary[]; count?: numb
 }
 
 /** Grid view: cover mosaic with the name and detail below */
-export function TileCard({ href, name, detail, coverId, seriesCollection, series, count }: TileProps) {
+export function TileCard({ href, name, detail, coverId, fetchCovers, seriesCollection, series, count }: TileProps) {
   const mosaic = seriesCollection ? (
     // A small stacked edge on top: a collection of series rather than of release groups
     <div className="relative pt-2">
@@ -125,12 +127,13 @@ export function TileCard({ href, name, detail, coverId, seriesCollection, series
       <span className="absolute top-1 inset-x-1.5 h-1 rounded-t bg-white/[0.18]" aria-hidden="true" />
       <CoverMosaic
         seriesIds={series?.map(s => s.id)}
+        seriesCollectionId={fetchCovers ? coverId : undefined}
         className="relative aspect-square w-full rounded-lg"
         emptyIcon={<SeriesNames series={series} count={count} />}
       />
     </div>
   ) : (
-    <CoverMosaic collectionId={coverId} className="aspect-square w-full rounded-lg" emptyIcon={<BiCollection className="w-8 h-8" />} />
+    <CoverMosaic collectionId={coverId} fetchMissing={fetchCovers} className="aspect-square w-full rounded-lg" emptyIcon={<BiCollection className="w-8 h-8" />} />
   );
   return (
     <div className="group min-w-0">
@@ -144,13 +147,15 @@ export function TileCard({ href, name, detail, coverId, seriesCollection, series
 }
 
 /** List view: one compact row with a small mosaic */
-export function TileRow({ href, name, detail, coverId, seriesCollection, series, count }: TileProps) {
+export function TileRow({ href, name, detail, coverId, fetchCovers, seriesCollection, series, count }: TileProps) {
   return (
     <div className="group flex items-center gap-3 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors pr-4">
       <Link href={href} className="flex-1 min-w-0 flex items-center gap-3.5 py-2 pl-2">
         <CoverMosaic
           collectionId={seriesCollection ? undefined : coverId}
           seriesIds={seriesCollection ? series?.map(s => s.id) : undefined}
+          seriesCollectionId={seriesCollection && fetchCovers ? coverId : undefined}
+          fetchMissing={!seriesCollection && fetchCovers}
           className="w-11 h-11 rounded-md flex-shrink-0"
           emptyIcon={seriesCollection && count !== undefined
             ? <span className="text-xs tabular-nums">{count.toLocaleString()}</span>
