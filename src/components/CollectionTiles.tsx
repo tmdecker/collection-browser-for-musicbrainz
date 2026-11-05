@@ -4,7 +4,7 @@
  *   cover cards and rows, plain rows for types the app can't open yet, the grid/list switch and the name filter
  * @ai-dependencies React, Next.js Link, CoverMosaic, CoverMix, react-icons
  * @ai-features
- * - Grid view: tile tinted by its first cover with the name inside (CoverMix); list view: one compact row with a small mosaic
+ * - Grid view: tile tinted by its first cover with the name inside (CoverMix); list view: one compact row with a small cover
  * - Series collections: a stacked edge above the tile, covers from their series
  * - Unsupported types: plain dimmed rows without a cover, with a MusicBrainz icon (cards and rows of openable ones have none;
  *   the opened page's footnote links to MusicBrainz)
@@ -136,7 +136,7 @@ export function TileCard({ href, name, detail, coverId, fetchCovers, seriesColle
   );
 }
 
-/** List view: one compact row with a small mosaic */
+/** List view: one compact row with a small cover */
 export function TileRow({ href, name, detail, coverId, fetchCovers, seriesCollection, series, count }: TileProps) {
   return (
     <div className="group flex items-center gap-3 rounded-xl bg-background-secondary hover:bg-background-tertiary transition-colors pr-4">
@@ -147,6 +147,7 @@ export function TileRow({ href, name, detail, coverId, fetchCovers, seriesCollec
           seriesCollectionId={seriesCollection && fetchCovers === 'collection' ? coverId : undefined}
           fetchMissing={seriesCollection ? undefined : fetchCovers}
           className="w-11 h-11 rounded-md flex-shrink-0"
+          single
           emptyIcon={seriesCollection && count !== undefined
             ? <span className="text-xs tabular-nums">{count.toLocaleString()}</span>
             : <BiCollection className="w-5 h-5" />}
