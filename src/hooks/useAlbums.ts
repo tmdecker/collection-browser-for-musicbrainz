@@ -7,6 +7,7 @@ import { albumMatchesLabelFilters } from '@/utils/label-processor';
 import { usePreferences } from './usePreferences';
 import { normalizeReleaseGroup } from '@/utils/normalize-mb-data';
 import { bumpCoverVersion } from '@/utils/cover-versions';
+import { SearchText, matchesSearch, parseSearchQuery, prepareSearchText } from '@/utils/search-text';
 
 /**
  * @ai-file hook
@@ -16,7 +17,7 @@ import { bumpCoverVersion } from '@/utils/cover-versions';
  * - Album fetching with IndexedDB caching
  * - Album details with server-side cache and request cancellation
  * - Manual refresh of one album from MusicBrainz (after editing it there)
- * - Sorting and search functionality
+ * - Sorting and forgiving search (case, accents, umlauts, word order; see utils/search-text)
  */
 
 /**
@@ -377,31 +378,32 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
     }
   }, [sortOption, ratingDisplayMode]);
 
-  // Filtered and sorted albums based on search query only
+  // Search text for each album, prepared once per album list:
+  // title, artists (main name and the name credited on this album) and first release date
+  const albumSearchTexts = useMemo(() => {
+    const texts = new Map<ReleaseGroup, SearchText>();
+    albums.forEach(album => {
+      const artists = album.artist_credit?.flatMap(credit => [credit.artist?.name, credit.name]) ?? [];
+      texts.set(album, prepareSearchText([album.title, ...artists, album.first_release_date].filter(Boolean).join(' ')));
+    });
+    return texts;
+  }, [albums]);
+
+  // Filtered and sorted albums based on search query only.
+  // Forgiving: ignores case, accents and punctuation, and each word may match a different field
   const filteredAlbums = useMemo(() => {
-    if (!searchQuery.trim()) {
+    const words = parseSearchQuery(searchQuery);
+    if (words.length === 0) {
       return sortAlbums(albums);
     }
 
-    const query = searchQuery.toLowerCase().trim();
     const filtered = albums.filter(album => {
-      // Search by title
-      if (album.title.toLowerCase().includes(query)) return true;
-
-      // Search by artist
-      const artistMatch = album.artist_credit?.some(credit =>
-        credit.artist?.name?.toLowerCase().includes(query)
-      );
-      if (artistMatch) return true;
-
-      // Search by release date if available
-      if (album.first_release_date?.toLowerCase().includes(query)) return true;
-
-      return false;
+      const text = albumSearchTexts.get(album);
+      return !!text && matchesSearch(text, words);
     });
 
     return sortAlbums(filtered);
-  }, [albums, searchQuery, sortAlbums]);
+  }, [albums, albumSearchTexts, searchQuery, sortAlbums]);
 
   // Total albums count (unfiltered)
   const totalAlbums = albums.length;

@@ -26,9 +26,6 @@ export const sectionCountClass = 'ml-2 text-sm font-normal text-text-tertiary ta
 export const tileGridClass = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-5';
 export const rowListClass = 'max-w-3xl space-y-2';
 
-/** Case- and accent-insensitive text for the name filters */
-export const foldText = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
 const VIEW_KEY = 'mb-collections-view';
 export type TileView = 'grid' | 'list';
 

@@ -28,7 +28,7 @@ import AuthResultToast from './AuthResultToast';
 import CoverThumb from './CoverThumb';
 import SearchBar from './SearchBar';
 import UserAvatarButton from './UserAvatarButton';
-import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, foldText, rowListClass, sectionHeadingClass, tileGridClass, useTileView } from './CollectionTiles';
+import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, rowListClass, sectionHeadingClass, tileGridClass, useTileView } from './CollectionTiles';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/usePreferences';
 import { MusicBrainzCollection } from '@/types/auth';
@@ -36,6 +36,7 @@ import { classifyOpenInput, validateEntityId, EntityType } from '@/utils/mbid-va
 import { collectionPath } from '@/utils/collection-routes';
 import { readCachedCollections, readCachedSeries, writeCachedCollections, type SeriesSummary } from '@/utils/collection-info';
 import { readRecentlyOpened, recentHref, recentKindLabel, type RecentEntry } from '@/utils/recently-opened';
+import { createSearchMatcher } from '@/utils/search-text';
 
 // Entity types the app can show (MusicBrainz writes them with an underscore)
 const SUPPORTED_ENTITY_TYPES = new Set(['release_group', 'series']);
@@ -157,17 +158,17 @@ export default function CollectionsPage() {
   // unless the text is an MBID or musicbrainz.org link: then it offers to open that instead
   const [query, setQuery] = useState('');
   const openInput = classifyOpenInput(query);
-  const needle = openInput ? '' : foldText(query.trim());
-  const searching = needle.length > 0;
-  const matches = (name: string) => foldText(name).includes(needle);
+  const matcher = openInput ? null : createSearchMatcher(query);
+  const searching = matcher !== null;
+  const matches = (name: string) => !matcher || matcher(name);
 
   const matchingSeries = (() => {
-    if (!needle) return [];
+    if (!matcher) return [];
     const seen = new Set<string>();
     const hits: { series: SeriesSummary; collectionId: string; collectionName: string }[] = [];
     collections.filter(c => c['entity-type'] === 'series').forEach(c => {
       (seriesLists[c.id] ?? []).forEach(series => {
-        if (seen.has(series.id) || !foldText(series.name).includes(needle)) return;
+        if (seen.has(series.id) || !matcher(series.name)) return;
         seen.add(series.id);
         hits.push({ series, collectionId: c.id, collectionName: c.name });
       });

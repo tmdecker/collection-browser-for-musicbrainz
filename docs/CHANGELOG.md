@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Settings: "Show Recently opened on the Collections page" (on by default). Without the row, or in a browser that has opened nothing yet, your collections start at the top of the Collections page
 
 ### Changed
+- Search is more forgiving everywhere (album grid, Collections page, series collections, genre/label/tag filters): it ignores accents ("beyonce" finds "Beyoncé"), accepts German umlauts written either way ("motorhead", "motoerhead" and "Motörhead" all match; "strasse" finds "Straße"), ignores punctuation ("dont" finds "Don't", "ac dc" finds "AC/DC") and matches each word on its own, so "beatles abbey" finds Abbey Road by The Beatles. The album search also looks at the artist name as credited on the album. Typos are still not forgiven
 - The album details panel has the same dark background as the header and grid (#121212 instead of #1A1A1A); its genre and tracklist chips get lighter on hover instead of vanishing into the panel
 
 ### Fixed

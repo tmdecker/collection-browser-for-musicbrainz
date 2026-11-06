@@ -9,6 +9,7 @@
  */
 
 import { ReleaseGroup } from '@/types/music';
+import { createSearchMatcher } from './search-text';
 
 export interface LabelStat {
   name: string;
@@ -75,19 +76,13 @@ export const albumMatchesLabelFilters = (
 
 /**
  * Filter label statistics by search query
- * Performs case-insensitive substring matching on label names
+ * Forgiving match on label names (case, accents, punctuation; see search-text)
  */
 export const filterLabelsBySearch = (
   labelStats: LabelStat[],
   searchQuery: string
 ): LabelStat[] => {
-  if (!searchQuery.trim()) {
-    return labelStats;
-  }
-
-  const query = searchQuery.toLowerCase().trim();
-  return labelStats.filter(label =>
-    label.name.toLowerCase().includes(query)
-  );
+  const matcher = createSearchMatcher(searchQuery);
+  return matcher ? labelStats.filter(label => matcher(label.name)) : labelStats;
 };
 

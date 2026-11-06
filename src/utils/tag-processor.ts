@@ -11,6 +11,7 @@
 
 import { ReleaseGroup } from '@/types/music';
 import { normalizeString } from './string-normalization';
+import { createSearchMatcher } from './search-text';
 
 export interface TagStat {
   name: string;
@@ -110,16 +111,8 @@ export const extractTagStats = (albums: ReleaseGroup[]): TagStat[] => {
  * Filters tag statistics by search query
  */
 export const filterTagsBySearch = (tagStats: TagStat[], searchQuery: string): TagStat[] => {
-  if (!searchQuery.trim()) {
-    return tagStats;
-  }
-
-  const normalizedQuery = normalizeTagName(searchQuery);
-
-  return tagStats.filter(tag =>
-    tag.normalizedName.includes(normalizedQuery) ||
-    tag.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const matcher = createSearchMatcher(searchQuery);
+  return matcher ? tagStats.filter(tag => matcher(tag.name)) : tagStats;
 };
 
 /**

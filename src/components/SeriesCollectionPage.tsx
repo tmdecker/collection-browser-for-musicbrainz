@@ -21,13 +21,14 @@ import CollectionFootnote from './CollectionFootnote';
 import AuthResultToast from './AuthResultToast';
 import SearchBar from './SearchBar';
 import UserAvatarButton from './UserAvatarButton';
-import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, foldText, rowListClass, tileGridClass, useTileView } from './CollectionTiles';
+import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, rowListClass, tileGridClass, useTileView } from './CollectionTiles';
 import { getCollectionMetadata } from '@/utils/db';
 import { usePreferences } from '@/hooks/usePreferences';
 import { collectionPath } from '@/utils/collection-routes';
 import { readCachedSeries, writeCachedSeries, SeriesSummary } from '@/utils/collection-info';
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
 import { loadSeriesContents } from '@/utils/mosaic-candidates';
+import { createSearchMatcher } from '@/utils/search-text';
 
 const PAGE_SIZE = 100;
 const RELEASE_GROUP_SERIES = 'Release group series';
@@ -114,9 +115,9 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
 
   const [view, chooseView] = useTileView();
   const [query, setQuery] = useState('');
-  const needle = foldText(query.trim());
+  const matcher = createSearchMatcher(query);
   const sorted = series
-    ? [...series].filter(s => !needle || foldText(s.name).includes(needle)).sort((a, b) => a.name.localeCompare(b.name))
+    ? [...series].filter(s => !matcher || matcher(s.name)).sort((a, b) => a.name.localeCompare(b.name))
     : null;
   const openable = sorted?.filter(s => s.type === RELEASE_GROUP_SERIES) ?? [];
   const other = sorted?.filter(s => s.type !== RELEASE_GROUP_SERIES) ?? [];

@@ -11,6 +11,7 @@
 
 import { ReleaseGroup } from '@/types/music';
 import { normalizeString } from './string-normalization';
+import { createSearchMatcher } from './search-text';
 
 export interface GenreStat {
   name: string;
@@ -95,16 +96,8 @@ export const extractGenreStats = (albums: ReleaseGroup[], useGenresOnly: boolean
  * Filters genre statistics by search query
  */
 export const filterGenresBySearch = (genreStats: GenreStat[], searchQuery: string): GenreStat[] => {
-  if (!searchQuery.trim()) {
-    return genreStats;
-  }
-
-  const normalizedQuery = normalizeGenreName(searchQuery);
-
-  return genreStats.filter(genre =>
-    genre.normalizedName.includes(normalizedQuery) ||
-    genre.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const matcher = createSearchMatcher(searchQuery);
+  return matcher ? genreStats.filter(genre => matcher(genre.name)) : genreStats;
 };
 
 /**
