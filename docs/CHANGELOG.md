@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - The search bar on the Collections page also opens collections and series: paste an MBID or a musicbrainz.org collection or series link and the match shows under the bar (your own at once, others after a MusicBrainz lookup); Enter or a click opens it. Other links (releases, artist collections, …) get a short reason instead. The bar shows when logged out too. The separate "Open by MBID or URL" box is gone
 - Settings: "Show Recently opened on the Collections page" (on by default). Without the row, or in a browser that has opened nothing yet, your collections start at the top of the Collections page
 
+### Changed
+- The album details panel has the same dark background as the header and grid (#121212 instead of #1A1A1A); its genre and tracklist chips get lighter on hover instead of vanishing into the panel
+
 ### Fixed
 - Cover mosaics on the Collections page fill in by themselves in a new browser: when the browser has no copy of a collection, the mosaic asks for its first page (the same request the collection page makes, so the server's copy usually answers, and a live request fills that copy) and shows its first covers; series collections use their first release group series. A cover that is missing is replaced by the next one, so only about four images are loaded per collection, and the choice is remembered in the browser for a week
 - Logins no longer end after about an hour: the app now asks MusicBrainz for a refresh token (offline access) and no longer logs you out when MusicBrainz is briefly unavailable (it retries after 30 s, doubling up to 5 min). If MusicBrainz returns no refresh token because the app was approved before, the login shows the consent page once more
