@@ -543,7 +543,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                     className={`px-3 py-1 rounded-full text-sm capitalize cursor-pointer transition-colors ${
                       isSelected
                         ? 'bg-primary text-white hover:bg-primary/80'
-                        : 'bg-background-tertiary text-text-primary hover:bg-background'
+                        : 'bg-background-tertiary text-text-primary hover:bg-white/15'
                     }`}
                     title={isSelected ? `Remove ${genre} filter` : `Add ${genre} filter`}
                   >

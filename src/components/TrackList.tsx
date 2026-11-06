@@ -226,7 +226,7 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
                         className={`px-2 py-0.5 text-xs rounded cursor-pointer transition-colors ${
                           isSelected
                             ? 'bg-category-label text-white hover:bg-category-label/80'
-                            : 'bg-background-tertiary text-text-primary hover:bg-background'
+                            : 'bg-background-tertiary text-text-primary hover:bg-white/15'
                         }`}
                         title={isSelected ? `Remove ${labelName} filter` : `Add ${labelName} filter`}
                       >
