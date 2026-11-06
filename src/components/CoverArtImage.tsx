@@ -8,9 +8,10 @@
  * - Priority loading support
  * - Skips Next.js optimization for coverartarchive.org URLs
  * - Loads the new cover after a manual album refresh (cover version in the URL)
+ * - Tries a failed cover again after 5 s and 30 s (e.g. during a deploy), unless the server said it does not exist (404)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Define the type for our global image cache
 interface ImageCache {
@@ -26,6 +27,11 @@ if (typeof window !== 'undefined' && !window.mbImageCache) {
 }
 import NextImage from 'next/image';
 import { useCoverVersion } from '@/utils/cover-versions';
+
+// A cover that failed for another reason than "not found" (server restarting for a deploy, a download
+// that failed) is tried again after these delays; the second one outlasts a build. Two more requests at
+// most, so a grid during an outage does not hammer the server or MetaBrainz
+const RETRY_DELAYS_MS = [5000, 30000];
 
 interface CoverArtImageProps {
   src?: string;
@@ -65,6 +71,11 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
   const [failedSrc, setFailedSrc] = useState<string | undefined>(undefined);
   const sourceKey = `${actualSrc ?? ''}#${coverVersion ?? ''}`;
   const error = failedSrc === sourceKey;
+  // Retries made for the current source (a new URL for each, so the browser asks the server again)
+  const [retries, setRetries] = useState<{ key: string; count: number }>({ key: '', count: 0 });
+  const retryCount = retries.key === sourceKey ? retries.count : 0;
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(retryTimer.current), []);
   
   // Generate a stable cache key regardless of size
   const generateCacheKey = (url: string | undefined): string => {
@@ -120,7 +131,8 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
       if (normalizedUrl.startsWith('http')) {
         // Make sure to encode the URL properly
         const version = coverVersion ? `&v=${coverVersion}` : '';
-        return `/api/image?url=${encodeURIComponent(normalizedUrl)}&w=${requestedSize}&h=${requestedSize}&q=80${version}`;
+        const retry = retryCount ? `&retry=${retryCount}` : '';
+        return `/api/image?url=${encodeURIComponent(normalizedUrl)}&w=${requestedSize}&h=${requestedSize}&q=80${version}${retry}`;
       }
       
       return normalizedUrl;
@@ -137,10 +149,33 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
     if (!imageUrl && onError) onError();
   }, [imageUrl, onError]);
 
+  const giveUp = (key: string) => {
+    setFailedSrc(key);
+    if (onError) onError();
+  };
+
   const handleError = () => {
     console.log(`Error loading cover art: ${imageUrl}`);
-    setFailedSrc(sourceKey);
-    if (onError) onError();
+    const key = sourceKey;
+    const retryDelay = RETRY_DELAYS_MS[retryCount];
+    if (retryDelay === undefined || !imageUrl.startsWith('/api/image')) {
+      giveUp(key);
+      return;
+    }
+    // Missing covers are answered 404, which the browser keeps for a day: read that answer from the
+    // browser cache (no request to the server) and show the fallback at once. Anything else was a
+    // failed request: try again later
+    fetch(imageUrl, { cache: 'only-if-cached', mode: 'same-origin' })
+      .then(response => response.status)
+      .catch(() => 0)
+      .then(status => {
+        if (status === 404) {
+          giveUp(key);
+          return;
+        }
+        clearTimeout(retryTimer.current);
+        retryTimer.current = setTimeout(() => setRetries({ key, count: retryCount + 1 }), retryDelay);
+      });
   };
   
   const handleLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
