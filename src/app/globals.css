@@ -62,7 +62,7 @@ body {
 
 /* Album details docked beside the grid: narrows the grid on tablet and desktop, full screen on phones */
 .details-dock {
-  background: var(--background-secondary);
+  background: var(--background);
 }
 /* Panel width: 400px on tablets, one grid card (184px) wider on large screens */
 :root {
