@@ -29,6 +29,7 @@ import { readCachedSeries, writeCachedSeries, SeriesSummary } from '@/utils/coll
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
 import { loadSeriesContents } from '@/utils/mosaic-candidates';
 import { createSearchMatcher } from '@/utils/search-text';
+import PageTitle from './PageTitle';
 
 const PAGE_SIZE = 100;
 const RELEASE_GROUP_SERIES = 'Release group series';
@@ -125,6 +126,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
+      <PageTitle parts={[name || 'Series collection']} />
       <AuthResultToast />
       <div className="sticky top-0 z-30 bg-background">
         <header className="relative p-3 md:px-8 md:pt-4 md:pb-4 header-surface">

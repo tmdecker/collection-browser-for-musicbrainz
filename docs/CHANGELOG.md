@@ -7,14 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- Browser tabs, bookmarks and the history list name what is open: "Collections", "Settings", the collection or series, and while an album is open "Album – Artist · Collection" (it was "Music Library Viewer" everywhere)
 - The search bar on the Collections page also opens collections and series: paste an MBID or a musicbrainz.org collection or series link and the match shows under the bar (your own at once, others after a MusicBrainz lookup); Enter or a click opens it. Other links (releases, artist collections, …) get a short reason instead. The bar shows when logged out too. The separate "Open by MBID or URL" box is gone
 - Settings: "Show Recently opened on the Collections page" (on by default). Without the row, or in a browser that has opened nothing yet, your collections start at the top of the Collections page
 
 ### Changed
 - Search is more forgiving everywhere (album grid, Collections page, series collections, genre/label/tag filters): it ignores accents ("beyonce" finds "Beyoncé"), accepts German umlauts written either way ("motorhead", "motoerhead" and "Motörhead" all match; "strasse" finds "Straße"), ignores punctuation ("dont" finds "Don't", "ac dc" finds "AC/DC") and matches each word on its own, so "beatles abbey" finds Abbey Road by The Beatles. The album search also looks at the artist name as credited on the album. Typos are still not forgiven
+- Filters are kept per collection and series: a genre, tag, label, date or rating filter set in one collection no longer applies when you open another, and comes back when you return to it. Filters saved by older versions (one set for every collection) are dropped once
+- Sorting by artist uses the MusicBrainz sort name, so "The Velvet Underground" sorts under V and "David Bowie" under B; an artist's release groups come oldest first, then by title (before, they kept the collection order)
 - The album details panel has the same dark background as the header and grid (#121212 instead of #1A1A1A); its genre and tracklist chips get lighter on hover instead of vanishing into the panel
 
 ### Fixed
+- Picking another album no longer shows the previous album's cover and tracklist in the details panel for a moment (or for good, if loading the new album failed)
 - A cover no longer stays on "No Cover Available" after one failed request (for example during a deploy, or right after refreshing an album, when the cover is downloaded again): the page tries it again after 5 s and 30 s. Covers that really don't exist still show the fallback at once (their 404 is read from the browser cache)
 - Cover mosaics on the Collections page fill in by themselves in a new browser: when the browser has no copy of a collection, the mosaic asks for its first page (the same request the collection page makes, so the server's copy usually answers, and a live request fills that copy) and shows its first covers; series collections use their first release group series. A cover that is missing is replaced by the next one, so only about four images are loaded per collection, and the choice is remembered in the browser for a week
 - Logins no longer end after about an hour: the app now asks MusicBrainz for a refresh token (offline access) and no longer logs you out when MusicBrainz is briefly unavailable (it retries after 30 s, doubling up to 5 min). If MusicBrainz returns no refresh token because the app was approved before, the login shows the consent page once more

@@ -8,6 +8,7 @@
  * - Album grid with search and sort functionality
  * - IndexedDB caching with progressive loading
  * - The collection or series to show comes from the URL; the last one opened is remembered in preferences
+ * - Filters are kept per collection or series; the tab title names the collection and the open album
  */
 
 'use client';
@@ -23,6 +24,7 @@ import { useAlbums } from '@/hooks/useAlbums';
 import { useFilters } from '@/hooks/useFilters';
 import { useSeriesHomepage } from '@/hooks/useSeriesHomepage';
 import { useAuth } from '@/hooks/useAuth';
+import PageTitle from '@/components/PageTitle';
 import { usePreferences } from '@/hooks/usePreferences';
 import { albumMatchesGenreFilters } from '@/utils/genre-processor';
 import { ReleaseGroup } from '@/types/music';
@@ -103,7 +105,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     setTagSearchQuery,
     hasActiveFilters,
     activeFilterCount
-  } = useFilters(rawAlbums);
+  } = useFilters(rawAlbums, `${route.entityType}:${route.mbid}`);
 
   // Apply filters to get final album list
   const albums = useMemo(() => {
@@ -204,6 +206,12 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
 
   // The stored name belongs to the stored collection; until it matches the URL, show no name
   const shownCollectionName = prefs.api.collectionId === collectionId ? collectionName : '';
+
+  // Tab title: the open album (title – artist) and the collection
+  const selectedAlbumLabel = selectedAlbum
+    ? [selectedAlbum.title, selectedAlbum.artist_credit?.map(credit => `${credit.name || credit.artist?.name || ''}${credit.joinphrase || ''}`).join('')]
+        .filter(Boolean).join(' – ')
+    : null;
 
   // A series' official homepage, linked by its domain in the footnote
   const seriesHomepage = useSeriesHomepage(route.entityType === 'series' ? route.mbid : null);
@@ -309,6 +317,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
 
   return (
     <main className="flex min-h-screen flex-col">
+      <PageTitle parts={[selectedAlbumLabel, shownCollectionName]} />
       {/* Header, active filters and the filter tray stay pinned together at the top */}
       <div ref={topRef} className="sticky top-0 z-30 bg-background">
       <Suspense fallback={

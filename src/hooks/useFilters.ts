@@ -6,7 +6,8 @@
  * - Manages genres, tags, labels, date ranges, and rating filters
  * - Filter panel visibility state
  * - Search within filter categories
- * - Persists all filter state across sessions
+ * - Persists filter state across sessions, separately for every collection and series, so a filter
+ *   set in one collection never hides albums in another
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -88,12 +89,46 @@ const defaultFilterState: FilterState = {
   ratingRange: null
 };
 
-// localStorage key for persisting filters
-const FILTERS_STORAGE_KEY = 'mb-gui-filters';
+// localStorage key for persisting filters: { [filterKey]: FilterState }, only collections with active filters
+const FILTERS_STORAGE_KEY = 'mb-gui-filters-by-collection';
+// Before 0.40 one set of filters applied to every collection; it is dropped, not guessed onto a collection
+const LEGACY_FILTERS_STORAGE_KEY = 'mb-gui-filters';
 
-export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
-  // Core filter state
-  const [filterState, setFilterState] = useState<FilterState>(defaultFilterState);
+type StoredFilters = Record<string, Partial<FilterState>>;
+
+const readStoredFilters = (): StoredFilters => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const isDefaultFilterState = (state: FilterState): boolean =>
+  state.selectedGenres.length === 0 &&
+  state.selectedLabels.length === 0 &&
+  state.selectedTags.length === 0 &&
+  state.releaseDateRange === null &&
+  state.ratingRange === null;
+
+type FilterUpdate = FilterState | ((prevState: FilterState) => FilterState);
+
+/**
+ * @param albums - Albums of the open collection (for the filter statistics)
+ * @param filterKey - Which collection or series the filters belong to, e.g. 'collection:<mbid>'
+ */
+export const useFilters = (albums: ReleaseGroup[], filterKey: string): UseFiltersReturn => {
+  // Core filter state, tagged with the collection it belongs to: right after switching collections the
+  // old collection's filters are never shown or saved under the new one
+  const [stored, setStored] = useState<{ key: string | null; filters: FilterState }>({ key: null, filters: defaultFilterState });
+  const filterState = stored.key === filterKey ? stored.filters : defaultFilterState;
+  const setFilterState = useCallback((update: FilterUpdate) => {
+    setStored(prev => {
+      const base = prev.key === filterKey ? prev.filters : defaultFilterState;
+      return { key: filterKey, filters: typeof update === 'function' ? update(base) : update };
+    });
+  }, [filterKey]);
 
   // UI state
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState<boolean>(false);
@@ -119,36 +154,34 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
     return getAvailableYearRange(albums);
   }, [albums]);
 
-  // Load persisted filters on mount
+  // Load the persisted filters of this collection (after mount: localStorage does not exist during server rendering)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedFilters = localStorage.getItem(FILTERS_STORAGE_KEY);
-        if (savedFilters) {
-          const parsed = JSON.parse(savedFilters);
-          // Loaded after mount on purpose: localStorage does not exist during server rendering
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setFilterState(prevState => ({
-            ...prevState,
-            ...parsed
-          }));
-        }
-      } catch (error) {
-        console.warn('Failed to load saved filters:', error);
-      }
+    let saved: Partial<FilterState> | undefined;
+    try {
+      localStorage.removeItem(LEGACY_FILTERS_STORAGE_KEY);
+      saved = readStoredFilters()[filterKey];
+    } catch (error) {
+      console.warn('Failed to load saved filters:', error);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStored({ key: filterKey, filters: { ...defaultFilterState, ...saved } });
+  }, [filterKey]);
 
-  // Persist filter changes to localStorage
+  // Persist filter changes of this collection to localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filterState));
-      } catch (error) {
-        console.warn('Failed to save filters:', error);
+    if (stored.key === null) return;
+    try {
+      const all = readStoredFilters();
+      if (isDefaultFilterState(stored.filters)) {
+        delete all[stored.key];
+      } else {
+        all[stored.key] = stored.filters;
       }
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(all));
+    } catch (error) {
+      console.warn('Failed to save filters:', error);
     }
-  }, [filterState]);
+  }, [stored]);
 
   // Genre filter operations
   const toggleGenre = useCallback((genreName: string) => {
@@ -163,14 +196,14 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
           : [...currentGenres, genreName]
       };
     });
-  }, []);
+  }, [setFilterState]);
 
   const clearAllGenres = useCallback(() => {
     setFilterState(prevState => ({
       ...prevState,
       selectedGenres: []
     }));
-  }, []);
+  }, [setFilterState]);
 
   // Label filter operations
   const toggleLabel = useCallback((labelName: string) => {
@@ -185,14 +218,14 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
           : [...currentLabels, labelName]
       };
     });
-  }, []);
+  }, [setFilterState]);
 
   const clearAllLabels = useCallback(() => {
     setFilterState(prevState => ({
       ...prevState,
       selectedLabels: []
     }));
-  }, []);
+  }, [setFilterState]);
 
   const clearAllFilters = useCallback(() => {
     setFilterState({
@@ -202,7 +235,7 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
       releaseDateRange: null,
       ratingRange: null
     });
-  }, []);
+  }, [setFilterState]);
 
   // Tag filter operations
   const toggleTag = useCallback((tagName: string) => {
@@ -217,14 +250,14 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
           : [...currentTags, tagName]
       };
     });
-  }, []);
+  }, [setFilterState]);
 
   const clearAllTags = useCallback(() => {
     setFilterState(prevState => ({
       ...prevState,
       selectedTags: []
     }));
-  }, []);
+  }, [setFilterState]);
 
   // Date range filter operations
   const setReleaseDateRange = useCallback((range: YearRange | null) => {
@@ -232,14 +265,14 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
       ...prevState,
       releaseDateRange: range
     }));
-  }, []);
+  }, [setFilterState]);
 
   const clearDateFilter = useCallback(() => {
     setFilterState(prevState => ({
       ...prevState,
       releaseDateRange: null
     }));
-  }, []);
+  }, [setFilterState]);
 
   // Rating range filter operations
   const setRatingRange = useCallback((range: { min: number; max: number } | null) => {
@@ -247,14 +280,14 @@ export const useFilters = (albums: ReleaseGroup[]): UseFiltersReturn => {
       ...prevState,
       ratingRange: range
     }));
-  }, []);
+  }, [setFilterState]);
 
   const clearRatingFilter = useCallback(() => {
     setFilterState(prevState => ({
       ...prevState,
       ratingRange: null
     }));
-  }, []);
+  }, [setFilterState]);
 
   // Filter panel operations
   const setFilterPanelOpen = useCallback((open: boolean) => {

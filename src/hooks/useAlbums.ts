@@ -1,4 +1,5 @@
 import { sortByRating } from '@/utils/ratings';
+import { sortByArtist } from '@/utils/artist-sort';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ReleaseGroup, SortOption } from '@/types/music';
 import { getBasicData } from '@/utils/progressive-loader';
@@ -17,7 +18,7 @@ import { SearchText, matchesSearch, parseSearchQuery, prepareSearchText } from '
  * - Album fetching with IndexedDB caching
  * - Album details with server-side cache and request cancellation
  * - Manual refresh of one album from MusicBrainz (after editing it there)
- * - Sorting and forgiving search (case, accents, umlauts, word order; see utils/search-text)
+ * - Sorting (artists by sort name, then year) and forgiving search (case, accents, umlauts, word order; see utils/search-text)
  */
 
 /**
@@ -317,7 +318,13 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
       abortControllerRef.current.abort();
     }
 
+    // Another album: drop the previous album's details at once, so its tracklist and cover never show
+    // under the new selection while the new details load (or if loading them fails)
+    if (album?.id !== selectedAlbumRef.current?.id) {
+      setSelectedAlbumDetails(null);
+    }
     setSelectedAlbum(album);
+    selectedAlbumRef.current = album;
     if (album) {
       // Create new AbortController for this request
       const abortController = new AbortController();
@@ -336,17 +343,9 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
 
     switch (sortOption) {
       case 'artist-asc':
-        return sorted.sort((a, b) => {
-          const artistA = a.artist_credit?.[0]?.artist?.name || '';
-          const artistB = b.artist_credit?.[0]?.artist?.name || '';
-          return artistA.localeCompare(artistB);
-        });
+        return sortByArtist(sorted, 'asc');
       case 'artist-desc':
-        return sorted.sort((a, b) => {
-          const artistA = a.artist_credit?.[0]?.artist?.name || '';
-          const artistB = b.artist_credit?.[0]?.artist?.name || '';
-          return artistB.localeCompare(artistA);
-        });
+        return sortByArtist(sorted, 'desc');
       case 'title-asc':
         return sorted.sort((a, b) => a.title.localeCompare(b.title));
       case 'title-desc':

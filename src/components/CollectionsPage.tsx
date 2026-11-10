@@ -37,6 +37,7 @@ import { collectionPath } from '@/utils/collection-routes';
 import { readCachedCollections, readCachedSeries, writeCachedCollections, type SeriesSummary } from '@/utils/collection-info';
 import { readRecentlyOpened, recentHref, recentKindLabel, type RecentEntry } from '@/utils/recently-opened';
 import { createSearchMatcher } from '@/utils/search-text';
+import PageTitle from './PageTitle';
 
 // Entity types the app can show (MusicBrainz writes them with an underscore)
 const SUPPORTED_ENTITY_TYPES = new Set(['release_group', 'series']);
@@ -391,6 +392,7 @@ export default function CollectionsPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
+      <PageTitle parts={['Collections']} />
       <AuthResultToast />
       <div className="sticky top-0 z-30 bg-background">
         <header className="relative p-3 md:px-8 md:pt-4 md:pb-4 header-surface">

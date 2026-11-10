@@ -7,6 +7,7 @@ import { StreamingServicePreferences, STREAMING_COUNTRIES } from '@/types/prefer
 import { BiChevronLeft, BiInfoCircle } from 'react-icons/bi';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import PageTitle from '@/components/PageTitle';
 
 interface CacheStatsResponse {
   timestamp: string;
@@ -94,6 +95,7 @@ export default function ConfigPage() {
 
   return (
     <main className="min-h-screen p-6 bg-background">
+      <PageTitle parts={['Settings']} />
       <Link
         href="/"
         className="inline-flex items-center gap-1 mb-4 -ml-1 text-sm text-text-secondary hover:text-text-primary transition-colors"

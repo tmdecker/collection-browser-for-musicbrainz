@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import Providers from './providers';
 
 
+// No title here: every page renders its own PageTitle (a metadata title would replace it after loading)
 export const metadata: Metadata = {
-  title: 'Music Library Viewer',
   description: 'A modern interface to browse your MusicBrainz collection',
 };
 
