@@ -8,6 +8,7 @@
  * - Album grid with search and sort functionality
  * - IndexedDB caching with progressive loading
  * - The collection or series to show comes from the URL; the last one opened is remembered in preferences
+ * - The open album is part of the address (?album=): Back closes it, a reload or a shared link opens it again
  * - Filters are kept per collection or series; the tab title names the collection and the open album
  */
 
@@ -34,6 +35,14 @@ import { albumMatchesDateFilter } from '@/utils/date-processor';
 import { collectionPath, type CollectionRoute } from '@/utils/collection-routes';
 import { loadCollectionInfo } from '@/utils/collection-info';
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
+import { albumFromUrl, urlWithAlbum } from '@/utils/album-url';
+
+// Puts the open album into the address (Next keeps useSearchParams in step with pushState and replaceState)
+const writeAlbumToUrl = (albumId: string | null, mode: 'push' | 'replace') => {
+  const target = urlWithAlbum(window.location.href, albumId);
+  if (mode === 'push') window.history.pushState(null, '', target);
+  else window.history.replaceState(null, '', target);
+};
 
 interface CollectionBrowserProps {
   // Collection or series from the URL
@@ -228,22 +237,83 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     });
   }, [shownCollectionName, route.entityType, route.mbid, parentCollectionId]);
 
-  // Selecting an album opens the details panel (the filter tray may stay open beside it); clicking the open album again closes the panel
-  const handleAlbumClick = (album: ReleaseGroup) => {
-    if (detailsPanelOpen && selectedAlbum?.id === album.id) {
-      setDetailsPanelOpen(false);
-      handleSelectAlbum(null);
-      return;
-    }
+  // The open album is part of the address. Opening it adds a history entry, so Back (the phone's back
+  // gesture too) closes the panel instead of leaving the collection; switching albums replaces the entry,
+  // so Back never steps through every album looked at
+  const albumEntryPushedRef = useRef(false);
+
+  const openAlbum = (album: ReleaseGroup) => {
+    const alreadyOpen = detailsPanelOpen && selectedAlbum !== null;
+    writeAlbumToUrl(album.id, alreadyOpen ? 'replace' : 'push');
+    if (!alreadyOpen) albumEntryPushedRef.current = true;
     handleSelectAlbum(album);
     setDetailsPanelOpen(true);
   };
 
-  // Handle close details panel
-  const handleCloseDetailsPanel = () => {
+  // Close button, Escape, clicking the open album again: goes back over the entry opening it added,
+  // or (opened from a link or a reload) removes the album from the address
+  const closeAlbum = useCallback(() => {
     setDetailsPanelOpen(false);
     handleSelectAlbum(null);
+    if (albumFromUrl(window.location.href) === null) return;
+    if (albumEntryPushedRef.current) {
+      albumEntryPushedRef.current = false;
+      window.history.back();
+    } else {
+      writeAlbumToUrl(null, 'replace');
+    }
+  }, [handleSelectAlbum]);
+
+  // Back and Forward: show the album the address names now (or none)
+  useEffect(() => {
+    const handlePopState = () => {
+      const albumId = albumFromUrl(window.location.href);
+      albumEntryPushedRef.current = false;
+      if (!albumId) {
+        setDetailsPanelOpen(false);
+        handleSelectAlbum(null);
+        return;
+      }
+      const album = rawAlbums.find(a => a.id === albumId);
+      if (album && album.id !== selectedAlbum?.id) {
+        handleSelectAlbum(album);
+        setDetailsPanelOpen(true);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [rawAlbums, selectedAlbum, handleSelectAlbum]);
+
+  // Opened from a link or reloaded with an album in the address: open it once the collection is there.
+  // An album that is not in this collection is dropped from the address
+  const restoredAlbumRef = useRef(false);
+  useEffect(() => {
+    if (restoredAlbumRef.current || loading || rawAlbums.length === 0) return;
+    restoredAlbumRef.current = true;
+    const albumId = albumFromUrl(window.location.href);
+    if (!albumId) return;
+    const album = rawAlbums.find(a => a.id === albumId);
+    if (!album) {
+      writeAlbumToUrl(null, 'replace');
+      return;
+    }
+    handleSelectAlbum(album);
+    // Opening the panel once the collection has loaded (it cannot be known any earlier)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDetailsPanelOpen(true);
+  }, [loading, rawAlbums, handleSelectAlbum]);
+
+  // Selecting an album opens the details panel (the filter tray may stay open beside it); clicking the open album again closes the panel
+  const handleAlbumClick = (album: ReleaseGroup) => {
+    if (detailsPanelOpen && selectedAlbum?.id === album.id) {
+      closeAlbum();
+      return;
+    }
+    openAlbum(album);
   };
+
+  // Handle close details panel
+  const handleCloseDetailsPanel = closeAlbum;
 
   // Escape closes the album details first, then the filter tray; typing in a field keeps them open
   const anyPanelOpen = detailsPanelOpen || isFilterPanelOpen;
@@ -254,15 +324,14 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
       if (detailsPanelOpen) {
-        setDetailsPanelOpen(false);
-        handleSelectAlbum(null);
+        closeAlbum();
       } else {
         setFilterPanelOpen(false);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [anyPanelOpen, detailsPanelOpen, isFilterPanelOpen, handleSelectAlbum, setFilterPanelOpen]);
+  }, [anyPanelOpen, detailsPanelOpen, isFilterPanelOpen, closeAlbum, setFilterPanelOpen]);
 
   // Handle manual refresh of current collection
   const handleRefreshCollection = async () => {
@@ -294,8 +363,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
   // Handle title click - close all panels and scroll to top
   const handleTitleClick = () => {
     // Close all panels
-    setDetailsPanelOpen(false);
-    handleSelectAlbum(null);
+    if (detailsPanelOpen) closeAlbum();
     setFilterPanelOpen(false);
 
     // Close sort dropdown

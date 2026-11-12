@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- The open album is part of the address (`?album=<MBID>`): Back, including the back swipe on phones, closes the album details instead of leaving the collection, a reload keeps the album open, and a link to it opens it. Switching from one album to the next replaces the entry, so Back never steps through every album you looked at
 - GitHub Actions check (type check, lint, tests) on every push to main and every pull request. The server's deploy script now also runs lint and the tests before it builds: a commit that fails them is not deployed, and while the packages are unchanged the running version keeps serving during the check
 - Browser tabs, bookmarks and the history list name what is open: "Collections", "Settings", the collection or series, and while an album is open "Album – Artist · Collection" (it was "Music Library Viewer" everywhere)
 - The search bar on the Collections page also opens collections and series: paste an MBID or a musicbrainz.org collection or series link and the match shows under the bar (your own at once, others after a MusicBrainz lookup); Enter or a click opens it. Other links (releases, artist collections, …) get a short reason instead. The bar shows when logged out too. The separate "Open by MBID or URL" box is gone
