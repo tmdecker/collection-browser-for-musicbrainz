@@ -69,6 +69,8 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     selectedAlbum,
     selectedAlbumDetails,
     selectedAlbumLoading,
+    selectedAlbumDetailsError,
+    retryAlbumDetails,
     handleSelectAlbum,
     refreshAlbum,
     refreshAlbums,
@@ -524,6 +526,8 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             album={selectedAlbum}
             albumDetails={selectedAlbumDetails}
             loading={selectedAlbumLoading}
+            detailsError={selectedAlbumDetailsError}
+            onRetryDetails={retryAlbumDetails}
             isOpen={detailsPanelOpen}
             onClose={handleCloseDetailsPanel}
             useGenresOnly={useGenresOnly}

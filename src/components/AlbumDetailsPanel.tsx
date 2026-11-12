@@ -29,6 +29,9 @@ interface AlbumDetailsPanelProps {
   album: ReleaseGroup | null;
   albumDetails: ReleaseGroup | null;
   loading: boolean;
+  /** Why the details could not be loaded; the tracklist shows it with a Try again button */
+  detailsError?: string | null;
+  onRetryDetails?: () => void;
   isOpen: boolean;
   onClose: () => void;
   useGenresOnly?: boolean;
@@ -95,7 +98,7 @@ const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> =
   );
 };
 
-const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum }) => {
+const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, detailsError = null, onRetryDetails, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum }) => {
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
   const [streamingLinksFromCache, setStreamingLinksFromCache] = useState(false);
@@ -127,8 +130,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
     if (detailsLoadedId) recheckPlexLink(detailsLoadedId);
   }, [detailsLoadedId]);
 
-  // Tracklist is still on its way when the album has none yet and no details request is running
-  const tracklistLoading = !!displayAlbum && !displayAlbum.tracklist && !loading;
+  // Tracklist is still on its way when the album has none yet, no details request is running and none failed
+  const tracklistLoading = !!displayAlbum && !displayAlbum.tracklist && !loading && !detailsError;
 
   // Clear streaming links as soon as the album, its release or the country changes, so old links
   // never flash (adjusting state during render instead of in the fetch effect)
@@ -571,6 +574,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
               tracks={displayAlbum.tracklist}
               albumArtist={artistName}
               loading={tracklistLoading}
+              error={displayAlbum.tracklist ? null : detailsError}
+              onRetry={onRetryDetails}
               releaseDetails={displayAlbum.releaseDetails}
               onToggleLabel={onToggleLabel}
               selectedLabels={selectedLabels}

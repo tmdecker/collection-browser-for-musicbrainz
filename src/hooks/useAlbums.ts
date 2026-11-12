@@ -37,6 +37,9 @@ export const toPanelDetails = (details: any, gridAlbum?: ReleaseGroup | null): R
   };
 };
 
+// The browser gives up on an album's details after this long (the server retries a busy MusicBrainz first)
+const ALBUM_DETAILS_TIMEOUT_MS = 30000;
+
 /**
  * Central data management hook - Focused on album data fetching and management
  *
@@ -53,6 +56,8 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
   const [selectedAlbum, setSelectedAlbum] = useState<ReleaseGroup | null>(null);
   const [selectedAlbumDetails, setSelectedAlbumDetails] = useState<ReleaseGroup | null>(null);
   const [selectedAlbumLoading, setSelectedAlbumLoading] = useState<boolean>(false);
+  // Why the selected album's details could not be loaded (MusicBrainz busy, unreachable, too slow), per album
+  const [selectedAlbumDetailsError, setSelectedAlbumDetailsError] = useState<{ albumId: string; message: string } | null>(null);
 
   // The selected album for callbacks that finish later (manual refresh)
   const selectedAlbumRef = useRef<ReleaseGroup | null>(null);
@@ -146,6 +151,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
   // Fetch detailed information for a specific album
   const fetchAlbumDetails = useCallback(async (albumId: string, signal?: AbortSignal) => {
     if (!albumId) return;
+    setSelectedAlbumDetailsError(null);
 
     try {
       // First, check if we already have cached information (basic or detailed)
@@ -221,10 +227,13 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
 
       // No cached data or only basic data - fetch detailed information
       try {
-        const response = await fetch(`/api/release-groups/${albumId}`, { signal });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const json = await response.json();
-        if (!json.success) throw new Error(json.error || 'Failed to fetch');
+        // A time limit, so a hung request ends in a message instead of an endless skeleton
+        const requestSignal = signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(ALBUM_DETAILS_TIMEOUT_MS)])
+          : AbortSignal.timeout(ALBUM_DETAILS_TIMEOUT_MS);
+        const response = await fetch(`/api/release-groups/${albumId}`, { signal: requestSignal });
+        const json = await response.json().catch(() => null);
+        if (!response.ok || !json?.success) throw new Error(json?.error || `HTTP ${response.status}`);
         const details = json.data;
 
         // Only update state if not aborted
@@ -250,6 +259,13 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
         if (err instanceof Error && (err.message === 'AbortError' || err.name === 'AbortError')) {
           return;
         }
+        if (signal?.aborted) return;
+
+        // Tell the panel, so it shows why instead of a tracklist skeleton that never ends
+        const message = err instanceof Error && err.name === 'TimeoutError'
+          ? 'MusicBrainz took too long to answer'
+          : err instanceof Error ? err.message : 'Unknown error';
+        setSelectedAlbumDetailsError({ albumId, message });
 
         // If we already showed cached basic data, keep showing it
         // If no cached data was available, try to get basic info from memory
@@ -336,6 +352,11 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
       abortControllerRef.current = null;
     }
   }, [fetchAlbumDetails]);
+
+  // Load the selected album's details again (Try again after a failed load)
+  const retryAlbumDetails = useCallback(() => {
+    if (selectedAlbumRef.current) handleSelectAlbum(selectedAlbumRef.current);
+  }, [handleSelectAlbum]);
 
   // Sort albums
   const sortAlbums = useCallback((albumsToSort: ReleaseGroup[]) => {
@@ -435,6 +456,8 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
     selectedAlbum,
     selectedAlbumDetails,
     selectedAlbumLoading,
+    selectedAlbumDetailsError: selectedAlbumDetailsError && selectedAlbumDetailsError.albumId === selectedAlbum?.id ? selectedAlbumDetailsError.message : null,
+    retryAlbumDetails,
     handleSelectAlbum,
     refreshAlbum,
     refreshAlbums: fetchAlbums,

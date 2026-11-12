@@ -18,6 +18,9 @@ interface TrackListProps {
   tracks?: Track[];
   albumArtist?: string;
   loading?: boolean;
+  /** Loading the tracklist failed: shown with a Try again button instead of the tracklist */
+  error?: string | null;
+  onRetry?: () => void;
   releaseDetails?: Release;
   onToggleLabel?: (labelName: string) => void;
   selectedLabels?: string[];
@@ -101,7 +104,7 @@ const getAllLabels = (album: { releaseDetails?: Release }): string => {
   return labels.join(', ');
 };
 
-const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = false, releaseDetails, onToggleLabel, selectedLabels = [] }) => {
+const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = false, error = null, onRetry, releaseDetails, onToggleLabel, selectedLabels = [] }) => {
   if (loading) {
     return (
       <div className="animate-pulse">
@@ -117,6 +120,23 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
             </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error && (!tracks || tracks.length === 0)) {
+    return (
+      <div role="alert" className="text-text-tertiary text-sm text-center py-4 flex flex-col items-center gap-2">
+        <p className="text-balance">Couldn&apos;t load the tracklist: {error}</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-text-secondary hover:text-text-primary underline underline-offset-4"
+          >
+            Try again
+          </button>
+        )}
       </div>
     );
   }
