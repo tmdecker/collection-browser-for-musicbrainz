@@ -326,10 +326,17 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     const next = neighbourAlbum(albums, selectedAlbum.id, step);
     if (!next) return;
     openAlbum(next);
+    // Keyboard focus follows the album when it was on a card: the arrow keys make the browser show its focus
+    // ring, which would otherwise stay on the card first clicked and highlight two albums. Focus inside the
+    // panel or elsewhere is left where it is
+    const focusWasOnCard = document.activeElement instanceof HTMLElement && document.activeElement.hasAttribute('data-album-id');
     // Keep the highlighted card in view (behind the panel on phones, so Back lands on it)
     requestAnimationFrame(() => {
+      const card = document.querySelector<HTMLElement>(`[data-album-id="${next.id}"]`);
+      if (!card) return;
+      if (focusWasOnCard) card.focus({ preventScroll: true });
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      document.querySelector(`[data-album-id="${next.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+      card.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
     });
   };
   // The key and swipe handlers always call the latest stepAlbum
