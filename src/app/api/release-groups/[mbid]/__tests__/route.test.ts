@@ -6,8 +6,9 @@ import { CachedReleaseGroup } from '@/lib/types/cache';
 import { queueReleaseGroupRefresh } from '@/lib/prefetch/prefetch-service';
 import { GET, POST } from '../route';
 
-// Hoisted above the imports: the route gets the mocked refresh queue
+// Hoisted above the imports: the route gets the mocked refresh queue, and no rate-limit waits or back-offs
 vi.mock('@/lib/prefetch/prefetch-service', () => ({ queueReleaseGroupRefresh: vi.fn() }));
+vi.mock('@/lib/rate-limiter', () => ({ waitForRateLimit: () => Promise.resolve(), backOffMusicBrainz: () => {} }));
 
 const RG = 'b1392450-e666-3926-a536-22c65f834433';
 
@@ -70,8 +71,27 @@ describe('GET /api/release-groups/[mbid]', () => {
 
     const response = await get();
 
-    expect(fetchMock).toHaveBeenCalled();
+    // Tried 3 times (two retries after the 503), then the click gets MusicBrainz's status and a message
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(response.status).toBe(503);
+    expect((await response.json()).error).toBe('MusicBrainz is busy, please try again in a moment');
+  });
+
+  it('loads the album when MusicBrainz answers 503 once and then works', async () => {
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
+    fetchMock
+      .mockResolvedValueOnce(new Response('busy', { status: 503 }))
+      .mockResolvedValueOnce(json({ id: RG, title: 'OK Computer' }))
+      .mockResolvedValueOnce(json({ releases: [{ id: 'r1', title: 'OK Computer', status: 'Official', date: '1997-05-21' }], 'release-count': 1 }))
+      .mockResolvedValueOnce(json({ id: 'r1', title: 'OK Computer', media: [] }));
+
+    const response = await get();
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.title).toBe('OK Computer');
+    expect(body.data.selectedReleaseId).toBe('r1');
+    expect(releaseGroupCache.get(RG)?.bestReleaseMbid).toBe('r1');
   });
 
   it('answers 502 with a "try again" message when MusicBrainz is unreachable', async () => {

@@ -5,13 +5,13 @@
  * @ai-features
  * - Server-side metadata enhancement for series items
  * - Updates server-side cache with genres/tags/ratings
- * - Handles rate limiting for MusicBrainz API
+ * - MusicBrainz requests through lib/musicbrainz-fetch (rate limit, timeout, 503 back-off and retries)
  * - Returns cached data when available
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { waitForRateLimit } from '@/lib/rate-limiter';
-import { getUserAgent } from '@/utils/config/userAgent';
+import { MB_BASE_URL, musicBrainzFetch } from '@/lib/musicbrainz-fetch';
+import { isNetworkError } from '@/lib/network-errors';
 import { isMbid } from '@/utils/mbid-validation';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { extractRatingFromApiResponse } from '@/utils/ratings';
@@ -39,17 +39,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch from MusicBrainz API
-    await waitForRateLimit('low'); // Background enhancement: user requests go first
-
-    const response = await fetch(
-      `https://musicbrainz.org/ws/2/release-group/${mbid}?fmt=json&inc=genres+tags+ratings`,
-      {
-        headers: {
-          'User-Agent': getUserAgent(), // Same format as all MusicBrainz calls (with fallbacks when env vars are missing)
-          'Accept': 'application/json',
-        },
-      }
-    );
+    // Background enhancement: user requests go first
+    const response = await musicBrainzFetch(`${MB_BASE_URL}/release-group/${mbid}?fmt=json&inc=genres+tags+ratings`, { priority: 'low' });
 
     if (!response.ok) {
       console.error(`MB API error for ${mbid}: ${response.status}`);
@@ -69,6 +60,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ source: 'api', ...metadata });
   } catch (error) {
+    if (isNetworkError(error)) {
+      return NextResponse.json({ error: 'MusicBrainz is unreachable' }, { status: 502 });
+    }
     console.error('Enhance metadata error:', error);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }

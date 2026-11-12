@@ -18,10 +18,10 @@ import { releaseGroupCache } from '@/lib/cache/release-group-cache';
 import { releaseGroupFetchInFlight } from '@/lib/cache/release-group-fetches';
 import { barcodeProviders, getBarcodeLinksCached, isLookupBarcode } from '@/lib/barcode-links';
 import { browseAllReleases } from '@/lib/browse-releases';
-import { backOffMusicBrainz, waitForRateLimit, type RateLimitPriority } from '@/lib/rate-limiter';
+import { type RateLimitPriority } from '@/lib/rate-limiter';
+import { musicBrainzFetch } from '@/lib/musicbrainz-fetch';
 import { extractAllStreamingUrls, getPlatformFromUrl, validateStreamingUrlServer } from '@/utils/streaming-links';
 import { orderReleasesForStreaming, selectPreferredRelease } from '@/utils/release-selection';
-import { getUserAgent } from '@/utils/config/userAgent';
 
 const MAX_CHECKS_PER_PLATFORM = 3;
 const MAX_BARCODES_PER_ALBUM = 2;
@@ -123,14 +123,7 @@ const loadAlbumReleases = async (releaseGroupMbid: string, priority: RateLimitPr
     }
   }
 
-  const releases = await browseAllReleases(releaseGroupMbid, async url => {
-    await waitForRateLimit(priority);
-    const response = await fetch(url, {
-      headers: { Accept: 'application/json', 'User-Agent': getUserAgent() },
-    });
-    if (response.status === 503) backOffMusicBrainz(response);
-    return response;
-  });
+  const releases = await browseAllReleases(releaseGroupMbid, url => musicBrainzFetch(url, { priority }));
   return { releases, bestRelease: selectPreferredRelease(releases) ?? undefined };
 };
 

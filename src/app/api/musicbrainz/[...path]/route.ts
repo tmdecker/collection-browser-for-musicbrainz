@@ -1,7 +1,7 @@
 /**
  * @ai-file api
  * @ai-description API proxy for MusicBrainz that handles CORS, rate limiting, and OAuth authentication
- * @ai-dependencies Next.js server components, getUserAgent utility
+ * @ai-dependencies Next.js server components, musicbrainz-fetch
  * @ai-features
  * - Proxies requests to MusicBrainz API to avoid CORS issues
  * - Rate limiting (shared queue, ~1 request per second per MusicBrainz guidelines)
@@ -13,8 +13,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserAgent } from '@/utils/config/userAgent';
-import { waitForRateLimit, backOffMusicBrainz } from '@/lib/rate-limiter';
+import { MB_BASE_URL, musicBrainzFetch } from '@/lib/musicbrainz-fetch';
+import { isNetworkError } from '@/lib/network-errors';
 import { collectionPageCache, isCollectionPageRequest } from '@/lib/cache/collection-page-cache';
 
 // Force dynamic runtime for this API route
@@ -24,10 +24,6 @@ export const dynamic = 'force-dynamic';
 // We implement it this way to avoid CORS issues when making client-side requests
 // Following MusicBrainz API guidelines: https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting
 
-const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
-
-const MAX_RETRIES = 2;
-const REQUEST_TIMEOUT_MS = 30000;
 
 // Entities the app looks up through this proxy (collections list has its own route)
 const ALLOWED_ENTITIES = new Set(['release-group', 'release', 'collection', 'series']);
@@ -71,41 +67,13 @@ export async function GET(
       }
     }
 
-    // Build headers
-    const headers: HeadersInit = {
-      'Accept': 'application/json',
-      'User-Agent': getUserAgent(),
-    };
-
-    // Add OAuth token if available (enables access to private collections)
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    // Retry after a 503 (MusicBrainz busy, shared back-off) or a network error, so a click
-    // does not fail on a single hiccup; each attempt waits for its own rate-limit slot
-    let response: Response | null = null;
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      await waitForRateLimit();
-      try {
-        response = await fetch(mbUrl.toString(), {
-          method: 'GET',
-          headers,
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-          cache: 'no-store',
-        });
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        console.warn(`⚠️  MusicBrainz request failed (${reason}), attempt ${attempt + 1}/${MAX_RETRIES + 1}: ${mbUrl.pathname}`);
-        response = null;
-        continue;
-      }
-
-      if (response.status !== 503) break;
-      backOffMusicBrainz(response);
-    }
-
-    if (!response) {
+    // Rate limit, timeout, and retries after a 503 (MusicBrainz busy, shared back-off) or a network
+    // error, so a click does not fail on a single hiccup
+    let response: Response;
+    try {
+      response = await musicBrainzFetch(mbUrl, { accessToken });
+    } catch (error) {
+      if (!isNetworkError(error)) throw error;
       return NextResponse.json({ error: 'MusicBrainz is unreachable' }, { status: 502 });
     }
 

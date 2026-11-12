@@ -1,7 +1,7 @@
 /**
  * @ai-file api
  * @ai-description Fetch user's MusicBrainz collections (authenticated)
- * @ai-dependencies getUserAgent utility, MusicBrainzCollectionList type
+ * @ai-dependencies musicbrainz-fetch, MusicBrainzCollectionList type
  * @ai-features
  * - Requires access token from cookies (401 if missing)
  * - Fetches user's collections (both public and private)
@@ -11,14 +11,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserAgent } from '@/utils/config/userAgent';
-import { waitForRateLimit, backOffMusicBrainz } from '@/lib/rate-limiter';
+import { MB_BASE_URL, musicBrainzFetch } from '@/lib/musicbrainz-fetch';
 import { MusicBrainzCollectionList } from '@/types/auth';
 
 // Force dynamic runtime for this API route
 export const dynamic = 'force-dynamic';
 
-const MB_BASE_URL = 'https://musicbrainz.org/ws/2';
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,24 +49,8 @@ export async function GET(request: NextRequest) {
 
     try {
       // A 503 (MusicBrainz busy) pauses all MusicBrainz requests for as long as it asks, then this
-      // request tries once more; each attempt waits for its own slot in the shared rate limit
-      let response: Response | null = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        await waitForRateLimit();
-        response = await fetch(mbUrl.toString(), {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': getUserAgent(),
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          signal: AbortSignal.timeout(30000),
-          cache: 'no-store',
-        });
-        if (response.status !== 503) break;
-        backOffMusicBrainz(response);
-      }
-      if (!response) throw new Error('No response from MusicBrainz');
+      // request tries once more (lib/musicbrainz-fetch)
+      const response = await musicBrainzFetch(mbUrl, { accessToken, retries: 1 });
 
       if (!response.ok) {
         console.error(`❌ MusicBrainz collections API error: ${response.status}`);
