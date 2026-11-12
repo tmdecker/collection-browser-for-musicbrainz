@@ -9,6 +9,7 @@
  * - IndexedDB caching with progressive loading
  * - The collection or series to show comes from the URL; the last one opened is remembered in preferences
  * - The open album is part of the address (?album=): Back closes it, a reload or a shared link opens it again
+ * - Arrow keys and (phones) a sideways swipe on the panel step to the previous or next album in the grid
  * - Filters are kept per collection or series; the tab title names the collection and the open album
  */
 
@@ -36,6 +37,7 @@ import { collectionPath, type CollectionRoute } from '@/utils/collection-routes'
 import { loadCollectionInfo } from '@/utils/collection-info';
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
 import { albumFromUrl, urlWithAlbum } from '@/utils/album-url';
+import { neighbourAlbum, swipeStep, type Point } from '@/utils/album-steps';
 
 // Puts the open album into the address (Next keeps useSearchParams in step with pushState and replaceState)
 const writeAlbumToUrl = (albumId: string | null, mode: 'push' | 'replace') => {
@@ -317,6 +319,57 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
   // Handle close details panel
   const handleCloseDetailsPanel = closeAlbum;
 
+  // Previous or next album in the grid as shown (sort, filters, search); nothing happens at either end.
+  // The address is replaced, so one Back still closes the panel
+  const stepAlbum = (step: 1 | -1) => {
+    if (!detailsPanelOpen || !selectedAlbum) return;
+    const next = neighbourAlbum(albums, selectedAlbum.id, step);
+    if (!next) return;
+    openAlbum(next);
+    // Keep the highlighted card in view (behind the panel on phones, so Back lands on it)
+    requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.querySelector(`[data-album-id="${next.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+  };
+  // The key and swipe handlers always call the latest stepAlbum
+  const stepAlbumRef = useRef(stepAlbum);
+  useEffect(() => {
+    stepAlbumRef.current = stepAlbum;
+  });
+
+  // Left and right arrow keys step through the albums while the panel is open; typing in a field and
+  // key combinations (browser shortcuts) are left alone
+  useEffect(() => {
+    if (!detailsPanelOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      event.preventDefault();
+      stepAlbumRef.current(event.key === 'ArrowRight' ? 1 : -1);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [detailsPanelOpen]);
+
+  // Swiping the panel sideways (touch) steps through the albums; swipes from the screen edge stay the
+  // phone's back gesture, and mostly vertical ones keep scrolling the panel
+  const swipeStartRef = useRef<Point | null>(null);
+  const handlePanelTouchStart = (event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    swipeStartRef.current = event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY } : null;
+  };
+  const handlePanelTouchEnd = (event: React.TouchEvent) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch) return;
+    const step = swipeStep(start, { x: touch.clientX, y: touch.clientY }, window.innerWidth);
+    if (step) stepAlbum(step);
+  };
+
   // Escape closes the album details first, then the filter tray; typing in a field keeps them open
   const anyPanelOpen = detailsPanelOpen || isFilterPanelOpen;
   useEffect(() => {
@@ -521,7 +574,13 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
           />
         )}
     </div>
-        <aside aria-label="Album details" className={`details-dock ${detailsPanelOpen ? 'open' : ''}`}>
+        <aside
+          aria-label="Album details"
+          className={`details-dock ${detailsPanelOpen ? 'open' : ''}`}
+          onTouchStart={handlePanelTouchStart}
+          onTouchEnd={handlePanelTouchEnd}
+          onTouchCancel={() => { swipeStartRef.current = null; }}
+        >
           <AlbumDetailsPanel
             album={selectedAlbum}
             albumDetails={selectedAlbumDetails}
