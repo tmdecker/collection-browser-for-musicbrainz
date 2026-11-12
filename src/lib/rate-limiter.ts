@@ -93,19 +93,28 @@ const musicBrainzLimiter = createRateLimiter('__musicBrainzRateLimiterQueue', MU
 export const waitForRateLimit = (priority: RateLimitPriority = 'high'): Promise<void> =>
   musicBrainzLimiter.wait(priority);
 
+// Pause after a 503 without Retry-After: long when this IP used up its budget, short when MusicBrainz
+// is busy overall (budget left), since waiting longer does not help there and only stalls every request
+const RATE_LIMITED_PAUSE_MS = 10000;
+const SERVER_BUSY_PAUSE_MS = 2000;
+
 /**
- * Pause all MusicBrainz requests after MusicBrainz answered 503 (rate limited)
- * Uses the Retry-After header when present, otherwise 10 seconds
+ * Pause all MusicBrainz requests after MusicBrainz answered 503
+ * Uses the Retry-After header when present, otherwise 10 seconds when this IP is over its rate limit
+ * and 2 seconds when MusicBrainz is busy overall (X-RateLimit-Remaining above 0)
  */
 export function backOffMusicBrainz(response: Response): void {
   const retryAfterSeconds = Number(response.headers.get('retry-after'));
-  const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 10000;
+  const remaining = response.headers.get('x-ratelimit-remaining');
+  const limit = response.headers.get('x-ratelimit-limit');
+  const serverBusy = remaining !== null && Number(remaining) > 0;
+  const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+    ? retryAfterSeconds * 1000
+    : serverBusy ? SERVER_BUSY_PAUSE_MS : RATE_LIMITED_PAUSE_MS;
   musicBrainzLimiter.backOff(delayMs);
 
   // Log MusicBrainz's reason: it says whether this IP is too fast or the server is busy overall
   // (read from a clone, so callers can still use the response body)
-  const remaining = response.headers.get('x-ratelimit-remaining');
-  const limit = response.headers.get('x-ratelimit-limit');
   response
     .clone()
     .text()
@@ -113,6 +122,7 @@ export function backOffMusicBrainz(response: Response): void {
     .then(body => {
       const reason = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) || 'no reason given';
       const budget = limit ? `, X-RateLimit remaining ${remaining}/${limit}` : '';
-      console.warn(`⚠️  MusicBrainz rate limit hit (503), pausing requests for ${delayMs / 1000}s. Reason: ${reason}${budget}`);
+      const kind = serverBusy ? 'MusicBrainz busy (503, rate budget left)' : 'MusicBrainz rate limit hit (503)';
+      console.warn(`⚠️  ${kind}, pausing requests for ${delayMs / 1000}s. Reason: ${reason}${budget}`);
     });
 }

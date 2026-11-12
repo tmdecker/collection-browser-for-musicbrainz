@@ -71,8 +71,8 @@ describe('GET /api/release-groups/[mbid]', () => {
 
     const response = await get();
 
-    // Tried 3 times (two retries after the 503), then the click gets MusicBrainz's status and a message
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // Tried twice (one retry after the 503, so a click answers within seconds), then the click gets MusicBrainz's status and a message
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(response.status).toBe(503);
     expect((await response.json()).error).toBe('MusicBrainz is busy, please try again in a moment');
   });

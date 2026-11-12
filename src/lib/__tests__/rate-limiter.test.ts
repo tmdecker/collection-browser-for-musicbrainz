@@ -109,4 +109,25 @@ describe('backOffMusicBrainz', () => {
     expect(await response.text()).toContain('exceeding');
     warn.mockRestore();
   });
+
+  it('pauses briefly when MusicBrainz is busy overall but this IP has budget left', async () => {
+    const { backOffMusicBrainz, waitForRateLimit } = await import('@/lib/rate-limiter');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Later than the real-time pause the test above left on the shared limiter
+    vi.setSystemTime(new Date('2030-01-01T12:00:00Z'));
+    await waitForRateLimit();
+    vi.advanceTimersByTime(5000);
+    const start = Date.now();
+
+    backOffMusicBrainz(new Response('The MusicBrainz web server is currently busy.', {
+      status: 503,
+      headers: { 'x-ratelimit-limit': '15', 'x-ratelimit-remaining': '14' },
+    }));
+    const released = waitForRateLimit().then(() => Date.now() - start);
+    await vi.runAllTimersAsync();
+
+    expect(await released).toBe(2000);
+    expect(warn.mock.calls[0][0]).toContain('MusicBrainz busy (503, rate budget left), pausing requests for 2s');
+    warn.mockRestore();
+  });
 });
