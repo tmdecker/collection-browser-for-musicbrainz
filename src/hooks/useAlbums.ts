@@ -1,3 +1,4 @@
+import { loadErrorMessage } from '@/utils/load-error';
 import { sortByRating } from '@/utils/ratings';
 import { sortByArtist } from '@/utils/artist-sort';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -138,8 +139,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
       }
     } catch (err) {
       if (!isCurrentLoad()) return;
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Failed to load albums: ${errorMessage}`);
+      setError(loadErrorMessage(err, entityType === 'series' ? 'series' : 'collection'));
       setAlbums([]);
     } finally {
       if (isCurrentLoad()) {

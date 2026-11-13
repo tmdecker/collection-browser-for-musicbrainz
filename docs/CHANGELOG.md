@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- A collection or series that fails to load now says why in plain words (MusicBrainz busy, unknown or private, not reachable) and has a Try again button, instead of a raw error and no way out but reloading the page
 - Add to Home Screen: the app installs with its own icon (a grid of four violet covers, which is now also the tab icon) and opens full screen without the browser bar, with a dark status bar, named "Collections" under the icon. No offline mode: it is the same website
 - Filter chips count what is left: each genre, tag and label number in the filter panel says how many albums you would see with that chip added, given your search and the other kinds of filters (it counted the whole collection before). Chips that would leave nothing are hidden, except ones you selected, which stay first so you can remove them. Genres, tags and labels still match any of the chips picked within a kind
 - Step to the previous or next album without closing the details: the left and right arrow keys, or a sideways swipe on the panel on phones. It follows the grid as shown (sort, filters, search), stops at the first and last album, and keeps the open card in view. Swipes from the screen edge stay the phone's back gesture, and one Back still closes the panel

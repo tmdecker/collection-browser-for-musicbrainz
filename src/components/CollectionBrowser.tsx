@@ -494,15 +494,17 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
 
       {error && (
         <div className="p-6">
-          <div className="p-4 bg-background-tertiary border border-background-secondary rounded-md">
-            <h2 className={`text-lg font-medium mb-2 ${error.includes('Using sample data') ? 'text-primary' : 'text-red-500'}`}>
-              {error.includes('Using sample data') ? 'Notice' : 'Error'}
-            </h2>
+          <div role="alert" className="p-4 bg-background-tertiary border border-background-secondary rounded-md">
+            <h2 className="text-lg font-medium mb-2 text-red-500">Couldn&apos;t load this {activeEntityType === 'series' ? 'series' : 'collection'}</h2>
             <p className="text-text-secondary">{error}</p>
-            {error.includes('Using sample data') && (
-              <div className="mt-4">
-                <p className="text-text-secondary">You&apos;re seeing sample album data because we couldn&apos;t connect to MusicBrainz.</p>
-              </div>
+            {collectionId && (
+              <button
+                type="button"
+                onClick={refreshAlbums}
+                className="mt-4 px-4 py-1.5 rounded-full bg-primary text-white text-sm hover:bg-primary-light transition-colors"
+              >
+                Try again
+              </button>
             )}
           </div>
         </div>
@@ -516,7 +518,8 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
           selectedAlbum={selectedAlbum}
           onSelectAlbum={handleAlbumClick}
           loading={loading}
-          emptyState={hiddenByFilters > 0 ? (
+          // After a failed load the error box above explains the empty grid
+          emptyState={error ? false : hiddenByFilters > 0 ? (
             <>
               <p>
                 {hiddenByFilters} {hiddenByFilters === 1 ? 'release group matches' : 'release groups match'} your search but {hiddenByFilters === 1 ? 'is' : 'are'} hidden by your filters.
