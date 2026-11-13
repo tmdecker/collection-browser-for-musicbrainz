@@ -45,10 +45,13 @@ interface FilterPanelProps {
   onRatingRangeChange: (range: { min: number; max: number } | null) => void;
   onClearAll: () => void;
   onClose: () => void;
+  /** Some album in the collection has label data (otherwise the Labels tab explains how it gets some) */
+  collectionHasLabels?: boolean;
 }
 
 const FilterPanel: React.FC<FilterPanelProps> = ({
   isOpen,
+  collectionHasLabels = true,
   genreStats,
   labelStats,
   tagStats,
@@ -450,7 +453,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               {displayedGenres.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-white/70">
-                    {genreSearchQuery ? 'No genres found matching your search.' : 'No genres available.'}
+                    {genreSearchQuery ? 'No genres found matching your search.' : 'No genres among the albums your search and other filters leave.'}
                   </p>
                 </div>
               ) : (
@@ -500,9 +503,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               {displayedLabels.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-white/70">
-                    {labelSearchQuery ? 'No labels found matching your search.' : 'No labels available.'}
+                    {labelSearchQuery ? 'No labels found matching your search.' : collectionHasLabels ? 'No labels among the albums your search and other filters leave.' : 'No labels available.'}
                   </p>
-                  {labelCount === 0 && (
+                  {!collectionHasLabels && (
                     <p className="text-xs text-white/50 mt-2">
                       Labels are only available for albums with fetched release details.<br/>
                       Click on albums to view their details and populate label data.
@@ -556,7 +559,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               {displayedTags.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-white/70">
-                    {tagSearchQuery ? 'No tags found matching your search.' : 'No tags available.'}
+                    {tagSearchQuery ? 'No tags found matching your search.' : 'No tags among the albums your search and other filters leave.'}
                   </p>
                 </div>
               ) : (

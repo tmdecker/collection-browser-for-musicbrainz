@@ -28,11 +28,8 @@ import { useSeriesHomepage } from '@/hooks/useSeriesHomepage';
 import { useAuth } from '@/hooks/useAuth';
 import PageTitle from '@/components/PageTitle';
 import { usePreferences } from '@/hooks/usePreferences';
-import { albumMatchesGenreFilters } from '@/utils/genre-processor';
 import { ReleaseGroup } from '@/types/music';
-import { albumMatchesLabelFilters } from '@/utils/label-processor';
-import { albumMatchesTagFilters } from '@/utils/tag-processor';
-import { albumMatchesDateFilter } from '@/utils/date-processor';
+import { albumMatchesSelection, facetedStats, type FilterSelection } from '@/utils/faceted-filters';
 import { collectionPath, type CollectionRoute } from '@/utils/collection-routes';
 import { loadCollectionInfo } from '@/utils/collection-info';
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
@@ -120,51 +117,29 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     activeFilterCount
   } = useFilters(rawAlbums, `${route.entityType}:${route.mbid}`);
 
-  // Apply filters to get final album list
-  const albums = useMemo(() => {
-    let filtered = [...searchFilteredAlbums];
+  // The active filters; the date range counts only when it narrows the collection's own years
+  const filterSelection = useMemo<FilterSelection>(() => ({
+    genres: selectedGenres,
+    labels: selectedLabels,
+    tags: selectedTags,
+    dateRange: releaseDateRange && availableYearRange &&
+      (releaseDateRange.min !== availableYearRange.min || releaseDateRange.max !== availableYearRange.max)
+      ? releaseDateRange
+      : null,
+    ratingRange,
+  }), [selectedGenres, selectedLabels, selectedTags, releaseDateRange, availableYearRange, ratingRange]);
 
-    // Apply genre filters (OR within genres) - always use true for official genres
-    if (selectedGenres.length > 0) {
-      filtered = filtered.filter(album =>
-        albumMatchesGenreFilters(album, selectedGenres, true)
-      );
-    }
+  // Apply filters to get final album list (genres, labels, tags: any of; kinds, dates, rating: all)
+  const albums = useMemo(
+    () => searchFilteredAlbums.filter(album => albumMatchesSelection(album, filterSelection)),
+    [searchFilteredAlbums, filterSelection]
+  );
 
-    // Apply label filters (OR within labels)
-    if (selectedLabels.length > 0) {
-      filtered = filtered.filter(album =>
-        albumMatchesLabelFilters(album, selectedLabels)
-      );
-    }
-
-    // Apply tag filters (OR within tags)
-    if (selectedTags.length > 0) {
-      filtered = filtered.filter(album =>
-        albumMatchesTagFilters(album, selectedTags)
-      );
-    }
-
-    // Apply date range filter
-    if (releaseDateRange && availableYearRange &&
-        (releaseDateRange.min !== availableYearRange.min ||
-         releaseDateRange.max !== availableYearRange.max)) {
-      filtered = filtered.filter(album =>
-        albumMatchesDateFilter(album, releaseDateRange.min, releaseDateRange.max)
-      );
-    }
-
-    // Apply rating filter (always uses average rating)
-    if (ratingRange) {
-      filtered = filtered.filter(album => {
-        const stars = album.rating?.average ?? null;
-        if (stars === null) return false; // Exclude albums without ratings
-        return stars >= ratingRange.min && stars <= ratingRange.max;
-      });
-    }
-
-    return filtered;
-  }, [searchFilteredAlbums, selectedGenres, selectedLabels, selectedTags, releaseDateRange, ratingRange, availableYearRange]);
+  // Chip counts in the filter panel follow the search and the other filters (only while the panel is open)
+  const chipStats = useMemo(
+    () => (isFilterPanelOpen ? facetedStats(searchFilteredAlbums, filterSelection) : { genreStats, labelStats, tagStats }),
+    [isFilterPanelOpen, searchFilteredAlbums, filterSelection, genreStats, labelStats, tagStats]
+  );
 
   // A search that finds nothing only because the filters hide its matches says so (with a way out)
   const hiddenByFilters = albums.length === 0 && hasActiveFilters && searchQuery.trim() ? searchFilteredAlbums.length : 0;
@@ -490,9 +465,10 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
       {/* Filter Panel */}
       <FilterPanel
         isOpen={isFilterPanelOpen}
-        genreStats={genreStats}
-        labelStats={labelStats}
-        tagStats={tagStats}
+        genreStats={chipStats.genreStats}
+        labelStats={chipStats.labelStats}
+        tagStats={chipStats.tagStats}
+        collectionHasLabels={labelStats.length > 0}
         availableYearRange={availableYearRange}
         selectedGenres={selectedGenres}
         selectedLabels={selectedLabels}

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
+- Filter chips count what is left: each genre, tag and label number in the filter panel says how many albums you would see with that chip added, given your search and the other kinds of filters (it counted the whole collection before). Chips that would leave nothing are hidden, except ones you selected, which stay first so you can remove them. Genres, tags and labels still match any of the chips picked within a kind
 - Step to the previous or next album without closing the details: the left and right arrow keys, or a sideways swipe on the panel on phones. It follows the grid as shown (sort, filters, search), stops at the first and last album, and keeps the open card in view. Swipes from the screen edge stay the phone's back gesture, and one Back still closes the panel
 - The open album is part of the address (`?album=<MBID>`): Back, including the back swipe on phones, closes the album details instead of leaving the collection, a reload keeps the album open, and a link to it opens it. Switching from one album to the next replaces the entry, so Back never steps through every album you looked at
 - GitHub Actions check (type check, lint, tests) on every push to main and every pull request. The server's deploy script now also runs lint and the tests before it builds: a commit that fails them is not deployed, and while the packages are unchanged the running version keeps serving during the check
