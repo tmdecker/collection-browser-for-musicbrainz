@@ -427,7 +427,7 @@ export default function ConfigPage() {
       <div className="mt-8 pt-6 border-t border-background-tertiary">
         <h2 className="text-lg font-medium text-text-primary mb-2">Version Information</h2>
         <div className="text-sm text-text-tertiary">
-          <p>Music Library Viewer v{require('../../../package.json').version}</p>
+          <p>Collectionz v{require('../../../package.json').version}</p>
         </div>
       </div>
     </main>

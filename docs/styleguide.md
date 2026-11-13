@@ -1,8 +1,8 @@
-# Music Library Viewer - Style Guide
+# Collectionz - Style Guide
 
 ## Color Theme Overview
 
-The Music Library Viewer uses a **modern dark theme** with a **violet accent system** designed for optimal music library browsing experience.
+Collectionz uses a **modern dark theme** with a **violet accent system** designed for optimal music library browsing experience.
 
 ## Color Palette
 

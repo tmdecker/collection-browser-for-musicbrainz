@@ -392,7 +392,8 @@ export default function CollectionsPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
-      <PageTitle parts={['Collections']} />
+      {/* Home page: just the app name ("Collections · Collectionz" would stutter) */}
+      <PageTitle />
       <AuthResultToast />
       <div className="sticky top-0 z-30 bg-background">
         <header className="relative p-3 md:px-8 md:pt-4 md:pb-4 header-surface">

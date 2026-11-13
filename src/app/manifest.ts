@@ -10,7 +10,7 @@ import { APP_TITLE } from '@/components/PageTitle';
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: APP_TITLE,
-    short_name: 'Collections',
+    short_name: 'Collectionz',
     description: 'A modern interface to browse your MusicBrainz collection',
     start_url: '/',
     scope: '/',
