@@ -9,8 +9,9 @@
   accent-color: theme('colors.primary.DEFAULT');
 }
 
-/* Headings break into lines of even length (no single word or "92" left alone on the last line) */
-h1, h2, h3 {
+/* Headings break into lines of even length (no single word or "92" left alone on the last line).
+   Not h3: every grid card title is one, and balancing a thousand of them costs layout time */
+h1, h2 {
   text-wrap: balance;
 }
 

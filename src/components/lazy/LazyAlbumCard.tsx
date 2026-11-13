@@ -2,7 +2,7 @@
  * @ai-file component
  * @ai-description Lazy loading wrapper for AlbumCard using IntersectionObserver
  * @ai-dependencies React, IntersectionObserver API, AlbumCard
- * @ai-features Viewport-based loading, skeleton placeholders, prioritized rendering, React.memo
+ * @ai-features Viewport-based loading (one shared observer, 800px ahead), static placeholders, prioritized rendering, React.memo
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -16,6 +16,32 @@ interface LazyAlbumCardProps {
   onClick: (album: ReleaseGroup) => void;
   index: number;
 }
+
+// One observer for the whole grid instead of one per card (a large collection had over a thousand).
+// Cards are shown a good stretch before they scroll into view, so fast scrolling on a phone does not
+// run into a row of cards that are still being mounted
+const callbacks = new Map<Element, () => void>();
+let sharedObserver: IntersectionObserver | null = null;
+
+const observeOnce = (element: Element, onVisible: () => void): (() => void) => {
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        sharedObserver?.unobserve(entry.target);
+        const callback = callbacks.get(entry.target);
+        callbacks.delete(entry.target);
+        callback?.();
+      }
+    }, { rootMargin: '800px 0px' });
+  }
+  callbacks.set(element, onVisible);
+  sharedObserver.observe(element);
+  return () => {
+    callbacks.delete(element);
+    sharedObserver?.unobserve(element);
+  };
+};
 
 const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
   const { album, selected, onClick, index } = props;
@@ -36,34 +62,11 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
   }, [forceVisible]);
 
   useEffect(() => {
-    // Skip observer setup if already visible
-    if (isVisible) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          // Mark as visible when in viewport
-          setIsVisible(true);
-          // Track this element becoming visible for performance monitoring
-          lazyLoadMonitor.trackElementVisible();
-          // Disconnect after becoming visible
-          observer.disconnect();
-        }
-      },
-      { 
-        // Start loading when within 200px of viewport for smoother experience
-        rootMargin: '200px',
-        threshold: 0.01 // Trigger when just 1% is visible
-      }
-    );
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
+    if (isVisible || !ref.current) return;
+    return observeOnce(ref.current, () => {
+      setIsVisible(true);
+      lazyLoadMonitor.trackElementVisible();
+    });
   }, [isVisible]);
 
   // The skeleton placeholder closely matches AlbumCard layout
@@ -76,7 +79,7 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
 
     return (
       <div 
-        className="flex flex-col cursor-pointer transition-all duration-200 ease-in-out rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-2"
+        className="flex flex-col cursor-pointer rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-2"
         onClick={() => {
           // When clicking on placeholder, make it visible immediately and trigger the onClick
           setIsVisible(true);
@@ -96,7 +99,7 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
       >
         <div className="relative aspect-square mb-2 md:mb-3 rounded-md overflow-hidden bg-background-tertiary">
           <div 
-            className="absolute inset-0 flex items-center justify-center transition-opacity duration-300 bg-background-tertiary animate-pulse"
+            className="absolute inset-0 bg-background-tertiary"
           ></div>
         </div>
         

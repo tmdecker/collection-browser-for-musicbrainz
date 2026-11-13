@@ -195,7 +195,6 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
         
         // Add this size to the loaded sizes
         window.mbImageCache[cacheKey].loadedSizes[size] = imageUrl;
-        console.log(`Cached image ${cacheKey} at size ${size}px`);
       }
     }
     

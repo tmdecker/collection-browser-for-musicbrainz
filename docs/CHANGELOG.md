@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Changed
+- Smoother scrolling through the album grid on phones: cards are prepared well before they scroll into view (one shared watcher for the whole grid instead of one per card), placeholders no longer pulse off screen, and grid card titles skip the even line breaking
 - Long album titles and other headings break into lines of even length, so a word or a "92" is no longer left alone on the last line
 - Covers: the image route reads and writes its cache files without blocking the server, so a grid loading many covers at once no longer holds up other requests. The unused pass-through from /api/coverart to Cover Art Archive is gone, and the colours are defined only in tailwind.config.js (globals.css reads them from there)
 - The app is called Collectionz (with a z, like MusicBrainz): in browser tabs, the installed app and the Settings footer (it was Music Library Viewer). The Collections page tab shows just "Collectionz"
