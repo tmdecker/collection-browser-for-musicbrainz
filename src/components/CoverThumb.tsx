@@ -12,12 +12,14 @@
  * - A cover that fails to load is replaced by the next candidate, so only about four images are requested
  * - Same cover URLs and size as the grid, so the browser usually has them already
  * - Plain thumbnail (with an optional icon) while nothing is known yet
+ * - A cover chosen for the collection or series (album toolbar, saved on the server) always comes first
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import CoverArtImage from './CoverArtImage';
 import { getCollectionMetadata, getReleaseGroup } from '@/utils/db';
 import { loadCollectionCandidates, loadSeriesCandidates, loadSeriesCollectionCandidates, coverUrlFor } from '@/utils/mosaic-candidates';
+import { useChosenCover } from '@/utils/collection-covers';
 
 interface CoverThumbProps {
   /** Collection or series MBID whose cached release groups to show; nothing for a series collection */
@@ -133,7 +135,11 @@ export function useMosaicCovers({ collectionId, fetchMissing, seriesIds, seriesC
     return () => { cancelled = true; };
   }, [collectionId, fetchMissing, seriesKey, seriesCollectionId, isSeries]);
 
-  const shown = covers.filter(c => !failed.has(c)).slice(0, SLOTS);
+  // A chosen cover goes first; the automatic ones fill the faint slots behind it
+  const chosenId = useChosenCover(isSeries ? undefined : collectionId);
+  const chosen = chosenId ? coverUrlFor(chosenId) : undefined;
+  const ordered = chosen ? [chosen, ...covers.filter(c => c !== chosen)] : covers;
+  const shown = ordered.filter(c => !failed.has(c)).slice(0, SLOTS);
   const markFailed = useCallback((cover: string) => setFailed(prev => new Set(prev).add(cover)), []);
   return { shown, markFailed };
 }

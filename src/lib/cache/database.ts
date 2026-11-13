@@ -9,6 +9,7 @@
  * - WAL file capped: journal_size_limit truncates it after a checkpoint, and a TRUNCATE checkpoint
  *   after big batch jobs (start-up import, prefetch run) empties it
  * - File location: DATA_DIR/cache.db (default .cache/ in the app folder)
+ * - collection_covers: the cover the user picked for a collection or series; not a cache either
  * - Singleton on globalThis, so every route bundle shares one connection
  */
 
@@ -34,6 +35,11 @@ const SCHEMA = `
     release_group_id TEXT    PRIMARY KEY,
     release_id       TEXT    NOT NULL,
     chosen_at        INTEGER NOT NULL
+  ) WITHOUT ROWID;
+  CREATE TABLE IF NOT EXISTS collection_covers (
+    collection_id    TEXT    NOT NULL PRIMARY KEY,
+    release_group_id TEXT    NOT NULL,
+    updated_at       INTEGER NOT NULL
   ) WITHOUT ROWID;
 `;
 
