@@ -21,6 +21,7 @@ import CollectionFootnote from '@/components/CollectionFootnote';
 import FilterPanel from '@/components/FilterPanel';
 import ActiveFiltersBar from '@/components/ActiveFiltersBar';
 import AlbumDetailsPanel from '@/components/AlbumDetailsPanel';
+import CollectionCoverButton from '@/components/CollectionCoverButton';
 import LazyAlbumGrid from '@/components/lazy/LazyAlbumGrid';
 import { useAlbums } from '@/hooks/useAlbums';
 import { useFilters } from '@/hooks/useFilters';
@@ -590,6 +591,13 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             isAuthenticated={isAuthenticated}
             onRefreshAlbum={refreshAlbum}
             onChooseRelease={chooseRelease}
+            extraActions={isAuthenticated && selectedAlbum && activeCollectionId ? (
+              <CollectionCoverButton
+                collectionId={activeCollectionId}
+                collectionName={shownCollectionName}
+                releaseGroupId={selectedAlbum.id}
+              />
+            ) : undefined}
           />
 
         </aside>

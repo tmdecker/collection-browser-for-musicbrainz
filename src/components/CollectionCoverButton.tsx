@@ -1,6 +1,6 @@
 /**
  * @ai-file component
- * @ai-description Album toolbar button: use this album's cover as the cover of the open collection or series
+ * @ai-description Album toolbar button (extraActions of AlbumDetailsPanel): use this album's cover as the cover of the open collection or series
  * @ai-dependencies React, react-icons, collection-covers
  * @ai-features
  * - Pressed (violet, filled icon) when this album is the chosen cover; pressing again goes back to automatic
@@ -13,21 +13,21 @@
 import { useState } from 'react';
 import { BiImage, BiSolidImage } from 'react-icons/bi';
 import { setChosenCover, useChosenCover } from '@/utils/collection-covers';
+import { toolbarButtonClass, ToolbarTooltip } from './Toolbar';
 
 interface CollectionCoverButtonProps {
   collectionId: string;
   collectionName?: string;
   releaseGroupId: string;
-  className?: string;
 }
 
-export default function CollectionCoverButton({ collectionId, collectionName, releaseGroupId, className = '' }: CollectionCoverButtonProps) {
+export default function CollectionCoverButton({ collectionId, collectionName, releaseGroupId }: CollectionCoverButtonProps) {
   const chosen = useChosenCover(collectionId) === releaseGroupId;
   const [failed, setFailed] = useState(false);
   const name = collectionName || 'this collection';
   const label = failed
     ? 'Could not save the cover. Try again'
-    : chosen ? `Cover of ${name}. Press to go back to automatic` : `Use as cover of ${name}`;
+    : chosen ? `Cover of ${name} · press to reset` : `Use as cover of ${name}`;
 
   const toggle = async () => {
     setFailed(false);
@@ -39,11 +39,13 @@ export default function CollectionCoverButton({ collectionId, collectionName, re
       type="button"
       onClick={toggle}
       aria-pressed={chosen}
-      title={label}
       aria-label={label}
-      className={`${chosen ? 'text-primary-light' : failed ? 'text-red-400' : ''} ${className}`}
+      className={`${toolbarButtonClass} ${chosen ? 'text-primary-light' : failed ? 'text-red-400' : 'text-text-secondary hover:text-text-primary'}`}
     >
-      {chosen ? <BiSolidImage className="w-5 h-5" /> : <BiImage className="w-5 h-5" />}
+      <span className="grid place-items-center text-[18px] [@media(hover:none)]:text-[20px]">
+        {chosen ? <BiSolidImage /> : <BiImage />}
+      </span>
+      <ToolbarTooltip>{label}</ToolbarTooltip>
     </button>
   );
 }
