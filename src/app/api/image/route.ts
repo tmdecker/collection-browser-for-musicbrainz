@@ -18,7 +18,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { createRateLimiter } from '@/lib/rate-limiter';
 import { ALLOWED_SIZES, cachePathFor, missingMarkerFor, QUALITY } from '@/lib/image-cache';
 
@@ -142,11 +142,20 @@ const MISSING_COVER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // Browsers may reuse the 404 for a day (the grid shows its fallback without asking the server)
 const MISSING_COVER_MAX_AGE_SECONDS = 24 * 60 * 60;
 
-const isKnownMissing = (imageUrl: string): boolean => {
+const isKnownMissing = async (imageUrl: string): Promise<boolean> => {
   try {
-    return Date.now() - fs.statSync(missingMarkerFor(imageUrl)).mtimeMs < MISSING_COVER_TTL_MS;
+    return Date.now() - (await fs.stat(missingMarkerFor(imageUrl))).mtimeMs < MISSING_COVER_TTL_MS;
   } catch {
     return false;
+  }
+};
+
+/** The file's contents, or null when it doesn't exist (or can't be read) */
+const readIfExists = async (path: string): Promise<Buffer | null> => {
+  try {
+    return await fs.readFile(path);
+  } catch {
+    return null;
   }
 };
 
@@ -199,9 +208,9 @@ export async function GET(request: NextRequest) {
     const height = snapSize(searchParams.get('h'));
     const cachePath = cachePathFor(imageUrl, width, height);
 
-    // Check if we have this image cached
-    if (fs.existsSync(cachePath)) {
-      const cachedImage = fs.readFileSync(cachePath);
+    // Check if we have this image cached (file access is async, so 50 covers at once don't block the server)
+    const cachedImage = await readIfExists(cachePath);
+    if (cachedImage) {
       return new NextResponse(cachedImage, {
         headers: {
           'Content-Type': 'image/webp',
@@ -211,7 +220,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Albums without cover art: answered from the marker instead of asking Cover Art Archive again
-    if (isKnownMissing(imageUrl)) {
+    if (await isKnownMissing(imageUrl)) {
       return missingResponse();
     }
 
@@ -267,7 +276,7 @@ export async function GET(request: NextRequest) {
       // 404s are expected for albums without cover art: remember them (other errors are retried next time)
       if (result.status === 404) {
         console.log(`ℹ️ Cover art not found (expected, remembered for 7 days): ${imageUrl}`);
-        fs.writeFileSync(missingMarkerFor(imageUrl), '');
+        await fs.writeFile(missingMarkerFor(imageUrl), '');
         return missingResponse();
       }
       console.warn(`⚠️ Image fetch failed: ${imageUrl} - Status: ${result.status}`);
@@ -295,11 +304,11 @@ export async function GET(request: NextRequest) {
     const webpImage = await toWebp(width, height);
 
     // Save to cache
-    fs.writeFileSync(cachePath, webpImage);
+    await fs.writeFile(cachePath, webpImage);
     for (const size of siblingSizes) {
       const siblingPath = cachePathFor(imageUrl, size, size);
-      if (!fs.existsSync(siblingPath)) {
-        fs.writeFileSync(siblingPath, await toWebp(size, size));
+      if (!(await fs.access(siblingPath).then(() => true, () => false))) {
+        await fs.writeFile(siblingPath, await toWebp(size, size));
       }
     }
 

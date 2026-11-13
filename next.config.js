@@ -22,16 +22,6 @@ const nextConfig = {
       }
     ],
   },
-  async rewrites() {
-    return [
-      // Note: /api/musicbrainz rewrite removed to allow OAuth authentication via API route handlers
-      // The API route at src/app/api/musicbrainz/route.ts handles proxying with auth tokens
-      {
-        source: '/api/coverart/:path*',
-        destination: 'https://coverartarchive.org/:path*',
-      },
-    ];
-  },
   async headers() {
     return [
       {

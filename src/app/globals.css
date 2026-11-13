@@ -3,18 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --background: #121212;
-  --background-secondary: #1A1A1A;
-  --background-tertiary: #2A2A2A;
-  --primary: #8B5CF6; /* Changed to violet-500 to match tailwind config */
-  --primary-light: #A78BFA;
-  --primary-dark: #7C3AED;
-  --text-primary: #FFFFFF;
-  --text-secondary: #B3B3B3;
-  --text-tertiary: #8A8A8A;
+  /* Colours live only in tailwind.config.js; this file reads them with theme() */
   --header-height: 64px; /* Desktop header height */
   color-scheme: dark; /* Native controls (checkboxes, selects, scrollbars) follow the dark UI */
-  accent-color: var(--primary);
+  accent-color: theme('colors.primary.DEFAULT');
+}
+
+/* Headings break into lines of even length (no single word or "92" left alone on the last line) */
+h1, h2, h3 {
+  text-wrap: balance;
 }
 
 /* Responsive header height */
@@ -25,8 +22,8 @@
 }
 
 body {
-  background-color: var(--background);
-  color: var(--text-primary);
+  background-color: theme('colors.background.DEFAULT');
+  color: theme('colors.text.primary');
 }
 
 /* Custom scrollbar */
@@ -36,33 +33,33 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background-secondary);
+  background: theme('colors.background.secondary');
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--background-tertiary);
+  background: theme('colors.background.tertiary');
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-dark);
+  background: theme('colors.primary.dark');
 }
 
 /* Panel surfaces shared by the header and the floating panels.
    Solid on purpose: backdrop-filter made the page flicker in Chromium browsers. */
 .header-surface {
-  background: var(--background);
+  background: theme('colors.background.DEFAULT');
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .panel-surface {
-  background: var(--background-secondary);
+  background: theme('colors.background.secondary');
   box-shadow: 0 1px 3px rgba(18, 18, 18, 0.12), 0 1px 2px rgba(18, 18, 18, 0.24);
 }
 
 /* Album details docked beside the grid: narrows the grid on tablet and desktop, full screen on phones */
 .details-dock {
-  background: var(--background);
+  background: theme('colors.background.DEFAULT');
 }
 /* Panel width: 400px on tablets, one grid card (184px) wider on large screens */
 :root {
@@ -122,7 +119,7 @@ body {
 
 /* Visible keyboard focus for every control that does not draw its own ring */
 :focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid theme('colors.primary.DEFAULT');
   outline-offset: 2px;
 }
 
