@@ -30,11 +30,11 @@ export const ToolbarDivider: React.FC = () => (
 export const toolbarButtonClass =
   'group/tb relative grid place-items-center flex-shrink-0 w-8 h-8 [@media(hover:none)]:w-10 [@media(hover:none)]:h-10 rounded-full transition-colors hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none disabled:cursor-default';
 
-/** Tooltip above a toolbar button: shown on hover (mouse) and keyboard focus */
+/** Tooltip above a toolbar button, starting at its left edge (toolbars sit at the left edge of their column, so it is never cut off): shown on hover (mouse) and keyboard focus */
 export const ToolbarTooltip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span
     role="presentation"
-    className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md bg-background-tertiary text-xs text-text-primary whitespace-nowrap opacity-0 transition-opacity
+    className="pointer-events-none absolute bottom-full left-0 mb-2 px-2 py-1 rounded-md bg-background-tertiary text-xs text-text-primary whitespace-nowrap opacity-0 transition-opacity
       [@media(hover:hover)]:group-hover/tb:opacity-100 group-focus-visible/tb:opacity-100 z-30"
   >
     {children}
