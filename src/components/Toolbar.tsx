@@ -8,18 +8,32 @@
  *   a link (href, new tab) or a button; spinning icon while busy, green when done, red when failed
  * - toolbarButtonClass: the same look for buttons made elsewhere (e.g. passed in as extraActions)
  * - Bigger buttons on touch screens
+ * - align="end" for a toolbar at the right edge of its column: tooltips then open leftwards (context, so
+ *   buttons made elsewhere with ToolbarTooltip follow it too)
  */
 
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 
-export const Toolbar: React.FC<{ children: React.ReactNode; className?: string; label?: string }> = ({ children, className = '', label }) => (
-  <div
-    role="toolbar"
-    aria-label={label}
-    className={`flex items-center gap-0.5 min-w-0 max-w-full rounded-full bg-background-control p-1 text-[13px] text-text-secondary whitespace-nowrap ${className}`}
-  >
-    {children}
-  </div>
+type ToolbarAlign = 'start' | 'end';
+
+/** Which edge of its column the toolbar sits at; tooltips open away from it */
+const ToolbarAlignContext = createContext<ToolbarAlign>('start');
+
+export const Toolbar: React.FC<{ children: React.ReactNode; className?: string; label?: string; align?: ToolbarAlign }> = ({
+  children,
+  className = '',
+  label,
+  align = 'start',
+}) => (
+  <ToolbarAlignContext.Provider value={align}>
+    <div
+      role="toolbar"
+      aria-label={label}
+      className={`flex items-center gap-0.5 min-w-0 max-w-full rounded-full bg-background-control p-1 text-[13px] text-text-secondary whitespace-nowrap ${className}`}
+    >
+      {children}
+    </div>
+  </ToolbarAlignContext.Provider>
 );
 
 export const ToolbarDivider: React.FC = () => (
@@ -30,16 +44,23 @@ export const ToolbarDivider: React.FC = () => (
 export const toolbarButtonClass =
   'group/tb relative grid place-items-center flex-shrink-0 w-8 h-8 [@media(hover:none)]:w-10 [@media(hover:none)]:h-10 rounded-full transition-colors hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none disabled:cursor-default';
 
-/** Tooltip above a toolbar button, starting at its left edge (toolbars sit at the left edge of their column, so it is never cut off): shown on hover (mouse) and keyboard focus */
-export const ToolbarTooltip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span
-    role="presentation"
-    className="pointer-events-none absolute bottom-full left-0 mb-2 px-2 py-1 rounded-md bg-background-tertiary text-xs text-text-primary whitespace-nowrap opacity-0 transition-opacity
-      [@media(hover:hover)]:group-hover/tb:opacity-100 group-focus-visible/tb:opacity-100 z-30"
-  >
-    {children}
-  </span>
-);
+/**
+ * Tooltip above a toolbar button, starting at the button's edge on the toolbar's side of its column (left-aligned
+ * toolbar: left edge, opening rightwards; right-aligned: right edge, opening leftwards), so it is never cut off.
+ * Shown on hover (mouse) and keyboard focus
+ */
+export const ToolbarTooltip: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const align = useContext(ToolbarAlignContext);
+  return (
+    <span
+      role="presentation"
+      className={`pointer-events-none absolute bottom-full ${align === 'end' ? 'right-0' : 'left-0'} mb-2 px-2 py-1 rounded-md bg-background-tertiary text-xs text-text-primary whitespace-nowrap opacity-0 transition-opacity
+        [@media(hover:hover)]:group-hover/tb:opacity-100 group-focus-visible/tb:opacity-100 z-30`}
+    >
+      {children}
+    </span>
+  );
+};
 
 interface ToolbarButtonProps {
   icon: React.ReactNode;
