@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+- iPhone and iPad no longer zoom in when you tap the search bar or another text field (and then stay zoomed): on touch screens these fields use 16px text, the size below which iOS zooms. Pinch zoom still works
+
 ## [0.40.0] - 2026-11-13
 
 ### Changed
