@@ -3,7 +3,7 @@
  * @ai-description Reviews tab of the album details panel: the album's review links from MusicBrainz
  * @ai-dependencies React, react-icons, review-languages
  * @ai-features
- * - One row per review site (initial, site name, hostname, ↗), opening the review in a new tab
+ * - One line per review site (site name, hostname in grey unless it is the same, ↗), opening the review in a new tab
  * - Links in the user's review languages first, in list order; a language tag only on links that are not in
  *   the first language
  * - Links in other languages wait behind one line ("Show 1 more in French"); with no link in the user's
@@ -30,18 +30,15 @@ const ReviewRow: React.FC<{ link: ReviewLink; firstLanguage: string | undefined 
       rel="noopener noreferrer"
       className="flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:bg-white/5"
     >
-      <span
-        className="w-10 h-10 flex-shrink-0 rounded bg-background-tertiary grid place-items-center text-sm font-bold text-text-secondary"
-        aria-hidden="true"
-      >
-        {link.site.charAt(0).toUpperCase()}
-      </span>
-      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
-        <span className="text-sm font-medium text-text-primary truncate">{link.site}</span>
-        <span className="text-xs text-text-tertiary truncate">
-          {link.host}
-          {link.archived && ' · archived'}
-        </span>
+      <span className="flex-1 min-w-0 flex items-baseline gap-2">
+        <span className="text-sm font-medium text-text-primary truncate flex-shrink-0 max-w-full">{link.site}</span>
+        {(link.host !== link.site || link.archived) && (
+          <span className="text-xs text-text-tertiary truncate">
+            {link.host !== link.site && link.host}
+            {link.host !== link.site && link.archived && ' · '}
+            {link.archived && 'archived'}
+          </span>
+        )}
       </span>
       {link.language && link.language !== firstLanguage && (
         <span className="flex-shrink-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-secondary bg-background-tertiary rounded px-1.5 leading-5">
