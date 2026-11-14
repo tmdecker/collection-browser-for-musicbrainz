@@ -22,7 +22,6 @@ import { SiMusicbrainz, SiPlex } from 'react-icons/si';
 import { BiChevronLeft, BiCollapseAlt, BiDockRight, BiExpandAlt, BiLock, BiRefresh } from 'react-icons/bi';
 import { Toolbar, ToolbarButton } from './Toolbar';
 import ReleaseList from './ReleaseList';
-import { summarizeRelease } from '@/utils/release-summary';
 import CoverArtImage from './CoverArtImage';
 import TrackList from './TrackList';
 import StreamingLinksSection from './StreamingLinksSection';
@@ -370,10 +369,6 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   const releases = displayAlbum.releases ?? [];
   const hasReleaseTabs = releases.length > 1;
   const tab: DetailsTab = tabState?.albumId === displayAlbum.id ? tabState.tab : 'tracklist';
-  const chosenReleaseData = displayAlbum.releaseChoice
-    ? releases.find(release => release.id === displayAlbum.releaseChoice) ?? displayAlbum.releaseDetails
-    : undefined;
-  const chosenRelease = chosenReleaseData ? summarizeRelease(chosenReleaseData) : null;
 
   // Compact header (tablet/desktop only): small cover with the facts beside it, vertically centred
   const compact = !coverExpanded;
@@ -614,12 +609,6 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
               className={`min-w-0 flex flex-col gap-3 ${hasReleaseTabs ? '' : 'mt-2'}`}
               {...(hasReleaseTabs ? { role: 'tabpanel', id: 'details-tabpanel-tracklist', 'aria-labelledby': 'details-tab-tracklist' } : {})}
             >
-              {chosenRelease && (
-                <p className="text-xs text-text-tertiary">
-                  Your chosen release: {[chosenRelease.year, chosenRelease.format].filter(Boolean).join(' ')}
-                  {chosenRelease.country ? `, ${chosenRelease.country}` : ''}
-                </p>
-              )}
               <TrackList
                 tracks={displayAlbum.tracklist}
                 albumArtist={artistName}
