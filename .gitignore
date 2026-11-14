@@ -65,3 +65,5 @@ instructions.md
 
 # graphify knowledge graph output
 graphify-out/
+# local graphify merge driver setup
+.gitattributes
