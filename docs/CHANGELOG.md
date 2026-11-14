@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+- Releases tab in the album details, next to Tracklist (full-width tabs with a violet line under the open one): every release of the album, oldest first, with a small cover, year, format, country, label and catalogue number and track count. A click picks the release the album shows (tracklist, release date, labels, and which barcode the streaming links try first). A check left of the track count marks the shown release; hovering a check explains what picking does. The choice is kept on the server, so every device shows it; on a chosen release the check turns into a reset icon on hover (always shown on touch screens) that goes back to automatic. Format chips for albums with many releases. Choosing needs a login. Albums with a single release show no tabs
+- Toolbars: the album details have a floating toolbar at the bottom right with MusicBrainz and Reload (both were on the cover), level with the grid toolbar; the collection footnote is now the same kind of toolbar with its buttons always visible (homepage, MusicBrainz, Reload)
+
+### Changed
+- Tracklist: the track count and total time moved from above the tracks to the line below them, left of the release date and labels
+
 ### Fixed
 - iPhone and iPad no longer zoom in when you tap the search bar or another text field (and then stay zoomed): on touch screens these fields use 16px text, the size below which iOS zooms. Pinch zoom still works
 
@@ -18,8 +25,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - The app is called Collectionz (with a z, like MusicBrainz): in browser tabs, the installed app and the Settings footer (it was Music Library Viewer). The Collections page tab shows just "Collectionz"
 
 ### Added
-- Releases tab in the album details: every release of the album (year, format, country, label and catalogue number, track count), and a click picks the one the album shows (tracklist, release date, labels, and which barcode the streaming links try first). The choice is kept on the server, so every device shows it; "Back to automatic" undoes it. Format chips for albums with many releases. Choosing needs a login. Albums with a single release show no tabs
-- Toolbars: the album details have a floating toolbar at the bottom with MusicBrainz and Reload (both were on the cover); the collection footnote is now the same kind of toolbar with its buttons always visible (homepage, MusicBrainz, Reload)
 - A collection or series that fails to load now says why in plain words (MusicBrainz busy, unknown or private, not reachable) and has a Try again button, instead of a raw error and no way out but reloading the page
 - Add to Home Screen: the app installs with its own icon (a grid of four violet covers, which is now also the tab icon) and opens full screen without the browser bar, with a dark status bar, named "Collectionz" under the icon. No offline mode: it is the same website
 - Filter chips count what is left: each genre, tag and label number in the filter panel says how many albums you would see with that chip added, given your search and the other kinds of filters (it counted the whole collection before). Chips that would leave nothing are hidden, except ones you selected, which stay first so you can remove them. Genres, tags and labels still match any of the chips picked within a kind
