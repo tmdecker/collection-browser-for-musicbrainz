@@ -1,6 +1,6 @@
 /**
  * @ai-file component
- * @ai-description Floating collection toolbar with the collection's name and count, homepage, MusicBrainz, reload and a random album
+ * @ai-description Floating collection toolbar with the collection's name and count, homepage, MusicBrainz and reload
  * @ai-dependencies React, react-icons, Toolbar
  * @ai-features
  * - Sticks to the bottom-left corner of the content column while the page scrolls (position: sticky),
@@ -8,7 +8,7 @@
  * - Solid pill (see Toolbar) whose text lines up with the covers; at the bottom of the window even when the
  *   page is short (the parent column is a full-height flex column, this sits at mt-auto)
  * - Name and count, then round icon buttons, always visible with tooltips: a series' official homepage,
- *   MusicBrainz, Reload (spins while it runs) and Open a random album
+ *   MusicBrainz and Reload (spins while it runs)
  * - Optional click handler on the name (scroll to top, close panels)
  */
 
@@ -16,7 +16,7 @@
 
 import React from 'react';
 import { SiMusicbrainz } from 'react-icons/si';
-import { BiGlobe, BiRefresh, BiShuffle } from 'react-icons/bi';
+import { BiGlobe, BiRefresh } from 'react-icons/bi';
 import { homepageDomain } from '@/utils/series-homepage';
 import { Toolbar, ToolbarButton, ToolbarDivider } from './Toolbar';
 
@@ -34,8 +34,6 @@ interface CollectionFootnoteProps {
   /** Reload the shown collection or series from MusicBrainz */
   onReload?: () => void;
   isReloading?: boolean;
-  /** Open a random album of the grid as shown (search and filters applied) */
-  onRandomAlbum?: () => void;
 }
 
 export default function CollectionFootnote({
@@ -47,9 +45,8 @@ export default function CollectionFootnote({
   onNameClick,
   onReload,
   isReloading = false,
-  onRandomAlbum,
 }: CollectionFootnoteProps) {
-  const hasButtons = !!(homepageUrl || musicBrainzUrl || onReload || onRandomAlbum);
+  const hasButtons = !!(homepageUrl || musicBrainzUrl || onReload);
 
   return (
     <div className="sticky bottom-4 md:bottom-6 z-20 mt-auto pt-2 mb-4 md:mb-6 mx-1.5 md:mx-[19px] flex pointer-events-none">
@@ -87,7 +84,6 @@ export default function CollectionFootnote({
             status={isReloading ? 'busy' : null}
           />
         )}
-        {onRandomAlbum && <ToolbarButton icon={<BiShuffle />} label="Open a random album" onClick={onRandomAlbum} />}
       </Toolbar>
     </div>
   );

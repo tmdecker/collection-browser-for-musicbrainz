@@ -315,18 +315,6 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
       card.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
     });
   };
-  // Random album of the grid as shown (sort, filters, search), never the one already open
-  const openRandomAlbum = () => {
-    const candidates = albums.filter(album => album.id !== selectedAlbum?.id || !detailsPanelOpen);
-    if (candidates.length === 0) return;
-    const next = candidates[Math.floor(Math.random() * candidates.length)];
-    openAlbum(next);
-    requestAnimationFrame(() => {
-      const card = document.querySelector<HTMLElement>(`[data-album-id="${next.id}"]`);
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      card?.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
-    });
-  };
 
   // The key and swipe handlers always call the latest stepAlbum
   const stepAlbumRef = useRef(stepAlbum);
@@ -571,7 +559,6 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             onNameClick={handleTitleClick}
             onReload={collectionId ? handleRefreshCollection : undefined}
             isReloading={isRefreshing}
-            onRandomAlbum={albums.length > 1 ? openRandomAlbum : undefined}
           />
         )}
     </div>
