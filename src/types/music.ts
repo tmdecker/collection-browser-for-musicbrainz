@@ -63,6 +63,8 @@ export interface ReleaseGroup {
   tags?: string[] | Tag[];
   tracklist?: Track[];
   selectedReleaseId?: string;
+  /** The release the user picked in the Releases tab (server-wide); null or missing: the app picks one */
+  releaseChoice?: string | null;
   releaseDetails?: Release;
   rating?: Rating;
   seriesOrder?: number;     // Position in series (1-based)
@@ -90,6 +92,7 @@ export interface Release {
   status?: string;
   date?: string;
   country?: string;
+  disambiguation?: string;
   track_count?: number;
   media?: Media[];
   relations?: Relation[];

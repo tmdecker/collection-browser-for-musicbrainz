@@ -6,6 +6,7 @@
  * - Used by clicks (/api/release-groups, 'high' priority) and the prefetch ('low'), so both store the same data
  * - Release group (genres, tags, ratings), every release with url-rels, and the preferred release with its
  *   tracklist and labels
+ * - The preferred release is the one the user picked in the Releases tab, else the app's own pick
  * - The preferred release's details are optional: without them the album is still stored (no tracklist)
  * - MusicBrainz errors (still 503 after the retries, 404, ...) throw MusicBrainzResponseError with the status
  */
@@ -17,6 +18,7 @@ import { browseAllReleases, ReleaseBrowseError } from './browse-releases';
 import { MB_BASE_URL, musicBrainzFetch } from './musicbrainz-fetch';
 import { RateLimitPriority } from './rate-limiter';
 import { extractTracksFromMedia, selectPreferredRelease } from '@/utils/release-selection';
+import { getReleaseChoice } from './release-choices';
 
 /** MusicBrainz answered with an error status (after the retries for 503) */
 export class MusicBrainzResponseError extends Error {
@@ -31,7 +33,7 @@ export interface FetchedReleaseGroup {
   /** The release group as MusicBrainz returns it */
   releaseGroup: Record<string, unknown>;
   releases: Release[];
-  /** Oldest official release (see selectPreferredRelease); null when the group has no releases */
+  /** The user's chosen release, else the oldest official one (see selectPreferredRelease); null when the group has no releases */
   preferredRelease: Release | null;
   /** The preferred release with recordings and labels, when that lookup worked */
   detailedRelease?: Release;
@@ -66,7 +68,8 @@ export async function fetchAndStoreReleaseGroup(mbid: string, priority: RateLimi
 
   const now = Date.now();
   const expiresAt = now + ALBUM_DATA_TTL_SECONDS * 1000;
-  const preferredRelease = selectPreferredRelease(releases);
+  const chosenId = getReleaseChoice(mbid);
+  const preferredRelease = releases.find(release => release.id === chosenId) ?? selectPreferredRelease(releases);
 
   if (!preferredRelease) {
     console.warn(`❌ No releases found for release group ${mbid}`);
@@ -83,16 +86,7 @@ export async function fetchAndStoreReleaseGroup(mbid: string, priority: RateLimi
   // Step 3: the preferred release with tracks and labels (optional: the album is stored without it)
   let detailedRelease: Release | undefined;
   try {
-    const response = await musicBrainzFetch(
-      `${MB_BASE_URL}/release/${preferredRelease.id}?fmt=json&inc=recordings+labels+artist-credits+url-rels`,
-      { priority }
-    );
-    if (response.ok) {
-      detailedRelease = await response.json();
-    } else {
-      await response.body?.cancel();
-      console.warn(`❌ Release details for ${preferredRelease.id} failed: ${response.status}`);
-    }
+    detailedRelease = await fetchReleaseDetails(preferredRelease.id, priority);
   } catch (error) {
     console.warn(`❌ Failed to fetch release details for ${preferredRelease.id}:`, error);
   }
@@ -116,4 +110,19 @@ export async function fetchAndStoreReleaseGroup(mbid: string, priority: RateLimi
   console.log(`✅ Cached release group ${mbid} with ${releases.length} releases and ${tracklist.length} tracks`);
 
   return { releaseGroup, releases, preferredRelease, detailedRelease, tracklist };
+}
+
+/**
+ * One release with recordings, labels, artist credits and url-rels; undefined when MusicBrainz answers
+ * with an error status (network errors throw)
+ */
+export async function fetchReleaseDetails(releaseId: string, priority: RateLimitPriority): Promise<Release | undefined> {
+  const response = await musicBrainzFetch(
+    `${MB_BASE_URL}/release/${releaseId}?fmt=json&inc=recordings+labels+artist-credits+url-rels`,
+    { priority }
+  );
+  if (response.ok) return await response.json();
+  await response.body?.cancel();
+  console.warn(`❌ Release details for ${releaseId} failed: ${response.status}`);
+  return undefined;
 }

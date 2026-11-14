@@ -25,7 +25,7 @@ const dateSortKey = (date?: string): string => {
  * Total track count of a release from its media, 0 when unknown
  * @ai The browse API returns "track-count" per medium; the type names it track_count
  */
-const trackCount = (release: Release): number =>
+export const trackCount = (release: Release): number =>
   (release.media ?? []).reduce((sum, medium) => {
     const raw = medium as Media & { 'track-count'?: number };
     return sum + (raw['track-count'] ?? raw.track_count ?? raw.tracks?.length ?? 0);

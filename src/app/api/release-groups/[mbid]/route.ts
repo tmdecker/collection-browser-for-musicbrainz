@@ -13,6 +13,7 @@
  * - Stale albums (past 60 days) are served from the cache and refreshed in the background
  * - Albums cached without url-rels (before 0.35.1) are served too and fetched again in the background
  * - MusicBrainz unreachable (network error, timeout): 502 with a "try again" message instead of a 500
+ * - Every answer carries releaseChoice, the release picked in the Releases tab (see ./release)
  * - POST fetches the album again right away (after an edit on MusicBrainz) and drops its cached
  *   streaming links and cover images
  */
@@ -29,6 +30,7 @@ import { deleteRgStreamingLinks } from '@/lib/cache/streaming-links-cache';
 import { forgetCachedImage } from '@/lib/image-cache';
 import { isNetworkError } from '@/lib/network-errors';
 import { coverUrlFor, fetchAndStoreReleaseGroup, MusicBrainzResponseError } from '@/lib/release-group-fetch';
+import { getReleaseChoice } from '@/lib/release-choices';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -51,7 +53,7 @@ function cachedResponse(mbid: string): NextResponse | null {
       if (stale) queueReleaseGroupRefresh(mbid);
       return NextResponse.json({
         success: true,
-        data: hydratedRG,
+        data: { ...hydratedRG, releaseChoice: getReleaseChoice(mbid) },
         metadata: {
           cached: true,
           cachedAt: rg?._cachedAt ? new Date(rg._cachedAt).toISOString() : null,
@@ -99,6 +101,7 @@ async function fetchReleaseGroup(mbid: string): Promise<NextResponse> {
         bestRelease: detailedRelease || preferredRelease,
         tracklist,
         selectedReleaseId: preferredRelease.id,
+        releaseChoice: getReleaseChoice(mbid),
         releaseDetails: detailedRelease,
         cover: coverUrlFor(mbid),
       }

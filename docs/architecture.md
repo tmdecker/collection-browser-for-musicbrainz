@@ -35,7 +35,8 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 
 - `/collection/<mbid>` needs the collection's entity type before it renders; it comes from the stored collection list or is looked up once and remembered (`utils/collection-info.ts`). Paths are built in `utils/collection-routes.ts`.
 - The header has the breadcrumb ("Collections / name", on phones a back arrow) and the account button (`UserAvatarButton`: profile, Settings, Log in or Log out).
-- `CollectionFootnote` floats in the bottom-left corner with the name and count; it opens to the series homepage (`useSeriesHomepage`, from the series' URL relationships), the MusicBrainz link and Reload.
+- `CollectionFootnote` floats in the bottom-left corner as a toolbar (`Toolbar`, shared with the album details): name, count, the series homepage (`useSeriesHomepage`, from the series' URL relationships), the MusicBrainz link, Reload and a random album.
+- The album details panel has Tracklist and Releases tabs. Picking a release (`ReleaseList`) calls `PUT/DELETE /api/release-groups/[mbid]/release`; the choice lives in the `release_choices` table of the server database (not a cache, never cleared) and `fetchAndStoreReleaseGroup` prefers it over the automatic pick.
 
 ## Loading a collection
 

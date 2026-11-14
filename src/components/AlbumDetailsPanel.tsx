@@ -11,11 +11,18 @@
  * - "Open in Plex" link for albums in the user's Plex library (when Plex is configured)
  * - Progressive loading support
  * - Manual refresh of the album from MusicBrainz (after editing it there)
+ * - Floating toolbar at the bottom (MusicBrainz, Reload, plus extraActions from the page); the cover keeps
+ *   only the larger/smaller toggle and still links to MusicBrainz
+ * - Tabs above the tracklist: Tracklist and Releases (pick the release shown, see ReleaseList); no tabs
+ *   for albums with a single release. The tab goes back to Tracklist for every other album
  */
 
 import React, { useState, useEffect } from 'react';
 import { SiMusicbrainz, SiPlex } from 'react-icons/si';
 import { BiChevronLeft, BiCollapseAlt, BiDockRight, BiExpandAlt, BiLock, BiRefresh } from 'react-icons/bi';
+import { Toolbar, ToolbarButton } from './Toolbar';
+import ReleaseList from './ReleaseList';
+import { summarizeRelease } from '@/utils/release-summary';
 import CoverArtImage from './CoverArtImage';
 import TrackList from './TrackList';
 import StreamingLinksSection from './StreamingLinksSection';
@@ -47,7 +54,13 @@ interface AlbumDetailsPanelProps {
   ratingDisplayMode?: RatingDisplayMode;
   isAuthenticated?: boolean;
   onRefreshAlbum?: (albumId: string) => Promise<boolean>;
+  /** Show another release of the album (null: the app's own pick); resolves with an error message or null */
+  onChooseRelease?: (albumId: string, releaseId: string | null) => Promise<string | null>;
+  /** More toolbar buttons from the page (e.g. use as collection cover); style them with toolbarButtonClass */
+  extraActions?: React.ReactNode;
 }
+
+type DetailsTab = 'tracklist' | 'releases';
 
 // Whether the panel shows the full-width cover (true) or the compact header with a small cover (false).
 // Remembered per browser; phones always show the full-width cover.
@@ -98,7 +111,7 @@ const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> =
   );
 };
 
-const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, detailsError = null, onRetryDetails, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum }) => {
+const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, detailsError = null, onRetryDetails, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum, onChooseRelease, extraActions }) => {
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
   const [streamingLinksFromCache, setStreamingLinksFromCache] = useState(false);
@@ -106,6 +119,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   // Manual refresh from MusicBrainz, per album, so switching albums never shows another album's state
   const [refresh, setRefresh] = useState<{ albumId: string; status: 'running' | 'done' | 'failed' } | null>(null);
   const [coverExpanded, setCoverExpanded] = useState(readCoverExpanded);
+  // The open tab, per album: another album always starts on the tracklist
+  const [tabState, setTabState] = useState<{ albumId: string; tab: DetailsTab } | null>(null);
   const toggleCoverExpanded = () => {
     setCoverExpanded(expanded => {
       try {
@@ -344,12 +359,21 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   const genres = getGenres();
 
   const refreshLabel = refreshStatus === 'running'
-    ? 'Refreshing from MusicBrainz…'
+    ? 'Reloading from MusicBrainz…'
     : refreshStatus === 'done'
       ? 'Updated from MusicBrainz'
       : refreshStatus === 'failed'
-        ? 'Refresh failed, try again'
-        : 'Refresh from MusicBrainz (after editing it there)';
+        ? 'Reload failed, try again'
+        : 'Reload from MusicBrainz (after editing it there)';
+
+  // Tabs only when there is a choice of releases
+  const releases = displayAlbum.releases ?? [];
+  const hasReleaseTabs = releases.length > 1;
+  const tab: DetailsTab = tabState?.albumId === displayAlbum.id ? tabState.tab : 'tracklist';
+  const chosenReleaseData = displayAlbum.releaseChoice
+    ? releases.find(release => release.id === displayAlbum.releaseChoice) ?? displayAlbum.releaseDetails
+    : undefined;
+  const chosenRelease = chosenReleaseData ? summarizeRelease(chosenReleaseData) : null;
 
   // Compact header (tablet/desktop only): small cover with the facts beside it, vertically centred
   const compact = !coverExpanded;
@@ -435,10 +459,6 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-full group cursor-pointer"
               >
                 <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} compact={compact} />
-                {/* MusicBrainz icon in bottom-right corner */}
-                <div className={`absolute ${inset.bl} ${inset.r} ${coverIconClass} text-white/80 group-hover:text-white opacity-0 group-hover:opacity-100 transition-opacity`}>
-                  <SiMusicbrainz className={coverIconSize} />
-                </div>
               </a>
               {/* Larger / smaller cover, top-left (tablet and desktop; phones always show the full-width cover) */}
               <button
@@ -450,20 +470,6 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
               >
                 {compact ? <BiExpandAlt className={coverIconSize} /> : <BiCollapseAlt className={coverIconSize} />}
               </button>
-              {onRefreshAlbum && (
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  disabled={refreshStatus === 'running'}
-                  aria-label={refreshLabel}
-                  title={refreshLabel}
-                  // Icon only, top-right on the cover: shown while the cover is hovered, focused by keyboard, or a
-                  // refresh is running or reporting; always shown on touch devices (no hover)
-                  className={`absolute ${inset.tl} ${inset.r} z-10 ${coverIconClass} transition-opacity disabled:cursor-wait focus-visible:opacity-100 group-hover/cover:opacity-100 ${refreshStatus === 'failed' ? 'text-red-400' : refreshStatus === 'done' ? 'text-green-400' : 'text-white/80 hover:text-white'} ${refreshStatus ? '' : '[@media(hover:hover)]:opacity-0'}`}
-                >
-                  <BiRefresh className={`${coverIconSize} ${refreshStatus === 'running' ? 'animate-spin' : ''}`} />
-                </button>
-              )}
             </div>
 
             {/* Type and year label, title, artist, rating and links: beside the compact cover, under the large one */}
@@ -569,20 +575,86 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
             </div>
           )}
 
-          <div className="mt-2 min-w-0">
-            <TrackList
-              tracks={displayAlbum.tracklist}
-              albumArtist={artistName}
-              loading={tracklistLoading}
-              error={displayAlbum.tracklist ? null : detailsError}
-              onRetry={onRetryDetails}
-              releaseDetails={displayAlbum.releaseDetails}
-              onToggleLabel={onToggleLabel}
-              selectedLabels={selectedLabels}
-            />
-          </div>
+          {hasReleaseTabs && (
+            <div className="mt-2 flex gap-6" role="tablist" aria-label="Album details">
+              {([['tracklist', 'Tracklist'], ['releases', 'Releases']] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`details-tab-${id}`}
+                  aria-selected={tab === id}
+                  aria-controls={`details-tabpanel-${id}`}
+                  onClick={() => setTabState({ albumId: displayAlbum.id, tab: id })}
+                  className={`relative pb-2 text-[15px] font-medium transition-colors focus-visible:outline-none focus-visible:text-text-primary
+                    after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-full ${
+                    tab === id ? 'text-text-primary after:bg-text-primary' : 'text-text-tertiary hover:text-text-secondary after:bg-transparent'
+                  }`}
+                >
+                  {label}
+                  {id === 'releases' && <span className="ml-1 text-xs text-text-tertiary tabular-nums">{releases.length}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tab === 'releases' && hasReleaseTabs ? (
+            <div className="min-w-0" role="tabpanel" id="details-tabpanel-releases" aria-labelledby="details-tab-releases">
+              <ReleaseList
+                key={displayAlbum.id}
+                releases={releases}
+                shownReleaseId={displayAlbum.selectedReleaseId ?? displayAlbum.releaseDetails?.id}
+                choiceId={displayAlbum.releaseChoice ?? null}
+                canChoose={isAuthenticated}
+                onChoose={onChooseRelease ? releaseId => onChooseRelease(displayAlbum.id, releaseId) : undefined}
+              />
+            </div>
+          ) : (
+            <div
+              className={`min-w-0 flex flex-col gap-3 ${hasReleaseTabs ? '' : 'mt-2'}`}
+              {...(hasReleaseTabs ? { role: 'tabpanel', id: 'details-tabpanel-tracklist', 'aria-labelledby': 'details-tab-tracklist' } : {})}
+            >
+              {chosenRelease && (
+                <p className="text-xs text-text-tertiary">
+                  Your chosen release: {[chosenRelease.year, chosenRelease.format].filter(Boolean).join(' ')}
+                  {chosenRelease.country ? `, ${chosenRelease.country}` : ''}
+                </p>
+              )}
+              <TrackList
+                tracks={displayAlbum.tracklist}
+                albumArtist={artistName}
+                loading={tracklistLoading}
+                error={displayAlbum.tracklist ? null : detailsError}
+                onRetry={onRetryDetails}
+                releaseDetails={displayAlbum.releaseDetails}
+                onToggleLabel={onToggleLabel}
+                selectedLabels={selectedLabels}
+              />
+            </div>
+          )}
         </>
       )}
+      </div>
+
+      {/* Toolbar: floats at the bottom of the panel while it scrolls, rests below the content at the end */}
+      <div className="sticky bottom-4 md:bottom-6 z-20 mt-auto pt-2 flex pointer-events-none">
+        <Toolbar className="pointer-events-auto" label="Album toolbar">
+          <ToolbarButton
+            icon={<SiMusicbrainz />}
+            label="Open on MusicBrainz"
+            href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
+          />
+          {onRefreshAlbum && (
+            <ToolbarButton
+              icon={<BiRefresh />}
+              label={refreshLabel}
+              onClick={handleRefresh}
+              disabled={refreshStatus === 'running'}
+              status={refreshStatus === 'running' ? 'busy' : refreshStatus}
+            />
+          )}
+          {extraActions}
+        </Toolbar>
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import { SearchText, matchesSearch, parseSearchQuery, prepareSearchText } from '
  * - Album fetching with IndexedDB caching
  * - Album details with server-side cache and request cancellation
  * - Manual refresh of one album from MusicBrainz (after editing it there)
+ * - Choosing the release an album shows (Releases tab), kept on the server for every device
  * - Sorting (artists by sort name, then year) and forgiving search (case, accents, umlauts, word order; see utils/search-text)
  */
 
@@ -173,39 +174,34 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
             && cachedAlbum.releases.every(release => release.relations);
 
           if (hasDetailedData) {
-            // Check if cache is stale (older than 24 hours)
+            // Revalidate in the background (the server answers from its own cache, so this is cheap):
+            // picks up new releases and a release chosen on another device
             const cacheAge = Date.now() - (cachedAlbum._cachedAt || 0);
-            const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-            const isStale = cacheAge > TWENTY_FOUR_HOURS;
+            console.log(`🗃️ Cached album ${albumId} (${Math.round(cacheAge / 3600000)}h old), checking the server in the background`);
+            fetch(`/api/release-groups/${albumId}`)
+              .then(res => res.json())
+              .then(async (json) => {
+                if (!json.success) return;
+                const freshDetails = json.data;
+                const changed = freshDetails.releases?.length !== cachedAlbum.releases?.length
+                  || freshDetails.selectedReleaseId !== cachedAlbum.selectedReleaseId
+                  || (freshDetails.releaseChoice ?? null) !== (cachedAlbum.releaseChoice ?? null);
+                if (!changed) return;
 
-            if (isStale) {
-              console.log(`🕐 Cache stale for ${albumId} (${Math.round(cacheAge / 3600000)}h old), background refresh`);
-
-              // Background refresh (non-blocking, silent)
-              fetch(`/api/release-groups/${albumId}`)
-                .then(res => res.json())
-                .then(async (json) => {
-                  if (!json.success) return;
-                  const freshDetails = json.data;
-
-                  // Only update if data changed (compare release count) and this album is still selected
-                  if (!signal?.aborted && freshDetails.releases?.length !== cachedAlbum.releases?.length) {
-                    console.log(`🔄 Background refresh found updated data for ${albumId}`);
-                    setSelectedAlbumDetails(toPanelDetails(freshDetails, albums.find(a => a.id === albumId)));
-                  }
-                  // Always update cache with fresh data
-                  const existingAlbum = albums.find(a => a.id === albumId);
-                  await storeReleaseGroup({
-                    ...freshDetails,
-                    cover: existingAlbum?.cover || cachedAlbum.cover || freshDetails.cover
-                  });
-                })
-                .catch(() => {
-                  // Silent fail - cached data is still shown
+                // Only update the panel if this album is still selected
+                if (!signal?.aborted) {
+                  console.log(`🔄 Background check found updated data for ${albumId}`);
+                  setSelectedAlbumDetails(toPanelDetails(freshDetails, albums.find(a => a.id === albumId)));
+                }
+                const existingAlbum = albums.find(a => a.id === albumId);
+                await storeReleaseGroup({
+                  ...freshDetails,
+                  cover: existingAlbum?.cover || cachedAlbum.cover || freshDetails.cover
                 });
-            } else {
-              console.log(`✅ Fresh cache for ${albumId} (${Math.round(cacheAge / 3600000)}h old), no refresh`);
-            }
+              })
+              .catch(() => {
+                // Silent fail - cached data is still shown
+              });
 
             return; // Always return early with cached data
           }
@@ -324,6 +320,34 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
     } catch (err) {
       console.warn(`❌ Refresh of album ${albumId} failed:`, err);
       return false;
+    }
+  }, []);
+
+  // Show another release of an album (null: the app's own pick again); kept on the server for every device.
+  // Resolves with an error message, or null when it worked
+  const chooseRelease = useCallback(async (albumId: string, releaseId: string | null): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/release-groups/${albumId}/release`, {
+        method: releaseId ? 'PUT' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: releaseId ? JSON.stringify({ releaseId }) : undefined,
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.success) return json?.error || `Something went wrong (HTTP ${response.status})`;
+      const details = json.data;
+
+      if (selectedAlbumRef.current?.id === albumId) {
+        setSelectedAlbumDetails(toPanelDetails(details, selectedAlbumRef.current));
+      }
+      // The grid's label filter reads the shown release's labels
+      setAlbums(prev => prev.map(album => album.id !== albumId ? album : { ...album, releaseDetails: details.releaseDetails }));
+
+      const { storeReleaseGroup } = await import('@/utils/db');
+      await storeReleaseGroup({ ...details, cover: details.cover || `/api/coverart/release-group/${albumId}/front` });
+      return null;
+    } catch (err) {
+      console.warn(`❌ Choosing a release for ${albumId} failed:`, err);
+      return 'The server could not be reached, please try again';
     }
   }, []);
 
@@ -460,6 +484,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
     retryAlbumDetails,
     handleSelectAlbum,
     refreshAlbum,
+    chooseRelease,
     refreshAlbums: fetchAlbums,
     collectionName,
     collectionId,

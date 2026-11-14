@@ -5,6 +5,7 @@
  * @ai-features
  * - MusicBrainz browse returns at most 100 releases per request; big albums have several hundred
  * - Includes url-rels, so streaming links of every release arrive without one lookup per release
+ * - Includes labels and catalogue numbers (shown in the Releases tab)
  * - Caller supplies the fetch (rate limiting and priority stay with the caller)
  * - Capped at MAX_RELEASE_PAGES so one album cannot use up the rate limit for minutes
  */
@@ -35,7 +36,7 @@ export const browseAllReleases = async (
   let total = Infinity;
 
   for (let page = 0; page < MAX_RELEASE_PAGES && releases.length < total; page++) {
-    const url = `${MB_BASE_URL}/release?fmt=json&release-group=${releaseGroupMbid}&inc=media+url-rels&limit=${PAGE_SIZE}&offset=${releases.length}`;
+    const url = `${MB_BASE_URL}/release?fmt=json&release-group=${releaseGroupMbid}&inc=media+labels+url-rels&limit=${PAGE_SIZE}&offset=${releases.length}`;
     const response = await fetchPage(url);
 
     if (!response.ok) {

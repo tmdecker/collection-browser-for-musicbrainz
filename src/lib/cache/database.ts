@@ -4,6 +4,7 @@
  * @ai-dependencies better-sqlite3, fs, path
  * @ai-features
  * - One table for every cache: value, fetch time and the time the entry stops being fresh
+ * - release_choices: the release the user picked for an album; not a cache, never expires or gets cleared
  * - WAL mode: every write is on disk right away, so a crash or deploy loses nothing
  * - WAL file capped: journal_size_limit truncates it after a checkpoint, and a TRUNCATE checkpoint
  *   after big batch jobs (start-up import, prefetch run) empties it
@@ -29,6 +30,11 @@ const SCHEMA = `
   ) WITHOUT ROWID;
   CREATE INDEX IF NOT EXISTS cache_entries_group ON cache_entries (cache, group_key);
   CREATE INDEX IF NOT EXISTS cache_entries_fresh ON cache_entries (cache, fresh_until);
+  CREATE TABLE IF NOT EXISTS release_choices (
+    release_group_id TEXT    PRIMARY KEY,
+    release_id       TEXT    NOT NULL,
+    chosen_at        INTEGER NOT NULL
+  ) WITHOUT ROWID;
 `;
 
 /**
