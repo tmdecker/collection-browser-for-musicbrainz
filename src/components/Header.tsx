@@ -23,6 +23,8 @@ import { SortOption } from '@/types/music';
 
 interface HeaderProps {
   searchQuery: string;
+  /** Placeholder of the search field (default: "Search release groups, artists...") */
+  searchPlaceholder?: string;
   setSearchQuery: (query: string) => void;
   collectionName: string;
   sortOption: SortOption;
@@ -49,6 +51,7 @@ export interface HeaderRef {
 
 const Header = forwardRef<HeaderRef, HeaderProps>(({
   searchQuery,
+  searchPlaceholder,
   setSearchQuery,
   collectionName,
   sortOption,
@@ -129,6 +132,7 @@ const Header = forwardRef<HeaderRef, HeaderProps>(({
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
+            placeholder={searchPlaceholder}
           />
         </div>
 

@@ -21,17 +21,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cacheManager } from '@/lib/cache/cache-manager';
 import { releaseGroupCache } from '@/lib/cache/release-group-cache';
-import { releaseStore } from '@/lib/cache/release-store';
 import { Release } from '@/types/music';
 import { isMbid } from '@/utils/mbid-validation';
 import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '@/lib/cache/release-group-fetches';
 import { queueReleaseGroupRefresh } from '@/lib/prefetch/prefetch-service';
-import { deleteRgStreamingLinks } from '@/lib/cache/streaming-links-cache';
-import { deleteReviewUrls } from '@/lib/review-links';
-import { forgetCachedImage } from '@/lib/image-cache';
 import { isNetworkError } from '@/lib/network-errors';
 import { coverUrlFor, fetchAndStoreReleaseGroup, MusicBrainzResponseError } from '@/lib/release-group-fetch';
 import { getReleaseChoice } from '@/lib/release-choices';
+import { refreshReleaseGroupNow } from '@/lib/pinned-release';
 
 // Force dynamic runtime
 export const dynamic = 'force-dynamic';
@@ -81,11 +78,13 @@ function unreachableResponse(mbid: string, error: unknown): NextResponse | null 
  * Fetch a release group with all its releases from MusicBrainz, store it and answer with it
  * (a MusicBrainz error status, e.g. 503 after the retries or 404, is passed on with a message)
  */
-async function fetchReleaseGroup(mbid: string): Promise<NextResponse> {
+async function fetchReleaseGroup(mbid: string, refresh = false): Promise<NextResponse> {
   console.log(`🔍 Fetching release group ${mbid} from MusicBrainz...`);
   let fetched;
   try {
-    fetched = await fetchAndStoreReleaseGroup(mbid, 'high');
+    fetched = refresh
+      ? await refreshReleaseGroupNow(mbid)
+      : await withReleaseGroupFetch(mbid, () => fetchAndStoreReleaseGroup(mbid, 'high'));
   } catch (error) {
     if (error instanceof MusicBrainzResponseError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
@@ -147,7 +146,7 @@ export async function GET(
       if (joined) return joined;
     }
 
-    return await withReleaseGroupFetch(mbid, () => fetchReleaseGroup(mbid));
+    return await fetchReleaseGroup(mbid);
 
   } catch (error) {
     const unreachable = unreachableResponse(mbid, error);
@@ -180,27 +179,9 @@ export async function POST(
       await cacheManager.initialize();
     }
 
-    // A fetch that started before the edit may finish after this refresh: let it finish first
-    await releaseGroupFetchInFlight(mbid);
-
+    // Also drops releases that left the album, its streaming and review links and its cover images
     console.log(`🔄 Manual refresh of release group ${mbid}`);
-    const previousReleaseMbids = releaseGroupCache.get(mbid)?.releaseMbids ?? [];
-    const response = await withReleaseGroupFetch(mbid, () => fetchReleaseGroup(mbid));
-    if (!response.ok) return response;
-
-    // Releases that were removed or merged on MusicBrainz no longer belong to this album
-    const currentReleaseMbids = new Set(releaseGroupCache.get(mbid)?.releaseMbids ?? []);
-    for (const releaseMbid of previousReleaseMbids) {
-      if (!currentReleaseMbids.has(releaseMbid)) releaseStore.delete(releaseMbid);
-    }
-
-    // Streaming links are resolved again from the new releases on the next request; the cover is
-    // downloaded again (the "no cover" marker is dropped too); review links come from the new url-rels
-    deleteRgStreamingLinks(mbid);
-    deleteReviewUrls(mbid);
-    forgetCachedImage(`https://coverartarchive.org/release-group/${mbid}/front`);
-
-    return response;
+    return await fetchReleaseGroup(mbid, true);
   } catch (error) {
     const unreachable = unreachableResponse(mbid, error);
     if (unreachable) return unreachable;

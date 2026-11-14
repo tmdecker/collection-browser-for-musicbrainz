@@ -2,7 +2,7 @@
  * @ai-file component
  * @ai-description /collection/[mbid]: picks the screen for the collection's entity type
  * @ai-features
- * - Release group collection: the release group grid (CollectionBrowser)
+ * - Release group collection or release collection: the album grid (CollectionBrowser)
  * - Series collection: the list of series in it (SeriesCollectionPage)
  * - Other entity types: a short "not supported yet" page
  * - The entity type is remembered in the browser, so it is looked up on MusicBrainz only once
@@ -14,7 +14,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import CollectionBrowser from './CollectionBrowser';
 import SeriesCollectionPage from './SeriesCollectionPage';
-import { CollectionInfo, getCollectionInfo, loadCollectionInfo } from '@/utils/collection-info';
+import { CollectionInfo, getCollectionInfo, isAlbumCollectionType, loadCollectionInfo } from '@/utils/collection-info';
 
 export default function CollectionRoute({ mbid }: { mbid: string }) {
   // undefined: not known yet; null: lookup failed (shown as a release group collection, whose page reports the error)
@@ -45,11 +45,11 @@ export default function CollectionRoute({ mbid }: { mbid: string }) {
     );
   }
 
-  if (info && info.entityType !== 'release_group') {
+  if (info && !isAlbumCollectionType(info.entityType)) {
     return (
       <main className="min-h-screen bg-background p-6 text-text-secondary">
         <p className="mb-3">
-          &ldquo;{info.name}&rdquo; is a {info.entityType.replace(/_/g, ' ')} collection. This app can only show release group and series collections so far.
+          &ldquo;{info.name}&rdquo; is a {info.entityType.replace(/_/g, ' ')} collection. This app can only show release group, release and series collections so far.
         </p>
         <Link href="/collections" className="text-primary hover:text-primary-light">Back to Collections</Link>
       </main>

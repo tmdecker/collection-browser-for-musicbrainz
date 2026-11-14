@@ -48,7 +48,16 @@ export interface StreamingLinks {
   bandcamp?: string;
 }
 
+/** The fixed release of a release item (release collections and release series) */
+export interface PinnedRelease {
+  date?: string;
+  country?: string;
+  /** "CD", "2×12″ Vinyl"; missing until the release's media are known */
+  format?: string;
+}
+
 export interface ReleaseGroup {
+  /** Release group MBID; for a release item (see pinnedRelease) the release MBID */
   id: string;
   title: string;
   primary_type?: string;
@@ -68,6 +77,10 @@ export interface ReleaseGroup {
   releaseDetails?: Release;
   rating?: Rating;
   seriesOrder?: number;     // Position in series (1-based)
+  /** Set on release items: the grid entry is this one release, and the panel always shows it */
+  pinnedRelease?: PinnedRelease;
+  /** Release group of a release item (a release series learns it in the background) */
+  releaseGroupId?: string;
   _cachedAt?: number;       // Timestamp when cached (milliseconds since epoch)
   _expiresAt?: number;      // Timestamp when cache expires (30-day TTL)
 }

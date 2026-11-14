@@ -35,6 +35,7 @@ import { collectionPath, type CollectionRoute } from '@/utils/collection-routes'
 import { loadCollectionInfo } from '@/utils/collection-info';
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
 import { albumFromUrl, urlWithAlbum } from '@/utils/album-url';
+import { isReleaseItem, releaseGroupIdOf } from '@/utils/release-items';
 import { neighbourAlbum, swipeStep, type Point } from '@/utils/album-steps';
 
 // Puts the open album into the address (Next keeps useSearchParams in step with pushState and replaceState)
@@ -202,6 +203,20 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
         .filter(Boolean).join(' – ')
     : null;
 
+  // A release collection or release series: the grid's entries are releases, and the texts say so
+  const holdsReleases = rawAlbums.some(isReleaseItem);
+  const itemNoun = holdsReleases ? 'release' : 'release group';
+
+  // Release items: the selected entry's release group (collection covers are release group covers) and the
+  // releases of that album in this collection or series, marked in the Releases tab
+  const selectedReleaseGroupId = releaseGroupIdOf(selectedAlbumDetails ?? selectedAlbum);
+  const collectedReleaseIds = useMemo(
+    () => selectedReleaseGroupId && isReleaseItem(selectedAlbum)
+      ? rawAlbums.filter(album => album.releaseGroupId === selectedReleaseGroupId).map(album => album.id)
+      : undefined,
+    [rawAlbums, selectedAlbum, selectedReleaseGroupId]
+  );
+
   // A series' official homepage, linked by its domain in the footnote
   const seriesHomepage = useSeriesHomepage(route.entityType === 'series' ? route.mbid : null);
 
@@ -212,10 +227,10 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
       entityType: route.entityType,
       mbid: route.mbid,
       name: shownCollectionName,
-      kind: route.entityType === 'series' ? 'series' : 'release_group_collection',
+      kind: route.entityType === 'series' ? 'series' : holdsReleases ? 'release_collection' : 'release_group_collection',
       parentCollectionId: route.entityType === 'series' ? parentCollectionId : undefined,
     });
-  }, [shownCollectionName, route.entityType, route.mbid, parentCollectionId]);
+  }, [shownCollectionName, route.entityType, route.mbid, parentCollectionId, holdsReleases]);
 
   // The open album is part of the address. Opening it adds a history entry, so Back (the phone's back
   // gesture too) closes the panel instead of leaving the collection; switching albums replaces the entry,
@@ -419,7 +434,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
   const albumCountLabel = !loading && totalAlbums > 0
     ? albums.length < totalAlbums
       ? `${albums.length.toLocaleString()} of ${totalAlbums.toLocaleString()}`
-      : `${totalAlbums.toLocaleString()} ${totalAlbums === 1 ? 'release group' : 'release groups'}`
+      : `${totalAlbums.toLocaleString()} ${itemNoun}${totalAlbums === 1 ? '' : 's'}`
     : null;
 
   return (
@@ -434,6 +449,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
           ref={headerRef}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          searchPlaceholder={holdsReleases ? 'Search releases, artists...' : undefined}
           collectionName={shownCollectionName}
           parentCrumb={parentCrumb}
           onTitleClick={handleTitleClick}
@@ -524,7 +540,7 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
           emptyState={error ? false : hiddenByFilters > 0 ? (
             <>
               <p>
-                {hiddenByFilters} {hiddenByFilters === 1 ? 'release group matches' : 'release groups match'} your search but {hiddenByFilters === 1 ? 'is' : 'are'} hidden by your filters.
+                {hiddenByFilters} {hiddenByFilters === 1 ? `${itemNoun} matches` : `${itemNoun}s match`} your search but {hiddenByFilters === 1 ? 'is' : 'are'} hidden by your filters.
               </p>
               <button
                 type="button"
@@ -535,10 +551,10 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
               </button>
             </>
           ) : searchQuery.trim() ? (
-            <p>No release groups match &ldquo;{searchQuery.trim()}&rdquo;.</p>
+            <p>No {itemNoun}s match &ldquo;{searchQuery.trim()}&rdquo;.</p>
           ) : hasActiveFilters ? (
             <>
-              <p>No release groups match your filters.</p>
+              <p>No {itemNoun}s match your filters.</p>
               <button
                 type="button"
                 onClick={clearAllFilters}
@@ -586,11 +602,12 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             isAuthenticated={isAuthenticated}
             onRefreshAlbum={refreshAlbum}
             onChooseRelease={chooseRelease}
-            extraActions={isAuthenticated && selectedAlbum && activeCollectionId ? (
+            collectedReleaseIds={collectedReleaseIds}
+            extraActions={isAuthenticated && selectedReleaseGroupId && activeCollectionId ? (
               <CollectionCoverButton
                 collectionId={activeCollectionId}
                 collectionName={shownCollectionName}
-                releaseGroupId={selectedAlbum.id}
+                releaseGroupId={selectedReleaseGroupId}
               />
             ) : undefined}
           />

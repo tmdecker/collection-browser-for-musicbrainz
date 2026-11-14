@@ -4,7 +4,7 @@
  *   the search bar also opens any collection or series from a pasted MBID or musicbrainz.org link
  * @ai-dependencies React, Next.js Link and router, useAuth, usePreferences, mbid-validation
  * @ai-features
- * - Groups collections by MusicBrainz entity type; release group and series collections open,
+ * - Groups collections by MusicBrainz entity type; release group, release and series collections open,
  *   other types are plain rows under "Other collections"
  * - Login and account via the avatar button in the header
  * - Shows the last known list at once (browser copy) and refreshes it in the background
@@ -34,13 +34,13 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { MusicBrainzCollection } from '@/types/auth';
 import { classifyOpenInput, validateEntityId, EntityType } from '@/utils/mbid-validation';
 import { collectionPath } from '@/utils/collection-routes';
-import { readCachedCollections, readCachedSeries, writeCachedCollections, type SeriesSummary } from '@/utils/collection-info';
+import { isOpenableSeries, readCachedCollections, readCachedSeries, writeCachedCollections, type SeriesSummary } from '@/utils/collection-info';
 import { readRecentlyOpened, recentHref, recentKindLabel, type RecentEntry } from '@/utils/recently-opened';
 import { createSearchMatcher } from '@/utils/search-text';
 import PageTitle from './PageTitle';
 
 // Entity types the app can show (MusicBrainz writes them with an underscore)
-const SUPPORTED_ENTITY_TYPES = new Set(['release_group', 'series']);
+const SUPPORTED_ENTITY_TYPES = new Set(['release_group', 'release', 'series']);
 const ENTITY_ORDER = ['release_group', 'series', 'release', 'artist', 'recording', 'work', 'label', 'event', 'place', 'area', 'instrument'];
 
 // "release_group" -> "Release group"
@@ -62,7 +62,6 @@ const entityCount = (collection: MusicBrainzCollection): number | undefined => {
   return typeof value === 'number' ? value : undefined;
 };
 
-const RELEASE_GROUP_SERIES = 'Release group series';
 
 // What a pasted MBID or link would open, shown under the search bar
 type OpenResult =
@@ -187,7 +186,7 @@ export default function CollectionsPage() {
       if (own) {
         const type = own['entity-type'];
         if (!SUPPORTED_ENTITY_TYPES.has(type)) {
-          return { status: 'error', message: `“${own.name}” is your ${entityLabel(type).toLowerCase()} collection. Only release group collections and series can be opened.` };
+          return { status: 'error', message: `“${own.name}” is your ${entityLabel(type).toLowerCase()} collection. Only release group, release and series collections can be opened.` };
         }
         const count = entityCount(own);
         return {
@@ -203,7 +202,7 @@ export default function CollectionsPage() {
     if (entityType !== 'collection') {
       for (const c of collections.filter(x => x['entity-type'] === 'series')) {
         const series = seriesLists[c.id]?.find(x => x.id.toLowerCase() === mbid);
-        if (series && series.type === RELEASE_GROUP_SERIES) {
+        if (series && isOpenableSeries(series.type)) {
           return {
             status: 'valid',
             name: series.name,
@@ -231,7 +230,7 @@ export default function CollectionsPage() {
         result: result.valid && result.entityType ? {
           status: 'valid',
           name: result.name || 'Untitled',
-          detail: `${result.entityType === 'series' ? 'Series' : 'Collection'}${result.count !== undefined ? ` · ${countLabel('release_group', result.count)}` : ''}`,
+          detail: `${result.entityType === 'series' ? 'Series' : 'Collection'}${result.count !== undefined ? ` · ${countLabel(result.itemType ?? 'release_group', result.count)}` : ''}`,
           href: collectionPath(result.entityType, mbid),
           coverId: mbid,
         } : { status: 'error', message: result.message },
@@ -271,7 +270,7 @@ export default function CollectionsPage() {
           >
             <CoverThumb
               collectionId={entry.kind === 'series_collection' ? undefined : entry.mbid}
-              fetchMissing={entry.kind === 'release_group_collection' ? 'collection' : entry.kind === 'series' ? 'series' : undefined}
+              fetchMissing={entry.kind === 'release_group_collection' || entry.kind === 'release_collection' ? 'collection' : entry.kind === 'series' ? 'series' : undefined}
               seriesIds={entry.kind === 'series_collection' ? seriesLists[entry.mbid]?.map(x => x.id) : undefined}
               seriesCollectionId={entry.kind === 'series_collection' ? entry.mbid : undefined}
               className="w-10 h-10 rounded-md flex-shrink-0"
@@ -334,7 +333,7 @@ export default function CollectionsPage() {
               <section>
                 <SectionHeading title="Series" count={matchingSeries.length} />
                 <div className={view === 'grid' ? tileGridClass : rowListClass}>
-                  {matchingSeries.map(({ series, collectionId, collectionName }, i) => series.type === RELEASE_GROUP_SERIES ? (
+                  {matchingSeries.map(({ series, collectionId, collectionName }, i) => isOpenableSeries(series.type) ? (
                     <Tile
                       key={series.id}
                       view={view}

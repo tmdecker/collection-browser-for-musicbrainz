@@ -183,8 +183,28 @@ export const initDatabase = async (): Promise<void> => {
  * Collection entry to store for an album: the fresh collection data (title, genres, ratings...)
  * on top of what is already stored, so details loaded earlier (releases, tracklist) are kept
  */
-export const mergeCollectionEntry = (existing: ReleaseGroup | undefined, fresh: ReleaseGroup): ReleaseGroup =>
-  existing ? { ...existing, ...fresh } : fresh;
+export const mergeCollectionEntry = (existing: ReleaseGroup | undefined, fresh: ReleaseGroup): ReleaseGroup => {
+  if (!existing) return fresh;
+  const merged = { ...existing, ...fresh };
+
+  // Series and release items arrive without genres, tags and ratings, which were filled in afterwards
+  // (enhanceSeriesMetadata): a refresh must not empty them again
+  if (!fresh.genres?.length && !fresh.tags?.length && !fresh.rating) {
+    merged.genres = existing.genres ?? fresh.genres;
+    merged.tags = existing.tags ?? fresh.tags;
+    merged.rating = existing.rating;
+  }
+
+  // The releases of a release series arrive without release group, type and format: keep what was looked up
+  if (fresh.pinnedRelease && !fresh.releaseGroupId && existing.releaseGroupId) {
+    merged.releaseGroupId = existing.releaseGroupId;
+    merged.primary_type = fresh.primary_type || existing.primary_type;
+    merged.secondary_types = fresh.secondary_types?.length ? fresh.secondary_types : existing.secondary_types;
+    merged.pinnedRelease = { ...fresh.pinnedRelease, format: fresh.pinnedRelease.format ?? existing.pinnedRelease?.format };
+    merged.cover = existing.cover ?? fresh.cover;
+  }
+  return merged;
+};
 
 export const storeCollection = async (
   releaseGroups: ReleaseGroup[],
@@ -506,7 +526,7 @@ export const storeReleaseGroup = async (releaseGroup: ReleaseGroup): Promise<voi
  */
 export const updateReleaseGroupMetadata = async (
   id: string,
-  metadata: { genres?: string[] | Genre[]; tags?: string[] | Tag[]; rating?: Rating }
+  metadata: Partial<Pick<ReleaseGroup, 'genres' | 'tags' | 'rating' | 'releaseGroupId' | 'pinnedRelease' | 'cover' | 'primary_type' | 'secondary_types'>>
 ): Promise<void> => {
   const existing = await getReleaseGroup(id);
   if (!existing) return;

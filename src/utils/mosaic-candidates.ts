@@ -10,13 +10,14 @@
  * - A dozen candidates per collection, remembered in this browser for a week, so a reload asks for nothing
  */
 
-import { writeCachedSeries, type SeriesSummary } from './collection-info';
+import { getCollectionInfo, isOpenableSeries, writeCachedSeries, type SeriesSummary } from './collection-info';
+import { releaseCoverUrl, releaseGroupCoverUrl, releaseToItem } from './release-items';
+import { RELEASE_COLLECTION_INC } from './release-groups-helper';
 
 // v2: v1 could hold empty lists for series from a bug, which would have kept those mosaics empty for a week
 const STORAGE_KEY = 'mb-mosaic-candidates-v2';
 const MAX_CANDIDATES = 12;
 const KEEP_MS = 7 * 24 * 60 * 60 * 1000;
-const RELEASE_GROUP_SERIES = 'Release group series';
 
 interface Remembered {
   fetchedAt: number;
@@ -69,13 +70,30 @@ async function getJson(url: string): Promise<Record<string, unknown>> {
   return response.json();
 }
 
-/** Cover address of a release group, the same one the grid uses */
-export const coverUrlFor = (releaseGroupId: string) => `/api/coverart/release-group/${releaseGroupId}/front`;
+/**
+ * Cover address of a candidate, the same one the grid uses: candidates are release group ids, or for
+ * release collections and release series the cover address of the release itself
+ */
+export const coverUrlFor = (candidate: string) => (candidate.startsWith('/') ? candidate : releaseGroupCoverUrl(candidate));
 
-/** Release group ids from the collection's first page */
+// A release collection's first page, with the same parameters as the grid's loader, so the server's
+// copy answers; each release's cover address is the candidate
+async function loadReleaseCollectionCandidates(collectionId: string): Promise<string[]> {
+  const params = new URLSearchParams({ fmt: 'json', collection: collectionId, inc: RELEASE_COLLECTION_INC, limit: '100', offset: '0' });
+  const data = await getJson(`/api/musicbrainz/release?${params}`);
+  const list = Array.isArray(data.releases) ? data.releases as { id?: unknown }[] : [];
+  return list.filter(release => typeof release?.id === 'string').slice(0, MAX_CANDIDATES).map(release => releaseToItem(release).cover);
+}
+
+/** Release group ids (or release cover addresses) from the collection's first page */
 export async function loadCollectionCandidates(collectionId: string): Promise<string[]> {
   const known = recall(collectionId);
   if (known) return known;
+  if (getCollectionInfo(collectionId)?.entityType === 'release') {
+    const covers = await loadReleaseCollectionCandidates(collectionId);
+    remember(collectionId, covers);
+    return covers;
+  }
   // Same parameters, in the same order, as fetchAllReleaseGroupsInCollection's first page: the server
   // keys its copy by this address
   const params = new URLSearchParams({
@@ -93,12 +111,17 @@ export async function loadCollectionCandidates(collectionId: string): Promise<st
 }
 
 async function lookupSeries(seriesId: string): Promise<SeriesContents> {
-  const detail = await getJson(`/api/musicbrainz/series/${seriesId}?fmt=json&inc=release-group-rels`);
+  const detail = await getJson(`/api/musicbrainz/series/${seriesId}?fmt=json&inc=release-group-rels+release-rels`);
   const relations = Array.isArray(detail.relations) ? detail.relations as Record<string, unknown>[] : [];
   const all = relations
-    .filter(r => r.type === 'part of' && r['target-type'] === 'release_group')
-    // MusicBrainz names the related entity after its type: release_group
-    .map(r => ((r.release_group ?? r['release-group']) as { id?: unknown } | undefined)?.id)
+    .filter(r => r.type === 'part of')
+    .map(r => {
+      // MusicBrainz names the related entity after its type: release_group
+      if (r['target-type'] === 'release_group') return ((r.release_group ?? r['release-group']) as { id?: unknown } | undefined)?.id;
+      // A release series: the release's own cover
+      const releaseId = r['target-type'] === 'release' ? (r.release as { id?: unknown } | undefined)?.id : undefined;
+      return typeof releaseId === 'string' ? releaseCoverUrl(releaseId) : undefined;
+    })
     .filter((id): id is string => typeof id === 'string');
   const contents = { ids: all.slice(0, MAX_CANDIDATES), count: new Set(all).size };
   remember(seriesId, contents.ids, contents.count);
@@ -136,7 +159,7 @@ export async function loadSeriesCollectionCandidates(seriesCollectionId: string)
   const total = typeof data['series-count'] === 'number' ? data['series-count'] : series.length;
   // The whole list fits in one page for most collections: keep it, like the series collection page does
   if (series.length >= total) writeCachedSeries(seriesCollectionId, series);
-  const first = series.find(s => s.type === RELEASE_GROUP_SERIES);
+  const first = series.find(s => isOpenableSeries(s.type));
   const ids = first ? await loadSeriesCandidates(first.id) : [];
   remember(seriesCollectionId, ids);
   return ids;

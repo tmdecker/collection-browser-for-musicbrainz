@@ -1,6 +1,6 @@
 /**
  * @ai-file component
- * @ai-description Individual album card with cover art, title, artist, and release year
+ * @ai-description Individual album card with cover art, title, artist, and release year (format and year for a release)
  * @ai-dependencies React, Next.js Image, CoverArtImage, clsx
  * @ai-features
  * - Responsive card with cover art and metadata
@@ -15,6 +15,7 @@ import { ReleaseGroup } from '@/types/music';
 import clsx from 'clsx';
 import CoverArtImage from './CoverArtImage';
 import ListenButton from './ListenButton';
+import { cardFactLine, releaseGroupIdOf } from '@/utils/release-items';
 
 // The listen button needs a pointer that hovers; touch screens open the details panel instead
 const canHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches;
@@ -55,6 +56,10 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
   const releaseYear = album.first_release_date 
     ? album.first_release_date.split('-')[0] 
     : '';
+  // The year; a release item (release collection or series) shows its format too: "CD · 1997"
+  const factLine = cardFactLine(album);
+  // Listen links belong to the release group (a release series learns it in the background)
+  const releaseGroupId = releaseGroupIdOf(album);
     
   return (
     <div
@@ -103,7 +108,7 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
             setImageError(true);
           }}
         />
-        {listenArmed && <ListenButton albumId={album.id} albumTitle={album.title} />}
+        {listenArmed && releaseGroupId && <ListenButton albumId={releaseGroupId} albumTitle={album.title} />}
       </div>
       
       <div className="flex flex-col flex-grow">
@@ -113,9 +118,9 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
         <p className="text-text-secondary text-xs md:text-sm line-clamp-1" title={artistNames}>
           {artistNames}
         </p>
-        {releaseYear && (
-          <p className="text-text-tertiary text-[10px] md:text-xs mt-0.5 md:mt-1">
-            {releaseYear}
+        {factLine && (
+          <p className="text-text-tertiary text-[10px] md:text-xs mt-0.5 md:mt-1 line-clamp-1">
+            {factLine}
           </p>
         )}
       </div>

@@ -51,7 +51,7 @@ describe('mosaic candidates', () => {
 
     expect(await loadSeriesCollectionCandidates('sc1')).toEqual(['rg-a', 'rg-b']);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[1][0]).toBe('/api/musicbrainz/series/s1?fmt=json&inc=release-group-rels');
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/musicbrainz/series/s1?fmt=json&inc=release-group-rels+release-rels');
   });
 
   it('counts the release groups of a series, one lookup at a time, and remembers them', async () => {

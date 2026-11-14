@@ -3,8 +3,9 @@
  * @ai-description Fetches MusicBrainz collections and series with pagination and rate limiting
  * @ai-dependencies mbApi from api.ts, normalizeReleaseGroups from normalize-mb-data
  * @ai-features
- * - Paginated collection fetching with 100-item limit per page
- * - Single-request series fetching with ordering support
+ * - Paginated collection fetching with 100-item limit per page, for release group collections and
+ *   release collections (each release becomes a release item, see release-items)
+ * - Single-request series fetching with ordering support, for release group series and release series
  * - Rate limiting is enforced server-side by the /api/musicbrainz proxy
  * - Collection/series name extraction with early callback support
  */
@@ -12,17 +13,52 @@
 import { ReleaseGroup } from '@/types/music';
 import { normalizeReleaseGroups } from './normalize-mb-data';
 import { mbApi } from './api';
+import { releaseToItem } from './release-items';
+
+const PAGE_SIZE = 100;
+const MAX_PAGE_RETRIES = 5;
+
+// What a collection's entity type means for loading it
+interface CollectionKind {
+  /** Browse endpoint and the key of its list in the answer */
+  endpoint: '/release-group' | '/release';
+  listKey: 'release-groups' | 'releases';
+  countKey: 'release-group-count' | 'release-count';
+  inc: string;
+  toItem: (entity: any) => any;
+}
+
+// Genres, tags and ratings belong to the release group: MusicBrainz puts them into each release's
+// release group, so one browse brings everything the grid and the filters need
+export const RELEASE_COLLECTION_INC = 'artist-credits+release-groups+media+labels+genres+tags+ratings';
+
+const RELEASE_GROUP_COLLECTION: CollectionKind = {
+  endpoint: '/release-group',
+  listKey: 'release-groups',
+  countKey: 'release-group-count',
+  inc: 'artist-credits+genres+tags+ratings',
+  toItem: entity => entity,
+};
+
+const RELEASE_COLLECTION: CollectionKind = {
+  endpoint: '/release',
+  listKey: 'releases',
+  countKey: 'release-count',
+  inc: RELEASE_COLLECTION_INC,
+  toItem: releaseToItem,
+};
 
 /**
- * Fetch all release groups in a MusicBrainz collection using pagination
- * with proper rate limiting according to MusicBrainz guidelines
+ * Fetch every album of a MusicBrainz collection using pagination: the release groups of a release group
+ * collection, or the releases of a release collection as release items
+ * (rate limiting is enforced server-side by the /api/musicbrainz proxy)
  *
  * @param collectionId - MusicBrainz collection ID
  * @param userAgent - User agent string for API requests (deprecated - handled by API proxy)
  * @param onCollectionNameFetched - Optional callback called immediately when collection name is fetched
  * @param options.fresh - Ask MusicBrainz for live pages instead of the server's copy (refreshes use this);
  *   without it, a server copy whose album count no longer matches the collection is fetched again live
- * @returns Object containing release groups array and collection name
+ * @returns Object containing the albums and the collection name
  */
 export const fetchAllReleaseGroupsInCollection = async (
   collectionId: string,
@@ -30,138 +66,80 @@ export const fetchAllReleaseGroupsInCollection = async (
   onCollectionNameFetched?: (name: string) => void,
   { fresh = false }: { fresh?: boolean } = {}
 ): Promise<{ releaseGroups: ReleaseGroup[], collectionName: string }> => {
-  // Key parameters
-  const limit = 100;
-  const allReleaseGroups = [];
-  let usedServerCopy = false; // Some page came from the server's copy instead of MusicBrainz
-
   try {
-    // Get the collection info to see the expected count and name
-    const collectionResponse = await mbApi.get(
-      `/collection/${collectionId}`,
-      {
-        params: { fmt: 'json' },
-      }
-    );
-
-    const collectionData = collectionResponse.data;
-    const expectedTotal = collectionData['release-group-count'] || 0;
+    // The collection itself: name, entity type and item count
+    const collectionData = (await mbApi.get(`/collection/${collectionId}`, { params: { fmt: 'json' } })).data;
+    const kind = collectionData['entity-type'] === 'release' ? RELEASE_COLLECTION : RELEASE_GROUP_COLLECTION;
+    const expectedTotal = collectionData[kind.countKey] || 0;
     const collectionName = collectionData.name || '';
-    console.log(`Collection "${collectionName}" reports having ${expectedTotal} total release groups`);
+    console.log(`Collection "${collectionName}" reports having ${expectedTotal} ${kind.listKey}`);
 
-    // Call the callback immediately with the collection name (before fetching all release groups)
     if (onCollectionNameFetched && collectionName) {
       onCollectionNameFetched(collectionName);
-      console.log(`✨ Triggered early collection name callback: "${collectionName}"`);
     }
 
-    // Calculate how many pages we need to fetch
-    const pagesNeeded = Math.ceil(expectedTotal / limit);
-    console.log(`Will fetch ${pagesNeeded} pages with ${limit} items per page`);
-    
-    // We'll use a more robust approach with multiple retries and respecting rate limits
+    const pagesNeeded = Math.ceil(expectedTotal / PAGE_SIZE);
+    const allItems: any[] = [];
+    let usedServerCopy = false; // Some page came from the server's copy instead of MusicBrainz
+
     for (let page = 0; page < pagesNeeded; page++) {
-      const offset = page * limit;
-      console.log(`Fetching page ${page + 1}/${pagesNeeded} at offset ${offset}`);
-      
-      // No client-side delay: requests go through /api/musicbrainz, which enforces the rate limit
-      // We'll retry up to 5 times with exponential backoff
+      const offset = page * PAGE_SIZE;
       let retryCount = 0;
-      const maxRetries = 5;
       let success = false;
-      let retryDelay = 1000; // Start with 1 second
-      
-      while (retryCount < maxRetries && !success) {
+
+      while (retryCount < MAX_PAGE_RETRIES && !success) {
         try {
-          const response = await mbApi.get(
-            '/release-group',
-            {
-              params: {
-                fmt: 'json',
-                collection: collectionId,
-                inc: 'artist-credits+genres+tags+ratings',
-                limit,
-                offset,
-              },
-              headers: fresh ? { 'x-mb-refresh': '1' } : undefined,
-              timeout: 30000 // 30 second timeout
-            }
-          );
-          
+          const response = await mbApi.get(kind.endpoint, {
+            params: { fmt: 'json', collection: collectionId, inc: kind.inc, limit: PAGE_SIZE, offset },
+            headers: fresh ? { 'x-mb-refresh': '1' } : undefined,
+            timeout: 30000,
+          });
+
           if (response.headers?.['x-mb-cache'] === 'hit') usedServerCopy = true;
-          const releaseGroups = response.data['release-groups'] || [];
-          console.log(`Page ${page + 1}: Got ${releaseGroups.length} items at offset ${offset}`);
-          
-          // Add to our array
-          allReleaseGroups.push(...releaseGroups);
+          const items = response.data[kind.listKey] || [];
+          console.log(`Page ${page + 1}/${pagesNeeded}: got ${items.length} items at offset ${offset}`);
+          allItems.push(...items);
           success = true;
-          
-          // Stop if we get an empty page
-          if (releaseGroups.length === 0) {
-            console.log(`Page ${page + 1}: Got 0 items, done fetching`);
-            break;
-          }
         } catch (error: any) {
           retryCount++;
-
-          // Check if this is a rate limit error (503)
-          const isRateLimit = error.response && error.response.status === 503;
-
-          // Get retry-after header if available
-          let retryAfter = 0;
-          if (isRateLimit && error.response.headers['retry-after']) {
-            retryAfter = parseInt(error.response.headers['retry-after'], 10) * 1000;
-          }
-          
-          // Use exponential backoff: 1s, 2s, 4s, 8s, 16s
-          // Or use the retry-after header value if provided
-          const backoffDelay = retryAfter || retryDelay * Math.pow(2, retryCount - 1);
-          
-          console.log(`Rate limit hit on page ${page + 1}, attempt ${retryCount}. Waiting ${backoffDelay/1000}s before retry...`);
-          
-          // Wait before retrying
+          const retryAfter = error.response?.status === 503 && error.response.headers['retry-after']
+            ? parseInt(error.response.headers['retry-after'], 10) * 1000
+            : 0;
+          const backoffDelay = retryAfter || 1000 * Math.pow(2, retryCount - 1);
+          console.log(`Page ${page + 1} failed, attempt ${retryCount}. Waiting ${backoffDelay / 1000}s before retry...`);
           await new Promise(resolve => setTimeout(resolve, backoffDelay));
-          
-          // If we're at the last retry, log an error but continue to the next page
-          if (retryCount === maxRetries) {
-            console.error(`Failed to fetch page ${page + 1} after ${maxRetries} attempts.`);
+
+          if (retryCount === MAX_PAGE_RETRIES) {
+            console.error(`Failed to fetch page ${page + 1} after ${MAX_PAGE_RETRIES} attempts.`);
           }
         }
       }
-      
-      // If we've failed this page after max retries but have some data, continue
-      if (!success && allReleaseGroups.length > 0) {
-        console.warn(`Skipping page ${page + 1} after ${maxRetries} failed attempts. Continuing to next page.`);
+
+      if (!success && allItems.length > 0) {
+        console.warn(`Skipping page ${page + 1} after ${MAX_PAGE_RETRIES} failed attempts. Continuing to next page.`);
       }
     }
-    
-    // Get unique items (in case of duplicates)
+
+    // Remove any duplicates by ID
     const uniqueIds = new Set();
-    const uniqueReleaseGroups = allReleaseGroups.filter(rg => {
-      if (uniqueIds.has(rg.id)) {
-        return false;
-      }
-      uniqueIds.add(rg.id);
+    const uniqueItems = allItems.filter(item => {
+      if (uniqueIds.has(item.id)) return false;
+      uniqueIds.add(item.id);
       return true;
     });
-    
-    console.log(`Fetched ${allReleaseGroups.length} total items, ${uniqueReleaseGroups.length} unique release groups`);
 
-    // The server's copy is outdated (albums were added or removed since): load the live list instead
-    if (usedServerCopy && uniqueReleaseGroups.length !== expectedTotal) {
-      console.log(`Server copy has ${uniqueReleaseGroups.length} albums, collection has ${expectedTotal}: loading live`);
+    // The server's copy is older than the collection (albums added or removed since): load it live instead
+    if (usedServerCopy && uniqueItems.length !== expectedTotal) {
+      console.log(`Server copy has ${uniqueItems.length} albums, collection has ${expectedTotal}: loading live`);
       return fetchAllReleaseGroupsInCollection(collectionId, userAgent, undefined, { fresh: true });
     }
 
-    if (uniqueReleaseGroups.length < expectedTotal) {
-      console.warn(`Warning: Only fetched ${uniqueReleaseGroups.length} release groups, expected ${expectedTotal}`);
-    } else {
-      console.log(`Successfully fetched all ${uniqueReleaseGroups.length} release groups`);
+    if (uniqueItems.length < expectedTotal) {
+      console.warn(`Warning: Only fetched ${uniqueItems.length} of ${expectedTotal} ${kind.listKey}`);
     }
 
-    // Normalize the data and return with collection name
     return {
-      releaseGroups: normalizeReleaseGroups(uniqueReleaseGroups),
+      releaseGroups: normalizeReleaseGroups(uniqueItems.map(kind.toItem)),
       collectionName
     };
   } catch (error) {
@@ -170,14 +148,18 @@ export const fetchAllReleaseGroupsInCollection = async (
   }
 };
 
+// Release group and release relations in one request, so either kind of series loads the same way
+const SERIES_INC = 'release-group-rels+release-rels+artist-credits';
+
 /**
- * Fetch all release groups in a MusicBrainz series
+ * Fetch all albums in a MusicBrainz series: the release groups of a release group series, the releases
+ * of a release series as release items (their release group is looked up later, see progressive-loader)
  * Series API returns all items in one response (no pagination needed)
  *
  * @param seriesId - MusicBrainz series ID
  * @param userAgent - User agent string for API requests (deprecated - handled by API proxy)
  * @param onSeriesNameFetched - Optional callback called immediately when series name is fetched
- * @returns Object containing release groups array and series name
+ * @returns Object containing the albums and the series name
  */
 export const fetchAllReleaseGroupsInSeries = async (
   seriesId: string,
@@ -185,49 +167,31 @@ export const fetchAllReleaseGroupsInSeries = async (
   onSeriesNameFetched?: (name: string) => void
 ): Promise<{ releaseGroups: ReleaseGroup[], collectionName: string }> => {
   try {
-    // Fetch series info with all release-group relationships
-    const seriesResponse = await mbApi.get(
-      `/series/${seriesId}`,
-      {
-        params: {
-          fmt: 'json',
-          inc: 'release-group-rels+artist-credits'
-        },
-      }
-    );
+    const seriesData = (await mbApi.get(`/series/${seriesId}`, { params: { fmt: 'json', inc: SERIES_INC } })).data;
 
-    const seriesData = seriesResponse.data;
     const seriesName = seriesData.name || '';
     console.log(`Series "${seriesName}" with ${seriesData.relations?.length || 0} relations`);
 
-    // Call the callback immediately with the series name
     if (onSeriesNameFetched && seriesName) {
       onSeriesNameFetched(seriesName);
-      console.log(`✨ Triggered early series name callback: "${seriesName}"`);
     }
 
-    // Extract release groups from relations
-    const releaseGroups = [];
-    const relations = seriesData.relations || [];
-
-    for (const relation of relations) {
-      // Only process release-group relationships that are part of the series
-      if (relation.type === 'part of' && relation['target-type'] === 'release_group') {
+    const items = [];
+    for (const relation of seriesData.relations || []) {
+      if (relation.type !== 'part of') continue;
+      const order = relation['ordering-key'] || relation.ordering_key;
+      if (relation['target-type'] === 'release_group') {
         const releaseGroup = relation['release-group'] || relation.release_group;
-
-        if (releaseGroup) {
-          // Add series ordering information
-          releaseGroup.seriesOrder = relation['ordering-key'] || relation.ordering_key;
-          releaseGroups.push(releaseGroup);
-        }
+        if (releaseGroup) items.push({ ...releaseGroup, seriesOrder: order });
+      } else if (relation['target-type'] === 'release' && relation.release) {
+        items.push({ ...releaseToItem(relation.release), seriesOrder: order });
       }
     }
 
-    console.log(`Extracted ${releaseGroups.length} release groups from series`);
+    console.log(`Extracted ${items.length} albums from series`);
 
-    // Normalize the data and return with series name
     return {
-      releaseGroups: normalizeReleaseGroups(releaseGroups),
+      releaseGroups: normalizeReleaseGroups(items),
       collectionName: seriesName
     };
   } catch (error) {

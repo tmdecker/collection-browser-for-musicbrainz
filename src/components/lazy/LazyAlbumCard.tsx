@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ReleaseGroup } from '@/types/music';
 import AlbumCard from '../AlbumCard';
+import { cardFactLine } from '@/utils/release-items';
 import lazyLoadMonitor from '@/utils/lazy-load-monitor';
 
 interface LazyAlbumCardProps {
@@ -111,9 +112,9 @@ const LazyAlbumCard: React.FC<LazyAlbumCardProps> = (props) => {
           <p className="text-text-secondary text-xs md:text-sm line-clamp-1 opacity-30" title={artistNames}>
             {artistNames}
           </p>
-          {album.first_release_date && (
-            <p className="text-text-tertiary text-[10px] md:text-xs mt-0.5 md:mt-1 opacity-30">
-              {album.first_release_date.split('-')[0]}
+          {cardFactLine(album) && (
+            <p className="text-text-tertiary text-[10px] md:text-xs mt-0.5 md:mt-1 line-clamp-1 opacity-30">
+              {cardFactLine(album)}
             </p>
           )}
         </div>

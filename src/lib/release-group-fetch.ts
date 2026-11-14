@@ -113,16 +113,28 @@ export async function fetchAndStoreReleaseGroup(mbid: string, priority: RateLimi
 }
 
 /**
- * One release with recordings, labels, artist credits and url-rels; undefined when MusicBrainz answers
- * with an error status (network errors throw)
+ * One release with recordings, labels, artist credits, url-rels and its release group
+ * @throws MusicBrainzResponseError when MusicBrainz answers with an error status (network errors throw as they are)
  */
-export async function fetchReleaseDetails(releaseId: string, priority: RateLimitPriority): Promise<Release | undefined> {
+export async function fetchReleaseDetailsOrThrow(releaseId: string, priority: RateLimitPriority): Promise<Release> {
   const response = await musicBrainzFetch(
-    `${MB_BASE_URL}/release/${releaseId}?fmt=json&inc=recordings+labels+artist-credits+url-rels`,
+    `${MB_BASE_URL}/release/${releaseId}?fmt=json&inc=recordings+labels+artist-credits+url-rels+release-groups`,
     { priority }
   );
   if (response.ok) return await response.json();
   await response.body?.cancel();
-  console.warn(`❌ Release details for ${releaseId} failed: ${response.status}`);
-  return undefined;
+  throw new MusicBrainzResponseError(response.status, response.statusText);
+}
+
+/**
+ * The same lookup; undefined when MusicBrainz answers with an error status (network errors throw)
+ */
+export async function fetchReleaseDetails(releaseId: string, priority: RateLimitPriority): Promise<Release | undefined> {
+  try {
+    return await fetchReleaseDetailsOrThrow(releaseId, priority);
+  } catch (error) {
+    if (!(error instanceof MusicBrainzResponseError)) throw error;
+    console.warn(`❌ Release details for ${releaseId} failed: ${error.status}`);
+    return undefined;
+  }
 }

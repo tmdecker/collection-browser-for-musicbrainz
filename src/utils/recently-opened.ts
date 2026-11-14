@@ -3,7 +3,7 @@
  * @ai-description Recently opened collections and series, kept in this browser (localStorage)
  * @ai-features
  * - Newest first, at most 8 entries, one per address
- * - Each entry knows its kind (release group collection, series collection, series) and,
+ * - Each entry knows its kind (release group collection, release collection, series collection, series) and,
  *   for a series opened from a series collection, that collection's id (for its link and breadcrumb)
  */
 
@@ -12,7 +12,7 @@ import { collectionPath, type CollectionEntityType } from './collection-routes';
 const STORAGE_KEY = 'mb-recently-opened';
 const MAX_ENTRIES = 8;
 
-export type RecentKind = 'release_group_collection' | 'series_collection' | 'series';
+export type RecentKind = 'release_group_collection' | 'release_collection' | 'series_collection' | 'series';
 
 export interface RecentEntry {
   entityType: CollectionEntityType;
@@ -53,6 +53,7 @@ export function recentHref(entry: RecentEntry): string {
 
 export const recentKindLabel: Record<RecentKind, string> = {
   release_group_collection: 'Release group collection',
+  release_collection: 'Release collection',
   series_collection: 'Series collection',
   series: 'Series',
 };

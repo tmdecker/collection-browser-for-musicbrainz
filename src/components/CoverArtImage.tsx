@@ -66,7 +66,7 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
   // Use provided alt text or fallback to title
   const altText = alt || (title ? `Cover art for ${title}` : 'Album cover art');
   // Set when the album was refreshed by hand: a new URL, so the browser cache cannot answer with the old cover
-  const coverVersion = useCoverVersion(actualSrc?.match(/^\/api\/coverart\/release-group\/([a-f0-9-]+)\//)?.[1]);
+  const coverVersion = useCoverVersion(actualSrc?.match(/^\/api\/coverart\/release(?:-group)?\/([a-f0-9-]+)\//)?.[1]);
   // Remember which source failed, so a new source (or cover version) automatically starts without an error
   const [failedSrc, setFailedSrc] = useState<string | undefined>(undefined);
   const sourceKey = `${actualSrc ?? ''}#${coverVersion ?? ''}`;
@@ -83,7 +83,7 @@ const CoverArtImage: React.FC<CoverArtImageProps> = ({
     
     // For CoverArt API, use the MusicBrainz ID (and cover version) as the cache key
     if (url.startsWith('/api/coverart/')) {
-      const match = url.match(/release-group\/([a-f0-9-]+)\//);
+      const match = url.match(/release(?:-group)?\/([a-f0-9-]+)\//);
       if (match && match[1]) return `mbid:${match[1]}${coverVersion ? `@${coverVersion}` : ''}`;
     }
     

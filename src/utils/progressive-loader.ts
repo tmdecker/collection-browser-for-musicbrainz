@@ -9,6 +9,11 @@ import { ReleaseGroup } from '@/types/music';
 import * as db from './db';
 import { fetchAllReleaseGroupsInCollection, fetchAllReleaseGroupsInSeries } from './release-groups-helper';
 import { loadPreferences, savePreferences } from './preference-migration';
+import { isReleaseItem, releaseGroupCoverUrl } from './release-items';
+
+// A release group's cover; a release item brings its own (the release's cover)
+const withCover = (album: ReleaseGroup): ReleaseGroup =>
+  isReleaseItem(album) ? album : { ...album, cover: releaseGroupCoverUrl(album.id) };
 
 // Track if background refresh is in progress
 let isRefreshing = false;
@@ -108,8 +113,8 @@ function checkCollectionCountInBackground(collectionId: string, cachedCount: num
 
   fetch(`/api/musicbrainz/collection/${collectionId}?fmt=json`)
     .then(response => (response.ok ? response.json() : null))
-    .then((data: { 'release-group-count'?: number } | null) => {
-      const remoteCount = data?.['release-group-count'];
+    .then((data: { 'release-group-count'?: number; 'release-count'?: number } | null) => {
+      const remoteCount = data?.['release-group-count'] ?? data?.['release-count'];
       if (typeof remoteCount !== 'number') return;
       if (remoteCount !== cachedCount) {
         console.log(`🔄 Collection changed on MusicBrainz (${cachedCount} → ${remoteCount} albums), starting background refresh`);
@@ -185,10 +190,7 @@ async function fetchAndCacheCollection(
     : await fetchAllReleaseGroupsInCollection(collectionId, userAgent, handleNameFetched, { fresh });
 
   // Add cover art URLs to each release group BEFORE storing
-  const apiData = releaseGroups.map(rg => ({
-    ...rg,
-    cover: `/api/coverart/release-group/${rg.id}/front`
-  }));
+  const apiData = releaseGroups.map(withCover);
 
   console.log('🎨 Added cover art URLs before storing. Sample:', apiData[0]?.cover);
 
@@ -199,7 +201,8 @@ async function fetchAndCacheCollection(
   // Store in cache (with cover URLs, normalized, collection name, and entity type)
   await db.storeCollection(normalizedApiData, collectionId, collectionName, entityType);
 
-  // After storing series data, trigger background metadata enhancement
+  // A series arrives without genres, tags and ratings (and a release series without release groups,
+  // formats and types): fill them in the background
   if (entityType === 'series') {
     // Non-blocking: don't await
     setTimeout(() => {
@@ -225,18 +228,19 @@ export async function forceRefreshCollection(collectionId: string, entityType?: 
 }
 
 /**
- * Background enhancement: fetch genres/tags/ratings for series items
+ * Background enhancement: fetch genres/tags/ratings for albums that came without them (series, release items)
+ * and, for the releases of a release series, their release group, format and cover
  * Updates both server cache (via API) and client IndexedDB
  */
 export async function enhanceSeriesMetadata(releaseGroups: ReleaseGroup[]): Promise<void> {
-  // Only enhance items missing metadata
+  // Only enhance items missing metadata, or release items whose release group is not known yet
   const needsEnhancement = releaseGroups.filter(
-    rg => !rg.genres?.length && !rg.tags?.length && !rg.rating
+    rg => (!rg.genres?.length && !rg.tags?.length && !rg.rating) || (isReleaseItem(rg) && !rg.releaseGroupId)
   );
 
   if (needsEnhancement.length === 0) return;
 
-  console.log(`🔄 Enhancing metadata for ${needsEnhancement.length} series items...`);
+  console.log(`🔄 Enhancing metadata for ${needsEnhancement.length} albums...`);
 
   let enhanced = 0;
   for (const rg of needsEnhancement) {
@@ -244,7 +248,7 @@ export async function enhanceSeriesMetadata(releaseGroups: ReleaseGroup[]): Prom
       const response = await fetch('/api/enhance-metadata', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mbid: rg.id })
+        body: JSON.stringify(isReleaseItem(rg) ? { releaseMbid: rg.id, mbid: rg.releaseGroupId } : { mbid: rg.id })
       });
 
       if (response.ok) {
@@ -253,7 +257,9 @@ export async function enhanceSeriesMetadata(releaseGroups: ReleaseGroup[]): Prom
         await db.updateReleaseGroupMetadata(rg.id, {
           genres: metadata.genres,
           tags: metadata.tags,
-          rating: metadata.rating
+          rating: metadata.rating,
+          // A release item also learns its release group, format and cover
+          ...(metadata.item ?? {}),
         });
         enhanced++;
       }
@@ -310,10 +316,7 @@ export function refreshDataInBackground(collectionId: string, entityType?: 'coll
         : await fetchAllReleaseGroupsInCollection(collectionId, userAgent, handleCollectionNameFetched, { fresh: true });
 
       // Add cover art URLs to each release group BEFORE storing
-      const freshData = releaseGroups.map(rg => ({
-        ...rg,
-        cover: `/api/coverart/release-group/${rg.id}/front`
-      }));
+      const freshData = releaseGroups.map(withCover);
 
       console.log('🎨 Background refresh: Added cover art URLs before storing. Sample:', freshData[0]?.cover);
 

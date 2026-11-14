@@ -34,6 +34,7 @@ import { orderedServiceLinks } from '@/utils/streaming-service-order';
 import { usePreferences } from '@/hooks/usePreferences';
 import { recheckPlexLink, usePlexAlbums } from '@/hooks/usePlexAlbums';
 import { useReviewLanguages, useReviewLinks } from '@/hooks/useReviewLinks';
+import { isReleaseItem, musicBrainzUrlOf, releaseGroupIdOf } from '@/utils/release-items';
 
 interface AlbumDetailsPanelProps {
   album: ReleaseGroup | null;
@@ -55,6 +56,8 @@ interface AlbumDetailsPanelProps {
   onRefreshAlbum?: (albumId: string) => Promise<boolean>;
   /** Show another release of the album (null: the app's own pick); resolves with an error message or null */
   onChooseRelease?: (albumId: string, releaseId: string | null) => Promise<string | null>;
+  /** Release items: the releases of this album that are in the open collection or series (marked in the Releases tab) */
+  collectedReleaseIds?: string[];
   /** More toolbar buttons from the page (e.g. use as collection cover); style them with toolbarButtonClass */
   extraActions?: React.ReactNode;
 }
@@ -76,7 +79,8 @@ const readCoverExpanded = () => {
 // sharp 1080px version fades in over it once loaded. Keyed by album, so a previous cover never lingers.
 // The compact cover is small enough for the thumbnail, so the sharp version loads only when needed
 // (on phones the cover is always full width).
-const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> = ({ mbid, title, compact = false }) => {
+// A release item passes its own cover address (the release's cover) instead of the release group's.
+const PanelCover: React.FC<{ mbid: string; src?: string; title: string; compact?: boolean }> = ({ mbid, src, title, compact = false }) => {
   const [sharpLoaded, setSharpLoaded] = useState(false);
   const [isWide, setIsWide] = useState(false);
   useEffect(() => {
@@ -90,6 +94,7 @@ const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> =
   return (
     <>
       <CoverArtImage
+        src={src}
         mbid={mbid}
         title={title}
         size={360}
@@ -98,6 +103,7 @@ const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> =
       />
       {needsSharp && (
         <CoverArtImage
+          src={src}
           mbid={mbid}
           title={title}
           size={1080}
@@ -110,7 +116,7 @@ const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> =
   );
 };
 
-const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, detailsError = null, onRetryDetails, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum, onChooseRelease, extraActions }) => {
+const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, detailsError = null, onRetryDetails, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum, onChooseRelease, collectedReleaseIds, extraActions }) => {
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
   const [streamingLinksFromCache, setStreamingLinksFromCache] = useState(false);
@@ -136,7 +142,11 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   const streamingPreferences = usePreferences().preferences.streaming;
   const streamingCountry = streamingPreferences.country;
   const plexLinks = usePlexAlbums();
-  const plexUrl = displayAlbum ? plexLinks[displayAlbum.id] : undefined;
+  // Rating, reviews and listen links belong to the release group; a release item (release collection or
+  // series) names its group separately, and a release series only learns it with the details
+  const pinned = isReleaseItem(displayAlbum);
+  const releaseGroupId = releaseGroupIdOf(displayAlbum);
+  const plexUrl = releaseGroupId ? plexLinks[releaseGroupId] : undefined;
   // Plex and streaming links in the user's order; streaming links join once loaded
   const serviceLinks = orderedServiceLinks(
     streamingPreferences.serviceOrder,
@@ -147,14 +157,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   // An album's releases are cached once its details have loaded, so the server may only now be able
   // to link it to Plex: ask once more (no-op when Plex is off or the album already has a link)
-  const detailsLoadedId = !loading && albumDetails?.tracklist ? albumDetails.id : null;
+  const detailsLoadedId = !loading && albumDetails?.tracklist ? releaseGroupIdOf(albumDetails) ?? null : null;
   useEffect(() => {
     if (detailsLoadedId) recheckPlexLink(detailsLoadedId);
   }, [detailsLoadedId]);
 
   // Review links: fetched again after a manual refresh (the album's links may have changed on MusicBrainz)
   const reviewReload = refresh?.albumId === displayAlbum?.id && refresh?.status === 'done' ? 'refreshed' : null;
-  const reviewLinks = useReviewLinks(displayAlbum?.id, reviewReload);
+  const reviewLinks = useReviewLinks(releaseGroupId, reviewReload);
   const reviewLanguages = useReviewLanguages();
 
   // Tracklist is still on its way when the album has none yet, no details request is running and none failed
@@ -178,8 +188,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       return;
     }
 
-    // Only fetch if we have releaseDetails (which includes the release info needed)
-    if (!displayAlbum.releaseDetails) {
+    // Only fetch if we have releaseDetails (which includes the release info needed) and know the release group
+    if (!displayAlbum.releaseDetails || !releaseGroupId) {
       return; // Wait for releaseDetails to be available
     }
 
@@ -193,7 +203,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         console.log('🔗 Starting streaming links fetch in background');
         const { fetchStreamingLinksForAlbum } = await import('@/utils/streaming-links');
         const result = await fetchStreamingLinksForAlbum(
-          displayAlbum.id,
+          releaseGroupId,
           streamingCountry,
           abortController.signal
         );
@@ -225,7 +235,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
     };
   // Refetch only when the album or its release changes, not on every metadata update to displayAlbum
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayAlbum?.id, displayAlbum?.releaseDetails, streamingCountry]);
+  }, [displayAlbum?.id, releaseGroupId, displayAlbum?.releaseDetails, streamingCountry]);
 
   if (!isOpen || !displayAlbum) return null;
 
@@ -378,6 +388,13 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
         ? 'Reload failed, try again'
         : 'Reload from MusicBrainz (after editing it there)';
 
+  // Release item: its own cover (the panel may be looking at another release of the album), format and country
+  const coverSrc = pinned ? displayAlbum.cover : undefined;
+  const coverKey = pinned ? `${displayAlbum.id}|${displayAlbum.cover ?? ''}` : displayAlbum.id;
+  const pinnedFacts = pinned
+    ? [displayAlbum.pinnedRelease?.format, displayAlbum.pinnedRelease?.country].filter(Boolean).join(' · ')
+    : '';
+
   // Tabs only when there is a choice of releases
   const releases = displayAlbum.releases ?? [];
   const tabs: { id: DetailsTab; label: string; count?: number }[] = [{ id: 'tracklist', label: 'Tracklist' }];
@@ -440,7 +457,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
           <div className={headClass}>
             {/* The cover is known before the details arrive, so show it right away */}
             <div className={`relative block aspect-square rounded-md overflow-hidden bg-background-tertiary ${coverWidthClass}`}>
-              <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} compact={compact} />
+              <PanelCover key={coverKey} mbid={displayAlbum.id} src={coverSrc} title={displayAlbum.title} compact={compact} />
             </div>
             <div className="flex-1 min-w-0 flex flex-col gap-3">
               <div className="bg-background-tertiary h-7 rounded-md w-3/4"></div>
@@ -464,13 +481,13 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
             {/* Cover: links to MusicBrainz */}
             <div className={`relative group/cover ${coverWidthClass}`}>
               <a
-                href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
+                href={musicBrainzUrlOf(displayAlbum)}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="View on MusicBrainz"
                 className="relative block aspect-square rounded-md overflow-hidden bg-background-tertiary w-full group cursor-pointer"
               >
-                <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} compact={compact} />
+                <PanelCover key={coverKey} mbid={displayAlbum.id} src={coverSrc} title={displayAlbum.title} compact={compact} />
               </a>
               {/* Larger / smaller cover, top-right (tablet and desktop; phones always show the full-width cover) */}
               <button
@@ -494,6 +511,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 </div>
                 <h2 className={`text-xl font-bold text-text-primary break-words ${compact ? '' : 'md:text-2xl'}`}>{displayAlbum.title}</h2>
                 <p className={`text-text-secondary text-lg ${compact ? 'md:text-base' : ''}`}>{artistName}</p>
+                {/* Release item: which release this is (its date and labels are under the tracklist) */}
+                {pinnedFacts && <p className="text-sm text-text-tertiary">{pinnedFacts}</p>}
               </div>
 
               {displayAlbum.rating && showRatings && (
@@ -600,9 +619,11 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 key={displayAlbum.id}
                 releases={releases}
                 shownReleaseId={displayAlbum.selectedReleaseId ?? displayAlbum.releaseDetails?.id}
-                choiceId={displayAlbum.releaseChoice ?? null}
-                canChoose={isAuthenticated}
+                choiceId={pinned ? null : displayAlbum.releaseChoice ?? null}
+                canChoose={pinned || isAuthenticated}
                 onChoose={onChooseRelease ? releaseId => onChooseRelease(displayAlbum.id, releaseId) : undefined}
+                lookOnly={pinned}
+                collectedIds={pinned ? collectedReleaseIds ?? [displayAlbum.id] : undefined}
               />
             </div>
           ) : tab === 'reviews' && reviewLinks ? (
@@ -638,7 +659,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
           <ToolbarButton
             icon={<SiMusicbrainz />}
             label="Open on MusicBrainz"
-            href={`https://musicbrainz.org/release-group/${displayAlbum.id}`}
+            href={musicBrainzUrlOf(displayAlbum)}
           />
           {onRefreshAlbum && (
             <ToolbarButton

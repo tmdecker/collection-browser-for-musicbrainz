@@ -1,6 +1,6 @@
 /**
  * @ai-file cache
- * @ai-description Server-side copy of collection listing pages (release-group?collection=...), so a
+ * @ai-description Server-side copy of collection listing pages (release-group?collection=... and release?collection=...), so a
  *   browser without its own IndexedDB copy loads a large collection in about a second instead of
  *   waiting for one rate-limited MusicBrainz request per 100 albums
  * @ai-dependencies base-cache
@@ -40,7 +40,7 @@ class CollectionPageCache extends BaseCache<unknown> {
 
 /** True for a page of a collection's album list, the only request this cache holds */
 export const isCollectionPageRequest = (segments: string[], searchParams: URLSearchParams): boolean =>
-  segments.length === 1 && segments[0] === 'release-group' && searchParams.has('collection');
+  segments.length === 1 && (segments[0] === 'release-group' || segments[0] === 'release') && searchParams.has('collection');
 
 const globalForCollectionPages = globalThis as unknown as { collectionPageCache?: CollectionPageCache };
 export const collectionPageCache =

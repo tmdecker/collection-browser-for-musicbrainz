@@ -10,6 +10,7 @@ import { usePreferences } from './usePreferences';
 import { normalizeReleaseGroup } from '@/utils/normalize-mb-data';
 import { bumpCoverVersion } from '@/utils/cover-versions';
 import { SearchText, matchesSearch, parseSearchQuery, prepareSearchText } from '@/utils/search-text';
+import { isReleaseItem, releaseGroupCoverUrl, releaseGroupIdOf } from '@/utils/release-items';
 
 /**
  * @ai-file hook
@@ -20,6 +21,8 @@ import { SearchText, matchesSearch, parseSearchQuery, prepareSearchText } from '
  * - Album details with server-side cache and request cancellation
  * - Manual refresh of one album from MusicBrainz (after editing it there)
  * - Choosing the release an album shows (Releases tab), kept on the server for every device
+ * - Release items (release collections and series): details of the one release from /api/releases/[mbid];
+ *   the Releases tab only looks at another release there, nothing is saved
  * - Sorting (artists by sort name, then year) and forgiving search (case, accents, umlauts, word order; see utils/search-text)
  */
 
@@ -38,6 +41,25 @@ export const toPanelDetails = (details: any, gridAlbum?: ReleaseGroup | null): R
     rating: normalized.rating ? { ...normalized.rating, personal } : gridAlbum?.rating,
   };
 };
+
+// Details and manual refresh of a grid entry: a release item asks for its release, anything else for its release group
+const detailsUrlOf = (album: Pick<ReleaseGroup, 'id' | 'pinnedRelease'>): string =>
+  `/api/${isReleaseItem(album) ? 'releases' : 'release-groups'}/${album.id}`;
+
+// Cover to store with an entry's details: the server knows a release item's cover (its own, or the release
+// group's when it has none); a release group keeps the cover it already shows
+const coverToStore = (details: ReleaseGroup, existing?: ReleaseGroup | null): string | undefined =>
+  isReleaseItem(details)
+    ? details.cover || existing?.cover
+    : existing?.cover || details.cover || releaseGroupCoverUrl(details.id);
+
+// What the browser keeps of an entry's details: with its cover and, in a series, its position
+// (the details come without it, and storing them replaces the entry the collection load wrote)
+const entryToStore = (details: ReleaseGroup, existing?: ReleaseGroup | null): ReleaseGroup => ({
+  ...details,
+  cover: coverToStore(details, existing),
+  ...(existing?.seriesOrder !== undefined ? { seriesOrder: existing.seriesOrder } : {}),
+});
 
 // The browser gives up on an album's details after this long (the server retries a busy MusicBrainz first)
 const ALBUM_DETAILS_TIMEOUT_MS = 30000;
@@ -135,7 +157,11 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
         fetch('/api/prefetch/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rgMbids: data.map(a => a.id), country: streamingCountryRef.current })
+          // Release items are prefetched through their release group (not known yet for a new release series)
+          body: JSON.stringify({
+            rgMbids: [...new Set(data.map(releaseGroupIdOf).filter(Boolean))],
+            country: streamingCountryRef.current,
+          })
         }).catch(() => {}); // Fire and forget
       }
     } catch (err) {
@@ -153,6 +179,21 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
   const fetchAlbumDetails = useCallback(async (albumId: string, signal?: AbortSignal) => {
     if (!albumId) return;
     setSelectedAlbumDetailsError(null);
+    const gridAlbum = albums.find(a => a.id === albumId);
+    const detailsUrl = detailsUrlOf(gridAlbum ?? { id: albumId });
+
+    // A release item of a release series only learns its release group, format and cover here
+    const completeGridEntry = (details: ReleaseGroup) => {
+      if (!isReleaseItem(details) || !gridAlbum || gridAlbum.releaseGroupId) return;
+      setAlbums(prev => prev.map(album => album.id !== albumId ? album : {
+        ...album,
+        releaseGroupId: details.releaseGroupId,
+        pinnedRelease: details.pinnedRelease,
+        cover: details.cover || album.cover,
+        primary_type: details.primary_type || album.primary_type,
+        secondary_types: details.secondary_types?.length ? details.secondary_types : album.secondary_types,
+      }));
+    };
 
     try {
       // First, check if we already have cached information (basic or detailed)
@@ -178,7 +219,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
             // picks up new releases and a release chosen on another device
             const cacheAge = Date.now() - (cachedAlbum._cachedAt || 0);
             console.log(`🗃️ Cached album ${albumId} (${Math.round(cacheAge / 3600000)}h old), checking the server in the background`);
-            fetch(`/api/release-groups/${albumId}`)
+            fetch(detailsUrl)
               .then(res => res.json())
               .then(async (json) => {
                 if (!json.success) return;
@@ -194,10 +235,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
                   setSelectedAlbumDetails(toPanelDetails(freshDetails, albums.find(a => a.id === albumId)));
                 }
                 const existingAlbum = albums.find(a => a.id === albumId);
-                await storeReleaseGroup({
-                  ...freshDetails,
-                  cover: existingAlbum?.cover || cachedAlbum.cover || freshDetails.cover
-                });
+                await storeReleaseGroup(entryToStore(freshDetails, existingAlbum ?? cachedAlbum));
               })
               .catch(() => {
                 // Silent fail - cached data is still shown
@@ -227,7 +265,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
         const requestSignal = signal
           ? AbortSignal.any([signal, AbortSignal.timeout(ALBUM_DETAILS_TIMEOUT_MS)])
           : AbortSignal.timeout(ALBUM_DETAILS_TIMEOUT_MS);
-        const response = await fetch(`/api/release-groups/${albumId}`, { signal: requestSignal });
+        const response = await fetch(detailsUrl, { signal: requestSignal });
         const json = await response.json().catch(() => null);
         if (!response.ok || !json?.success) throw new Error(json?.error || `HTTP ${response.status}`);
         const details = json.data;
@@ -235,17 +273,13 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
         // Only update state if not aborted
         if (!signal?.aborted) {
           // Update with detailed information
-          setSelectedAlbumDetails(toPanelDetails(details, albums.find(a => a.id === albumId)));
+          const panelDetails = toPanelDetails(details, gridAlbum);
+          setSelectedAlbumDetails(panelDetails);
+          completeGridEntry(panelDetails);
 
           // Store the detailed information in IndexedDB, preserving existing data like cover URL
           try {
-            const existingAlbum = albums.find(a => a.id === albumId);
-            const detailsWithCover = {
-              ...details,
-              // Preserve the cover URL from existing album data
-              cover: existingAlbum?.cover || details.cover || `/api/coverart/release-group/${albumId}/front`
-            };
-            await storeReleaseGroup(detailsWithCover);
+            await storeReleaseGroup(entryToStore(details, gridAlbum));
           } catch (err) {
             // Silently fail cache storage
           }
@@ -287,13 +321,14 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
   // Fetch one album from MusicBrainz again, bypassing every cache (after editing it on MusicBrainz)
   const refreshAlbum = useCallback(async (albumId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/release-groups/${albumId}`, { method: 'POST' });
+      const response = await fetch(detailsUrlOf(selectedAlbumRef.current?.id === albumId ? selectedAlbumRef.current : { id: albumId }), { method: 'POST' });
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.error || `HTTP ${response.status}`);
       const details = json.data;
 
       // The server dropped its cover images: load the cover again instead of the browser's copy
       bumpCoverVersion(albumId);
+      if (details.releaseGroupId) bumpCoverVersion(details.releaseGroupId);
 
       // Still selected: show the new data (new releaseDetails make the panel ask for streaming links again)
       if (selectedAlbumRef.current?.id === albumId) {
@@ -315,7 +350,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
       }));
 
       const { storeReleaseGroup } = await import('@/utils/db');
-      await storeReleaseGroup({ ...details, cover: details.cover || `/api/coverart/release-group/${albumId}/front` });
+      await storeReleaseGroup(entryToStore(details, selectedAlbumRef.current?.id === albumId ? { ...selectedAlbumRef.current, cover: undefined } : null));
       return true;
     } catch (err) {
       console.warn(`❌ Refresh of album ${albumId} failed:`, err);
@@ -326,6 +361,23 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
   // Show another release of an album (null: the app's own pick again); kept on the server for every device.
   // Resolves with an error message, or null when it worked
   const chooseRelease = useCallback(async (albumId: string, releaseId: string | null): Promise<string | null> => {
+    // A release item stays the release that was collected: the panel only looks at the other release
+    // (nothing is saved; picking the item's own release shows it again)
+    const selected = selectedAlbumRef.current;
+    if (selected?.id === albumId && isReleaseItem(selected)) {
+      try {
+        const response = await fetch(`/api/releases/${releaseId ?? albumId}`);
+        const json = await response.json().catch(() => null);
+        if (!response.ok || !json?.success) return json?.error || `Something went wrong (HTTP ${response.status})`;
+        if (selectedAlbumRef.current?.id === albumId) {
+          setSelectedAlbumDetails({ ...toPanelDetails(json.data, selected), id: albumId });
+        }
+        return null;
+      } catch {
+        return 'The server could not be reached, please try again';
+      }
+    }
+
     try {
       const response = await fetch(`/api/release-groups/${albumId}/release`, {
         method: releaseId ? 'PUT' : 'DELETE',
@@ -343,7 +395,7 @@ export const useAlbums = (externalCollectionId?: string, externalEntityType?: 'c
       setAlbums(prev => prev.map(album => album.id !== albumId ? album : { ...album, releaseDetails: details.releaseDetails }));
 
       const { storeReleaseGroup } = await import('@/utils/db');
-      await storeReleaseGroup({ ...details, cover: details.cover || `/api/coverart/release-group/${albumId}/front` });
+      await storeReleaseGroup(entryToStore(details, selectedAlbumRef.current?.id === albumId ? { ...selectedAlbumRef.current, cover: undefined } : null));
       return null;
     } catch (err) {
       console.warn(`❌ Choosing a release for ${albumId} failed:`, err);

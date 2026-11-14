@@ -12,6 +12,8 @@
  *   the check shows a spinner, a failure shows why
  * - Format chips (Vinyl, CD, Digital, ...) only for albums with more than 8 releases and several formats
  * - Not logged in: the list is shown, choosing needs a login
+ * - Release items (lookOnly): the entry stays the release that was collected; clicking another release only shows
+ *   it in the panel, nothing is saved. Releases of the open collection or series are marked "In this collection"
  */
 
 import React, { useMemo, useState } from 'react';
@@ -30,6 +32,10 @@ interface ReleaseListProps {
   canChoose: boolean;
   /** Resolves with an error message, or null when it worked */
   onChoose?: (releaseId: string | null) => Promise<string | null>;
+  /** Clicking a release only shows it; no choice is saved and no automatic pick is marked */
+  lookOnly?: boolean;
+  /** Releases to mark "In this collection" */
+  collectedIds?: string[];
 }
 
 const FORMAT_CHIPS_FROM = 9;
@@ -125,7 +131,7 @@ const CheckButton: React.FC<{
   );
 };
 
-const ReleaseList: React.FC<ReleaseListProps> = ({ releases, shownReleaseId, choiceId = null, canChoose, onChoose }) => {
+const ReleaseList: React.FC<ReleaseListProps> = ({ releases, shownReleaseId, choiceId = null, canChoose, onChoose, lookOnly = false, collectedIds }) => {
   const [format, setFormat] = useState<FormatGroup | 'All'>('All');
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +144,7 @@ const ReleaseList: React.FC<ReleaseListProps> = ({ releases, shownReleaseId, cho
     return counts;
   }, [summaries]);
   const showChips = summaries.length >= FORMAT_CHIPS_FROM && groupCounts.size > 1;
-  const pickHint = 'Pick the release this album shows.';
+  const pickHint = lookOnly ? 'Look at this release.' : 'Pick the release this album shows.';
   const shown = showChips && format !== 'All' ? summaries.filter(summary => summary.formatGroup === format) : summaries;
   const interactive = canChoose && !!onChoose;
 
@@ -156,7 +162,7 @@ const ReleaseList: React.FC<ReleaseListProps> = ({ releases, shownReleaseId, cho
       {!interactive && <p className="text-xs text-text-tertiary">Log in to pick the release this album shows.</p>}
       {error && (
         <p role="alert" className="text-xs text-red-400">
-          Couldn&apos;t change the release: {error}
+          Couldn&apos;t {lookOnly ? 'show' : 'change'} the release: {error}
         </p>
       )}
 
@@ -206,7 +212,10 @@ const ReleaseList: React.FC<ReleaseListProps> = ({ releases, shownReleaseId, cho
                     )}
                     {summary.disambiguation && <span className="text-xs font-normal text-text-tertiary">{summary.disambiguation}</span>}
                     {summary.unofficialStatus && <span className="text-xs font-normal text-text-tertiary">{summary.unofficialStatus}</span>}
-                    {summary.id === autoId && <span className="text-xs font-normal text-text-tertiary">· auto</span>}
+                    {!lookOnly && summary.id === autoId && <span className="text-xs font-normal text-text-tertiary">· auto</span>}
+                    {collectedIds?.includes(summary.id) && (
+                      <span className="text-[11px] font-normal text-primary-light border border-primary/50 rounded-full px-1.5 leading-4">In this collection</span>
+                    )}
                   </span>
                   {details && <span className="text-xs text-text-tertiary truncate">{details}</span>}
                 </span>

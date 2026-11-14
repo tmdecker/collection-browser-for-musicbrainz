@@ -25,14 +25,13 @@ import { SectionHeading, Tile, UnsupportedRow, ViewSwitch, rowListClass, tileGri
 import { getCollectionMetadata } from '@/utils/db';
 import { usePreferences } from '@/hooks/usePreferences';
 import { collectionPath } from '@/utils/collection-routes';
-import { readCachedSeries, writeCachedSeries, SeriesSummary } from '@/utils/collection-info';
+import { readCachedSeries, writeCachedSeries, SeriesSummary, isOpenableSeries, seriesItemNoun } from '@/utils/collection-info';
 import { rememberRecentlyOpened } from '@/utils/recently-opened';
 import { loadSeriesContents } from '@/utils/mosaic-candidates';
 import { createSearchMatcher } from '@/utils/search-text';
 import PageTitle from './PageTitle';
 
 const PAGE_SIZE = 100;
-const RELEASE_GROUP_SERIES = 'Release group series';
 
 async function fetchAllSeries(collectionId: string): Promise<SeriesSummary[]> {
   const all: SeriesSummary[] = [];
@@ -96,7 +95,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
     const show = (id: string, count: number) => {
       if (!cancelled) setCounts(prev => prev[id] === count ? prev : { ...prev, [id]: count });
     };
-    const openable = series.filter(s => s.type === RELEASE_GROUP_SERIES).sort((a, b) => a.name.localeCompare(b.name));
+    const openable = series.filter(s => isOpenableSeries(s.type)).sort((a, b) => a.name.localeCompare(b.name));
     Promise.all(openable.map(async s => {
       try {
         const metadata = await getCollectionMetadata(s.id);
@@ -120,8 +119,11 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
   const sorted = series
     ? [...series].filter(s => !matcher || matcher(s.name)).sort((a, b) => a.name.localeCompare(b.name))
     : null;
-  const openable = sorted?.filter(s => s.type === RELEASE_GROUP_SERIES) ?? [];
-  const other = sorted?.filter(s => s.type !== RELEASE_GROUP_SERIES) ?? [];
+  // One section per type the grid can show: release group series, then release series
+  const openableSections = ['Release group series', 'Release series']
+    .map(type => ({ type, list: sorted?.filter(s => s.type === type) ?? [] }))
+    .filter(section => section.list.length > 0);
+  const other = sorted?.filter(s => !isOpenableSeries(s.type)) ?? [];
   const showControls = !!series && series.length > 0;
 
   return (
@@ -184,9 +186,9 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
           <p className="text-text-secondary text-sm">No series match &ldquo;{query.trim()}&rdquo;.</p>
         ) : (
           <>
-            {openable.length > 0 && (
-              <section>
-                <SectionHeading title="Release group series" count={openable.length} />
+            {openableSections.map(({ type, list: openable }) => (
+              <section key={type}>
+                <SectionHeading title={type} count={openable.length} />
                 <div className={view === 'grid' ? tileGridClass : rowListClass}>
                   {openable.map((s, i) => (
                     <Tile
@@ -195,7 +197,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
                       href={`${collectionPath('series', s.id)}?collection=${mbid}`}
                       name={s.name}
                       detail={counts[s.id] !== undefined
-                        ? `${counts[s.id].toLocaleString()} release group${counts[s.id] === 1 ? '' : 's'}`
+                        ? `${counts[s.id].toLocaleString()} ${seriesItemNoun(s.type, counts[s.id])}`
                         : s.disambiguation || ''}
                       coverId={s.id}
                       fetchCovers="series"
@@ -204,7 +206,7 @@ export default function SeriesCollectionPage({ mbid, name }: { mbid: string; nam
                   ))}
                 </div>
               </section>
-            )}
+            ))}
             {other.length > 0 && (
               <section>
                 <SectionHeading title="Other series" count={other.length} />

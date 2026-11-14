@@ -81,6 +81,17 @@ export async function loadCollectionInfo(mbid: string): Promise<CollectionInfo |
   }
 }
 
+/** Collections the album grid can show: release groups, or releases as release items */
+export const isAlbumCollectionType = (entityType: string | undefined): boolean =>
+  entityType === 'release_group' || entityType === 'release';
+
+// Series the album grid can show, by their MusicBrainz type name
+const OPENABLE_SERIES_TYPES = new Set(['Release group series', 'Release series']);
+export const isOpenableSeries = (type: string | undefined): boolean => !!type && OPENABLE_SERIES_TYPES.has(type);
+/** "release groups" or "releases": what a series of this type holds */
+export const seriesItemNoun = (type: string | undefined, count: number): string =>
+  `${type === 'Release series' ? 'release' : 'release group'}${count === 1 ? '' : 's'}`;
+
 /** A series inside a series collection, as MusicBrainz lists it */
 export interface SeriesSummary {
   id: string;

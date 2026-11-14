@@ -100,13 +100,15 @@ export interface ValidationResult {
   valid: boolean;
   mbid: string | null;
   message: string;
-  /** Name and release group count of a valid collection or series */
+  /** Name and album count of a valid collection or series */
   name?: string;
   count?: number;
+  /** What it holds: release groups, or releases (release collections and release series) */
+  itemType?: 'release_group' | 'release';
 }
 
 /**
- * Validate if a MusicBrainz collection ID exists and is a release-group collection
+ * Validate if a MusicBrainz collection ID exists and is a release group or release collection
  * Returns validation result with status and message
  */
 export async function validateCollectionId(input: string): Promise<ValidationResult & { notFound?: boolean }> {
@@ -141,7 +143,7 @@ export async function validateCollectionId(input: string): Promise<ValidationRes
 
   // Validate the collection exists and is a release-group collection
   try {
-    const response = await fetch(`/api/musicbrainz/collection/${mbid}?fmt=json&inc=release-groups`);
+    const response = await fetch(`/api/musicbrainz/collection/${mbid}?fmt=json`);
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -168,21 +170,23 @@ export async function validateCollectionId(input: string): Promise<ValidationRes
 
     const data = await response.json();
 
-    // Check if it's a release-group collection (API returns 'release_group' with underscore)
-    if (data['entity-type'] !== 'release_group') {
+    // Release group and release collections open (API returns 'release_group' with underscore)
+    const itemType = data['entity-type'];
+    if (itemType !== 'release_group' && itemType !== 'release') {
       return {
         valid: false,
         mbid,
-        message: `This is ${/^[aeiou]/i.test(data['entity-type']) ? 'an' : 'a'} ${String(data['entity-type']).replace(/_/g, ' ')} collection. Only release group collections and series can be opened.`,
+        message: `This is ${/^[aeiou]/i.test(data['entity-type']) ? 'an' : 'a'} ${String(data['entity-type']).replace(/_/g, ' ')} collection. Only release group collections, release collections and series can be opened.`,
       };
     }
 
     return {
       valid: true,
       mbid,
-      message: `Valid release-group collection with ${data['release-group-count'] || 0} items`,
+      message: `Valid ${itemType.replace('_', ' ')} collection with ${data[`${itemType.replace('_', '-')}-count`] || 0} items`,
       name: typeof data.name === 'string' ? data.name : undefined,
-      count: typeof data['release-group-count'] === 'number' ? data['release-group-count'] : undefined,
+      count: typeof data[`${itemType.replace('_', '-')}-count`] === 'number' ? data[`${itemType.replace('_', '-')}-count`] : undefined,
+      itemType,
     };
   } catch (error) {
     console.error('Collection validation error:', error);
@@ -195,7 +199,7 @@ export async function validateCollectionId(input: string): Promise<ValidationRes
 }
 
 /**
- * Validate if a MusicBrainz series ID exists and contains release-groups
+ * Validate if a MusicBrainz series ID exists and contains release groups or releases
  * Returns validation result with status and message
  */
 export async function validateSeriesId(input: string): Promise<ValidationResult> {
@@ -230,7 +234,7 @@ export async function validateSeriesId(input: string): Promise<ValidationResult>
 
   // Validate the series exists
   try {
-    const response = await fetch(`/api/musicbrainz/series/${mbid}?fmt=json&inc=release-group-rels`);
+    const response = await fetch(`/api/musicbrainz/series/${mbid}?fmt=json&inc=release-group-rels+release-rels`);
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -256,14 +260,17 @@ export async function validateSeriesId(input: string): Promise<ValidationResult>
 
     const data = await response.json();
 
-    // Check if the series has release-group relationships
-    const releaseGroupCount = (data.relations ?? []).filter((rel: any) => rel.type === 'part of' && rel['target-type'] === 'release_group').length;
+    // Check if the series has release group or release relationships
+    const countOf = (targetType: string) =>
+      (data.relations ?? []).filter((rel: any) => rel.type === 'part of' && rel['target-type'] === targetType).length;
+    const releaseGroupCount = countOf('release_group');
+    const releaseCount = countOf('release');
 
-    if (releaseGroupCount === 0) {
+    if (releaseGroupCount + releaseCount === 0) {
       return {
         valid: false,
         mbid,
-        message: 'This series does not contain any release groups.',
+        message: 'This series does not contain any release groups or releases.',
       };
     }
 
@@ -272,7 +279,8 @@ export async function validateSeriesId(input: string): Promise<ValidationResult>
       mbid,
       message: `Valid series: ${data.name || 'Unknown'}`,
       name: typeof data.name === 'string' ? data.name : undefined,
-      count: releaseGroupCount,
+      count: releaseGroupCount + releaseCount,
+      itemType: releaseGroupCount > 0 ? 'release_group' : 'release',
     };
   } catch (error) {
     console.error('Series validation error:', error);

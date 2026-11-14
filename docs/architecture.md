@@ -31,8 +31,8 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 |---|---|
 | `/` | Redirects to the collection or series opened last, or to `/collections` on a first visit |
 | `/collections` | Home (`CollectionsPage`): recently opened and the signed-in user's collections grouped by entity type; the search bar filters them or opens a pasted MBID or collection/series link (`classifyOpenInput` in `utils/mbid-validation.ts`) |
-| `/collection/<mbid>` | A release group collection (album grid) or a series collection (`SeriesCollectionPage`, its series as cards or rows) |
-| `/series/<mbid>` | A release group series; `?collection=<mbid>` when opened from a series collection, for the breadcrumb back |
+| `/collection/<mbid>` | A release group collection or release collection (album grid) or a series collection (`SeriesCollectionPage`, its series as cards or rows) |
+| `/series/<mbid>` | A release group series or release series; `?collection=<mbid>` when opened from a series collection, for the breadcrumb back |
 | `/config` | Settings |
 
 - `/collection/<mbid>` needs the collection's entity type before it renders; it comes from the stored collection list or is looked up once and remembered (`utils/collection-info.ts`). Paths are built in `utils/collection-routes.ts`.
@@ -40,12 +40,21 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 - `CollectionFootnote` floats in the bottom-left corner as a toolbar (`Toolbar`, shared with the album details): count, the series homepage (`useSeriesHomepage`, from the series' URL relationships), the MusicBrainz link and Reload.
 - The album details panel has Tracklist, Releases (albums with more than one release) and Reviews (albums with review links) tabs. Picking a release (`ReleaseList`) calls `PUT/DELETE /api/release-groups/[mbid]/release`; the choice lives in the `release_choices` table of the server database (not a cache, never cleared) and `fetchAndStoreReleaseGroup` prefers it over the automatic pick.
 
+## Release items
+
+The grid, the details panel and the browser's storage know one kind of entry (`ReleaseGroup` in `types/music.ts`). In a release collection or release series an entry is a **release item**: its `id` is the release MBID, `pinnedRelease` holds the release's date, country and format, and `releaseGroupId` names its release group (`utils/release-items.ts`). Everything keyed by the entry's id (selection, `?album=`, IndexedDB, arrow keys) works unchanged; whatever belongs to the release group (rating, genres, reviews, streaming links, Plex, prefetch, collection cover) asks `releaseGroupIdOf(entry)`.
+
+- A release collection is browsed with `release?collection=…&inc=artist-credits+release-groups+media+labels+genres+tags+ratings`: MusicBrainz puts genres, tags and rating into each release's release group, so one request per 100 releases brings everything the grid needs. The collection lookup's `entity-type` decides which browse is used.
+- A series is looked up with release group and release relations in one request. A release relation has no release group and no media, so `/api/enhance-metadata` (`{ releaseMbid }`) looks each release up once in the background (`lookUpReleaseItem`) for its release group, format, type and cover, then the release group's genres, tags and rating.
+- Details come from `/api/releases/[mbid]` (`lib/pinned-release.ts`): the release group is loaded and cached exactly like a click on an album, and the answer has the shape of `/api/release-groups/[mbid]` with this release as the one shown. It never reads or writes `release_choices`. In the Releases tab a release item only looks at another release (the same route, nothing saved).
+- Cover: the release's own (`/api/coverart/release/<mbid>/front`), or the release group's when Cover Art Archive has no front cover for it (`cover-art-archive.front`).
+
 ## Loading a collection
 
 1. The page takes the collection or series MBID from its URL and stores it as the last opened one (`usePreferences`, localStorage).
 2. `progressive-loader.ts` serves the IndexedDB copy if one exists. It checks the album count on MusicBrainz (one request, at most every 10 minutes) and reloads in the background only when the count changed, plus a full reload once a day.
-3. Without a copy, `release-groups-helper.ts` loads the collection in pages of 100 through the `/api/musicbrainz` proxy (a series in one request through the series lookup). The proxy answers collection pages from its own copy (`collection-page-cache`), so a new browser loads a large collection in about a second; background refreshes send `x-mb-refresh: 1` for live data, which also updates the copy. A copy made while signed in is only served to signed-in requests.
-4. Series lack genres, tags and ratings in the initial response; `/api/enhance-metadata` fills them in the background.
+3. Without a copy, `release-groups-helper.ts` loads the collection in pages of 100 through the `/api/musicbrainz` proxy (release groups or releases, by the collection's entity type; a series in one request through the series lookup). The proxy answers collection pages from its own copy (`collection-page-cache`), so a new browser loads a large collection in about a second; background refreshes send `x-mb-refresh: 1` for live data, which also updates the copy. A copy made while signed in is only served to signed-in requests.
+4. Series lack genres, tags and ratings in the initial response (releases of a release series also their release group and format); `/api/enhance-metadata` fills them in the background.
 5. After loading, the client posts all MBIDs to `/api/prefetch/start` (skipped with `PREFETCH_ENABLED=false`).
 
 ## Album details and streaming links
@@ -75,7 +84,7 @@ All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/
 | `url-checks` (in `streaming-links-cache.ts`) | Whether a streaming URL is alive, per URL | 30 days |
 | `review-urls` (in `review-links-cache.ts`) | Review URLs of albums cached without url-rels | 30 days |
 | `review-pages` (in `review-links-cache.ts`) | Status and language of each review page, per URL | 90 days (1 day after a failure) |
-| `collection-page-cache` | Collection listing pages (100 release groups each), per URL and signed in or not | Served at any age; refreshed by the browser's count check and daily reload |
+| `collection-page-cache` | Collection listing pages (100 release groups or releases each), per URL and signed in or not | Served at any age; refreshed by the browser's count check and daily reload |
 
 - Stale-while-revalidate: entries are never deleted for age. Past its fresh time an entry is still served; a stale album is queued for a low-priority refresh (click, or the next collection load), stale album links are refreshed in the background, and stale barcode results and URL checks are looked up again inside that refresh.
 - Fresh times of a day or more get ±15% random jitter (`jitteredTtlMs`), so albums loaded in one prefetch do not all go stale on the same day. At 60 days, a 1,700-album collection needs about 28 album refreshes a day.
