@@ -18,7 +18,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { SiMusicbrainz, SiPlex } from 'react-icons/si';
+import { SiMusicbrainz } from 'react-icons/si';
 import { BiChevronLeft, BiCollapseAlt, BiDockRight, BiExpandAlt, BiLock, BiRefresh } from 'react-icons/bi';
 import { Toolbar, ToolbarButton } from './Toolbar';
 import ReleaseList from './ReleaseList';
@@ -27,7 +27,8 @@ import TrackList from './TrackList';
 import StreamingLinksSection from './StreamingLinksSection';
 import StarRating from './StarRating';
 import { ReleaseGroup, StreamingLinks } from '@/types/music';
-import { StreamingServicePreferences, RatingDisplayMode } from '@/types/preferences';
+import { RatingDisplayMode } from '@/types/preferences';
+import { orderedServiceLinks } from '@/utils/streaming-service-order';
 import { usePreferences } from '@/hooks/usePreferences';
 import { recheckPlexLink, usePlexAlbums } from '@/hooks/usePlexAlbums';
 
@@ -45,10 +46,6 @@ interface AlbumDetailsPanelProps {
   onToggleLabel?: (labelName: string) => void;
   selectedGenres?: string[];
   selectedLabels?: string[];
-  spotifyUseDesktopApp?: boolean;
-  tidalUseDesktopApp?: boolean;
-  appleMusicUseDesktopApp?: boolean;
-  enabledStreamingServices?: StreamingServicePreferences;
   showRatings?: boolean;
   ratingDisplayMode?: RatingDisplayMode;
   isAuthenticated?: boolean;
@@ -110,7 +107,7 @@ const PanelCover: React.FC<{ mbid: string; title: string; compact?: boolean }> =
   );
 };
 
-const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, detailsError = null, onRetryDetails, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], spotifyUseDesktopApp = false, tidalUseDesktopApp = false, appleMusicUseDesktopApp = false, enabledStreamingServices, showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum, onChooseRelease, extraActions }) => {
+const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetails, loading, detailsError = null, onRetryDetails, isOpen, onClose, useGenresOnly = true, onToggleGenre, onToggleLabel, selectedGenres = [], selectedLabels = [], showRatings = true, ratingDisplayMode = 'average', isAuthenticated = false, onRefreshAlbum, onChooseRelease, extraActions }) => {
   const [streamingLinks, setStreamingLinks] = useState<StreamingLinks | null>(null);
   const [streamingLinksLoading, setStreamingLinksLoading] = useState(false);
   const [streamingLinksFromCache, setStreamingLinksFromCache] = useState(false);
@@ -133,9 +130,17 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   // Use the detailed album data if available, otherwise fall back to basic album data
   const displayAlbum = albumDetails || album;
-  const streamingCountry = usePreferences().preferences.streaming.country;
+  const streamingPreferences = usePreferences().preferences.streaming;
+  const streamingCountry = streamingPreferences.country;
   const plexLinks = usePlexAlbums();
   const plexUrl = displayAlbum ? plexLinks[displayAlbum.id] : undefined;
+  // Plex and streaming links in the user's order; streaming links join once loaded
+  const serviceLinks = orderedServiceLinks(
+    streamingPreferences.serviceOrder,
+    streamingPreferences.enabledServices,
+    streamingLinksLoading ? null : streamingLinks,
+    plexUrl
+  );
 
   // An album's releases are cached once its details have loaded, so the server may only now be able
   // to link it to Plex: ask once more (no-op when Plex is off or the album already has a link)
@@ -507,29 +512,9 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 </div>
               )}
 
-              {/* Plex link (albums in the user's Plex library) and streaming links */}
-              <div className="flex flex-wrap gap-2 empty:hidden">
-                {plexUrl && (
-                  <a
-                    href={plexUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center w-6 h-6 text-text-secondary hover:text-white transition-colors duration-200"
-                    title="Open in Plex"
-                    aria-label="Open in Plex"
-                  >
-                    <SiPlex className="w-6 h-6" />
-                  </a>
-                )}
-                <StreamingLinksSection
-                  streamingLinks={streamingLinks}
-                  loading={streamingLinksLoading}
-                  fromCache={streamingLinksFromCache}
-                  spotifyUseDesktopApp={spotifyUseDesktopApp}
-                  tidalUseDesktopApp={tidalUseDesktopApp}
-                  appleMusicUseDesktopApp={appleMusicUseDesktopApp}
-                  enabledServices={enabledStreamingServices}
-                />
+              {/* Plex and streaming links, in the order chosen in Settings */}
+              <div className="empty:hidden">
+                <StreamingLinksSection links={serviceLinks} fromCache={streamingLinksFromCache} />
               </div>
             </div>
           </div>

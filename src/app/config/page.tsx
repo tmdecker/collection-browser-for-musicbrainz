@@ -3,8 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useAuth } from '@/hooks/useAuth';
-import { StreamingServicePreferences, STREAMING_COUNTRIES } from '@/types/preferences';
-import { BiChevronLeft, BiInfoCircle } from 'react-icons/bi';
+import { StreamingServicePreferences, STREAMING_COUNTRIES, STREAMING_SERVICE_NAMES } from '@/types/preferences';
+import { moveService, normalizeServiceOrder } from '@/utils/streaming-service-order';
+import { SERVICE_ICONS } from '@/components/serviceIcons';
+import { BiChevronDown, BiChevronLeft, BiChevronUp, BiGridVertical, BiInfoCircle } from 'react-icons/bi';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import PageTitle from '@/components/PageTitle';
@@ -59,6 +61,17 @@ export default function ConfigPage() {
     setShowRatings,
     setRatingDisplayMode,
   } = usePreferences();
+
+  // Streaming service order (drag and drop or arrow buttons)
+  const serviceOrder = normalizeServiceOrder(preferences.streaming.serviceOrder);
+  const firstEnabled = serviceOrder.find(service => preferences.streaming.enabledServices[service] !== false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const moveTo = (from: number, to: number) => updateStreaming({ serviceOrder: moveService(serviceOrder, from, to) });
+  const setAllServices = (enabled: boolean) =>
+    updateStreaming({
+      enabledServices: Object.fromEntries(serviceOrder.map(service => [service, enabled])) as unknown as StreamingServicePreferences,
+    });
 
   // Get auth state
   const { isAuthenticated } = useAuth();
@@ -307,76 +320,100 @@ export default function ConfigPage() {
               </select>
             </div>
 
-            {/* Enabled Services */}
+            {/* Service order and which services show */}
             <div>
-              <h3 className="text-base font-medium text-text-primary mb-2">Show These Services</h3>
+              <h3 className="text-base font-medium text-text-primary mb-2">Order and Show</h3>
               <p className="text-sm text-text-tertiary mb-3">
-                Select which streaming services to display in album details. Disabled services won&apos;t show their icons.
+                Album details show the ticked services in this order. The button on a cover in the album grid opens the first ticked service that has the album. Drag a row, or use the arrows, to change the order.
               </p>
 
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(preferences.streaming.enabledServices).map(([service, enabled]) => {
-                  const serviceLabels: Record<string, string> = {
-                    spotify: 'Spotify',
-                    appleMusic: 'Apple Music',
-                    youtube: 'YouTube',
-                    youtubeMusic: 'YouTube Music',
-                    amazon: 'Amazon',
-                    amazonMusic: 'Amazon Music',
-                    deezer: 'Deezer',
-                    tidal: 'Tidal',
-                    soundcloud: 'SoundCloud',
-                    pandora: 'Pandora',
-                    bandcamp: 'Bandcamp',
-                  };
-
+              <ol className="flex flex-col gap-0.5 max-w-md" aria-label="Streaming services in order">
+                {serviceOrder.map((service, index) => {
+                  const enabled = preferences.streaming.enabledServices[service] !== false;
+                  const Icon = SERVICE_ICONS[service];
+                  const name = STREAMING_SERVICE_NAMES[service];
                   return (
-                    <label key={service} className="flex items-center cursor-pointer">
+                    <li
+                      key={service}
+                      draggable
+                      onDragStart={(e) => {
+                        setDragIndex(index);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDropIndex(index);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragIndex !== null) moveTo(dragIndex, index);
+                        setDragIndex(null);
+                        setDropIndex(null);
+                      }}
+                      onDragEnd={() => {
+                        setDragIndex(null);
+                        setDropIndex(null);
+                      }}
+                      className={`flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-background-secondary ${dragIndex === index ? 'opacity-40' : ''} ${dropIndex === index && dragIndex !== null && dragIndex !== index ? 'shadow-[inset_0_2px_0_theme(colors.primary.DEFAULT)]' : ''}`}
+                    >
+                      <BiGridVertical className="w-4 h-4 text-text-tertiary cursor-grab shrink-0" aria-hidden="true" />
                       <input
                         type="checkbox"
+                        id={`service-${service}`}
                         checked={enabled}
-                        onChange={(e) => {
+                        onChange={(e) =>
                           updateStreaming({
-                            enabledServices: {
-                              ...preferences.streaming.enabledServices,
-                              [service]: e.target.checked,
-                            },
-                          });
-                        }}
-                        className="h-4 w-4"
+                            enabledServices: { ...preferences.streaming.enabledServices, [service]: e.target.checked },
+                          })
+                        }
+                        className="h-4 w-4 shrink-0"
                       />
-                      <span className="ml-2 block text-sm text-text-secondary">
-                        {serviceLabels[service] || service}
+                      <Icon className={`w-5 h-5 shrink-0 ${enabled ? 'text-text-secondary' : 'text-text-tertiary opacity-50'}`} />
+                      <label htmlFor={`service-${service}`} className={`text-sm cursor-pointer ${enabled ? 'text-text-secondary' : 'text-text-tertiary'}`}>
+                        {name}
+                      </label>
+                      {service === firstEnabled && (
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-primary-light whitespace-nowrap">
+                          First choice
+                        </span>
+                      )}
+                      <span className="ml-auto flex gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => moveTo(index, index - 1)}
+                          disabled={index === 0}
+                          aria-label={`Move ${name} up`}
+                          className="w-6 h-6 grid place-items-center rounded text-text-tertiary hover:text-text-primary hover:bg-background-tertiary disabled:opacity-25 disabled:hover:bg-transparent"
+                        >
+                          <BiChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveTo(index, index + 1)}
+                          disabled={index === serviceOrder.length - 1}
+                          aria-label={`Move ${name} down`}
+                          className="w-6 h-6 grid place-items-center rounded text-text-tertiary hover:text-text-primary hover:bg-background-tertiary disabled:opacity-25 disabled:hover:bg-transparent"
+                        >
+                          <BiChevronDown className="w-4 h-4" />
+                        </button>
                       </span>
-                    </label>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
 
               {/* Select All/None Buttons */}
               <div className="mt-3 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    const allEnabled = Object.keys(preferences.streaming.enabledServices).reduce(
-                      (acc, service) => ({ ...acc, [service]: true }),
-                      {} as StreamingServicePreferences
-                    );
-                    updateStreaming({ enabledServices: allEnabled });
-                  }}
+                  onClick={() => setAllServices(true)}
                   className="px-3 py-1 text-xs bg-background-tertiary text-text-secondary rounded hover:bg-background-secondary"
                 >
                   Select All
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const allDisabled = Object.keys(preferences.streaming.enabledServices).reduce(
-                      (acc, service) => ({ ...acc, [service]: false }),
-                      {} as StreamingServicePreferences
-                    );
-                    updateStreaming({ enabledServices: allDisabled });
-                  }}
+                  onClick={() => setAllServices(false)}
                   className="px-3 py-1 text-xs bg-background-tertiary text-text-secondary rounded hover:bg-background-secondary"
                 >
                   Select None

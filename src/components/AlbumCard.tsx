@@ -7,12 +7,17 @@
  * - Loading states with smooth transitions
  * - Selected state with highlight border
  * - Opens with Enter or Space when focused
+ * - Listen button on the cover (hover devices) for the first service in the user's order
  */
 
 import React, { useState } from 'react';
 import { ReleaseGroup } from '@/types/music';
 import clsx from 'clsx';
 import CoverArtImage from './CoverArtImage';
+import ListenButton from './ListenButton';
+
+// The listen button needs a pointer that hovers; touch screens open the details panel instead
+const canHover = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches;
 
 interface AlbumCardProps {
   album: ReleaseGroup;
@@ -29,6 +34,11 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  // Links are only looked up once the pointer (or keyboard focus) reaches the card
+  const [listenArmed, setListenArmed] = useState(false);
+  const armListen = () => {
+    if (!listenArmed && canHover()) setListenArmed(true);
+  };
   
   const artistNames = album.artist_credit && album.artist_credit.length > 0
     ? album.artist_credit
@@ -49,11 +59,13 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
   return (
     <div
       className={clsx(
-        'flex flex-col cursor-pointer transition-colors duration-200 ease-in-out',
+        'group/card flex flex-col cursor-pointer transition-colors duration-200 ease-in-out',
         'rounded-md overflow-hidden hover:bg-background-secondary p-1.5 md:p-2',
         selected && 'bg-background-secondary ring-2 ring-primary',
       )}
       onClick={() => onClick(album)}
+      onMouseEnter={armListen}
+      onFocus={armListen}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -91,6 +103,7 @@ const AlbumCard: React.FC<AlbumCardProps> = ({
             setImageError(true);
           }}
         />
+        {listenArmed && <ListenButton albumId={album.id} albumTitle={album.title} />}
       </div>
       
       <div className="flex flex-col flex-grow">

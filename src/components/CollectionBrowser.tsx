@@ -80,7 +80,6 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
     sortOption,
     setSortOption,
     useGenresOnly,
-    spotifyUseDesktopApp,
     preferences
   } = useAlbums(activeCollectionId, activeEntityType);
 
@@ -582,10 +581,6 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             onToggleLabel={prefs.display.enableLabelFilter ? toggleLabel : undefined}
             selectedGenres={selectedGenres}
             selectedLabels={prefs.display.enableLabelFilter ? selectedLabels : []}
-            spotifyUseDesktopApp={spotifyUseDesktopApp}
-            tidalUseDesktopApp={preferences.streaming.tidalUseDesktopApp}
-            appleMusicUseDesktopApp={preferences.streaming.appleMusicUseDesktopApp}
-            enabledStreamingServices={preferences.streaming.enabledServices}
             showRatings={preferences.display.showRatings}
             ratingDisplayMode={preferences.display.ratingDisplayMode}
             isAuthenticated={isAuthenticated}

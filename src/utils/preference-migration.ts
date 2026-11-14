@@ -15,6 +15,7 @@ import {
   SortOption,
   isValidSortOption,
 } from '@/types/preferences';
+import { normalizeServiceOrder } from '@/utils/streaming-service-order';
 
 // Old localStorage keys that need migration
 const OLD_STORAGE_KEYS = {
@@ -115,6 +116,7 @@ export const loadPreferences = (): UserPreferences => {
               ...DEFAULT_USER_PREFERENCES.streaming.enabledServices,
               ...parsed.streaming?.enabledServices,
             },
+            serviceOrder: normalizeServiceOrder(parsed.streaming?.serviceOrder),
           },
           api: { ...DEFAULT_USER_PREFERENCES.api, ...parsed.api },
           metadata: { ...DEFAULT_USER_PREFERENCES.metadata, ...parsed.metadata },

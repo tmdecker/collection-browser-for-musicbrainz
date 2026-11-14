@@ -1,372 +1,50 @@
 /**
  * @ai-file component
- * @ai-description Streaming platform links with icons and hover effects
- * @ai-dependencies react-icons (bi, si collections), StreamingLinks type
+ * @ai-description Service links of an album (streaming platforms and Plex) as icons, in the user's order
+ * @ai-dependencies serviceIcons, useServiceOpenUrls
  * @ai-features
- * - Platform icons for Spotify, Apple Music, YouTube, Amazon, Deezer, Tidal, SoundCloud, Pandora
- * - Responsive layout with hover effects and tooltips
- * - Conditional fade-in animation (only when NOT loaded from cache)
- * - Desktop app URL rewriting for Spotify
+ * - Icons left to right in the order chosen in Settings; switched-off services are already left out
+ * - Desktop app links (Spotify, Tidal, Apple Music) per user setting
+ * - Fade-in only when the links were not loaded from cache
  */
 
-import React, { useEffect, useState } from 'react';
-import {
-  BiLogoSpotify,
-  BiLogoDeezer,
-  BiLogoYoutube,
-  BiLogoSoundcloud,
-  BiLogoAmazon,
-  BiMusic
-} from 'react-icons/bi';
-import {
-  SiTidal,
-  SiApplemusic,
-  SiAmazonmusic,
-  SiYoutubemusic,
-  SiPandora,
-  SiBandcamp
-} from 'react-icons/si';
-import { StreamingLinks } from '@/types/music';
-import { StreamingServicePreferences, DEFAULT_STREAMING_SERVICES } from '@/types/preferences';
+import React from 'react';
+import { STREAMING_SERVICE_NAMES } from '@/types/preferences';
+import { ServiceLink } from '@/utils/streaming-service-order';
+import { linkTargetProps } from '@/utils/streaming-open-url';
+import { useServiceOpenUrls } from '@/hooks/useServiceOpenUrls';
+import { SERVICE_ICONS } from './serviceIcons';
+
+export { linkTargetProps };
 
 interface StreamingLinksSectionProps {
-  streamingLinks?: StreamingLinks | null;
-  loading?: boolean;
+  /** The album's links, already ordered and filtered by the user's settings */
+  links: ServiceLink[];
   fromCache?: boolean;
-  spotifyUseDesktopApp?: boolean;
-  tidalUseDesktopApp?: boolean;
-  appleMusicUseDesktopApp?: boolean;
-  enabledServices?: StreamingServicePreferences;
 }
 
-interface PlatformConfig {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  name: string;
-  color: string; // Hover color class
-}
-
-// Platform configuration with icons and styling
-const PLATFORM_CONFIGS: Record<keyof StreamingLinks, PlatformConfig> = {
-  spotify: {
-    icon: BiLogoSpotify,
-    name: 'Spotify',
-    color: 'hover:text-white',
-  },
-  appleMusic: {
-    icon: SiApplemusic,
-    name: 'Apple Music',
-    color: 'hover:text-white',
-  },
-  youtube: {
-    icon: BiLogoYoutube,
-    name: 'YouTube',
-    color: 'hover:text-white',
-  },
-  youtubeMusic: {
-    icon: SiYoutubemusic,
-    name: 'YouTube Music',
-    color: 'hover:text-white',
-  },
-  amazon: {
-    icon: BiLogoAmazon,
-    name: 'Amazon',
-    color: 'hover:text-white',
-  },
-  amazonMusic: {
-    icon: SiAmazonmusic,
-    name: 'Amazon Music',
-    color: 'hover:text-white',
-  },
-  deezer: {
-    icon: BiLogoDeezer,
-    name: 'Deezer',
-    color: 'hover:text-white',
-  },
-  tidal: {
-    icon: SiTidal,
-    name: 'Tidal',
-    color: 'hover:text-white',
-  },
-  soundcloud: {
-    icon: BiLogoSoundcloud,
-    name: 'SoundCloud',
-    color: 'hover:text-white',
-  },
-  pandora: {
-    icon: SiPandora,
-    name: 'Pandora',
-    color: 'hover:text-white',
-  },
-  bandcamp: {
-    icon: SiBandcamp,
-    name: 'Bandcamp',
-    color: 'hover:text-white',
-  },
-};
-
-// Helper function to transform Spotify URLs for desktop app
-const transformSpotifyUrl = (url: string, useDesktopApp: boolean): string => {
-  if (!useDesktopApp || !url.includes('open.spotify.com')) {
-    return url;
-  }
-
-  // Replace https://open.spotify.com/ with spotify://
-  return url.replace('https://open.spotify.com/', 'spotify://');
-};
-
-// Helper function to transform Tidal URLs for desktop app
-const transformTidalUrl = (url: string, useDesktopApp: boolean): string => {
-  if (!useDesktopApp || !url.includes('tidal.com')) {
-    return url;
-  }
-
-  // Handle various Tidal URL formats:
-  // https://tidal.com/... -> tidal://...
-  // https://listen.tidal.com/... -> tidal://...
-  // https://www.tidal.com/... -> tidal://...
-  return url
-    .replace('https://listen.tidal.com/', 'tidal://')
-    .replace('https://www.tidal.com/', 'tidal://')
-    .replace('https://tidal.com/', 'tidal://');
-};
-
-// Cache key for resolved Apple Music geo URLs
-const APPLE_MUSIC_GEO_CACHE_KEY = 'appleMusicGeoCache';
-const GEO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-
-interface GeoCacheEntry {
-  resolvedUrl: string;
-  timestamp: number;
-}
-
-// Get cached resolved URL for Apple Music geo link
-const getCachedGeoUrl = (geoUrl: string): string | null => {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const cache = localStorage.getItem(APPLE_MUSIC_GEO_CACHE_KEY);
-    if (!cache) return null;
-
-    const parsed: Record<string, GeoCacheEntry> = JSON.parse(cache);
-    const entry = parsed[geoUrl];
-
-    if (!entry) return null;
-
-    // Check if cache entry is still valid
-    const age = Date.now() - entry.timestamp;
-    if (age > GEO_CACHE_TTL) {
-      // Cache expired, remove it
-      delete parsed[geoUrl];
-      localStorage.setItem(APPLE_MUSIC_GEO_CACHE_KEY, JSON.stringify(parsed));
-      return null;
-    }
-
-    return entry.resolvedUrl;
-  } catch (error) {
-    console.warn('Failed to read Apple Music geo cache:', error);
-    return null;
-  }
-};
-
-// Store resolved URL in cache
-const setCachedGeoUrl = (geoUrl: string, resolvedUrl: string): void => {
-  if (typeof window === 'undefined') return;
-
-  try {
-    const cache = localStorage.getItem(APPLE_MUSIC_GEO_CACHE_KEY);
-    const parsed: Record<string, GeoCacheEntry> = cache ? JSON.parse(cache) : {};
-
-    parsed[geoUrl] = {
-      resolvedUrl,
-      timestamp: Date.now(),
-    };
-
-    localStorage.setItem(APPLE_MUSIC_GEO_CACHE_KEY, JSON.stringify(parsed));
-    console.log(`💾 Cached Apple Music geo resolution: ${geoUrl} → ${resolvedUrl}`);
-  } catch (error) {
-    console.warn('Failed to store Apple Music geo cache:', error);
-  }
-};
-
-// Helper function to resolve and transform Apple Music URLs for desktop app
-const resolveAppleMusicUrl = async (url: string): Promise<string> => {
-  // Check if this is a geo link that needs resolution
-  if (!url.includes('geo.music.apple.com')) {
-    // Not a geo link, just extract path for music:// protocol
-    const urlObj = new URL(url);
-    const pathAndQuery = urlObj.pathname + urlObj.search;
-    return `music://${pathAndQuery}`;
-  }
-
-  // Check cache first
-  const cached = getCachedGeoUrl(url);
-  if (cached) {
-    console.log(`⚡ Cache hit for Apple Music geo URL: ${url}`);
-    return cached;
-  }
-
-  // Resolve geo link via API
-  try {
-    console.log(`🔍 Resolving Apple Music geo link: ${url}`);
-    const response = await fetch(`/api/resolve-apple-music?url=${encodeURIComponent(url)}`);
-    const data = await response.json();
-
-    if (data.success && data.finalUrl) {
-      // Convert final URL to music:// protocol
-      const finalUrl = data.finalUrl.replace('https://', 'music://');
-
-      // Cache the resolved URL
-      setCachedGeoUrl(url, finalUrl);
-
-      console.log(`✅ Resolved and converted: ${url} → ${finalUrl}`);
-      return finalUrl;
-    } else {
-      // Fallback: use original geo URL (will open in browser)
-      console.warn(`⚠️ Failed to resolve geo URL, using original: ${url}`);
-      return url;
-    }
-  } catch (error) {
-    console.error('❌ Error resolving Apple Music geo URL:', error);
-    // Fallback: use original URL
-    return url;
-  }
-};
-
-// Helper function to transform Apple Music URLs for desktop app
-const transformAppleMusicUrl = (url: string, useDesktopApp: boolean): string => {
-  if (!useDesktopApp || !url.includes('music.apple.com')) {
-    return url;
-  }
-
-  // For non-geo URLs, do simple transformation
-  if (!url.includes('geo.music.apple.com')) {
-    const urlObj = new URL(url);
-    const pathAndQuery = urlObj.pathname + urlObj.search;
-    return `music://${pathAndQuery}`;
-  }
-
-  // For geo URLs, return the original URL for now
-  // The actual resolution happens in useEffect
-  return url;
-};
-
-// Web links open in a new tab. App links (spotify://, tidal://, music://)
-// open in the current tab: the browser hands them to the app and the page
-// stays, so no empty tab is left behind.
-export const linkTargetProps = (href: string) =>
-  /^https?:/i.test(href) ? { target: '_blank', rel: 'noopener noreferrer' } : {};
-
-const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({
-  streamingLinks,
-  loading = false,
-  fromCache = false,
-  spotifyUseDesktopApp = false,
-  tidalUseDesktopApp = false,
-  appleMusicUseDesktopApp = false,
-  enabledServices = DEFAULT_STREAMING_SERVICES,
-}) => {
-  // State to hold resolved Apple Music URLs (must be before any returns)
-  const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
-
-  // Resolve Apple Music geo URLs when component mounts or when Apple Music links change
-  // Must be called before any conditional returns
-  useEffect(() => {
-    const resolveGeoUrls = async () => {
-      if (!appleMusicUseDesktopApp || !streamingLinks?.appleMusic) return;
-
-      const url = streamingLinks.appleMusic;
-
-      // Only resolve geo URLs
-      if (!url.includes('geo.music.apple.com')) return;
-
-      // Skip if already resolved
-      if (resolvedUrls[url]) return;
-
-      const resolved = await resolveAppleMusicUrl(url);
-      setResolvedUrls(prev => ({ ...prev, [url]: resolved }));
-    };
-
-    resolveGeoUrls();
-  }, [streamingLinks?.appleMusic, appleMusicUseDesktopApp, resolvedUrls]);
-
-  // Don't render anything while loading (no skeletons)
-  if (loading) {
-    return null;
-  }
-
-  // Don't render if no streaming links
-  if (!streamingLinks || Object.keys(streamingLinks).length === 0) {
-    return null;
-  }
-
-  // Available platforms, filtered by the user's enabled services
-  const availablePlatforms = Object.entries(streamingLinks || {})
-    .filter(([key, url]) => {
-      if (!url) return false;
-
-      // Check if this service is enabled in user preferences
-      return enabledServices[key as keyof StreamingLinks] !== false;
-    })
-    .map(([platform, url]) => ({
-      platform: platform as keyof StreamingLinks,
-      url: url as string,
-    }));
-
-  if (availablePlatforms.length === 0) {
-    return null;
-  }
-
-  // Only apply fade-in animation if NOT from cache
-  const shouldAnimate = !fromCache;
+const StreamingLinksSection: React.FC<StreamingLinksSectionProps> = ({ links, fromCache = false }) => {
+  const openable = useServiceOpenUrls(links);
+  if (openable.length === 0) return null;
 
   return (
-    <div className={shouldAnimate ? 'animate-fade-in' : ''}>
-      <div className="flex flex-wrap gap-2">
-        {availablePlatforms.map(({ platform, url }) => {
-          const config = PLATFORM_CONFIGS[platform];
-          // Transform URLs for desktop apps if enabled
-          let finalUrl = url;
-          if (platform === 'spotify') {
-            finalUrl = transformSpotifyUrl(url, spotifyUseDesktopApp);
-          } else if (platform === 'tidal') {
-            finalUrl = transformTidalUrl(url, tidalUseDesktopApp);
-          } else if (platform === 'appleMusic') {
-            // Use resolved URL if available (for geo links), otherwise transform normally
-            finalUrl = resolvedUrls[url] || transformAppleMusicUrl(url, appleMusicUseDesktopApp);
-          }
-
-          if (!config) {
-            // Fallback for unknown platforms
-            return (
-              <a
-                key={platform}
-                href={finalUrl}
-                {...linkTargetProps(finalUrl)}
-                className="flex items-center justify-center w-[34px] h-[34px] md:w-6 md:h-6 text-text-secondary hover:text-white transition-colors duration-200"
-                title={`Open on ${platform}`}
-                aria-label={`Open on ${platform}`}
-              >
-                <BiMusic className="w-[34px] h-[34px] md:w-6 md:h-6" />
-              </a>
-            );
-          }
-
-          const IconComponent = config.icon;
-
-          return (
-            <a
-              key={platform}
-              href={finalUrl}
-              {...linkTargetProps(finalUrl)}
-              className={`flex items-center justify-center w-[34px] h-[34px] md:w-6 md:h-6 text-text-secondary transition-colors duration-200 ${config.color}`}
-              title={`Open on ${config.name}`}
-              aria-label={`Open on ${config.name}`}
-            >
-              <IconComponent className="w-[34px] h-[34px] md:w-6 md:h-6" />
-            </a>
-          );
-        })}
-      </div>
+    <div className={`flex flex-wrap gap-2 ${fromCache ? '' : 'animate-fade-in'}`}>
+      {openable.map(({ service, href }) => {
+        const Icon = SERVICE_ICONS[service];
+        const name = STREAMING_SERVICE_NAMES[service];
+        return (
+          <a
+            key={service}
+            href={href}
+            {...linkTargetProps(href)}
+            className="flex items-center justify-center w-[34px] h-[34px] md:w-6 md:h-6 text-text-secondary hover:text-white transition-colors duration-200"
+            title={`Open in ${name}`}
+            aria-label={`Open in ${name}`}
+          >
+            <Icon className="w-[34px] h-[34px] md:w-6 md:h-6" />
+          </a>
+        );
+      })}
     </div>
   );
 };

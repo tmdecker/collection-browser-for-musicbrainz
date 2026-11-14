@@ -25,7 +25,29 @@ export interface StreamingServicePreferences {
   soundcloud: boolean;
   pandora: boolean;
   bandcamp: boolean;
+  plex: boolean;
 }
+
+/** A service that can link to an album: the streaming platforms plus Plex */
+export type StreamingServiceKey = keyof StreamingServicePreferences;
+
+export const STREAMING_SERVICE_NAMES: Record<StreamingServiceKey, string> = {
+  plex: 'Plex',
+  spotify: 'Spotify',
+  appleMusic: 'Apple Music',
+  tidal: 'Tidal',
+  deezer: 'Deezer',
+  youtubeMusic: 'YouTube Music',
+  youtube: 'YouTube',
+  amazonMusic: 'Amazon Music',
+  amazon: 'Amazon',
+  bandcamp: 'Bandcamp',
+  soundcloud: 'SoundCloud',
+  pandora: 'Pandora',
+};
+
+/** Default order of the service icons (leftmost first); the grid's listen button opens the first one */
+export const DEFAULT_STREAMING_ORDER = Object.keys(STREAMING_SERVICE_NAMES) as StreamingServiceKey[];
 
 export interface DisplayPreferences {
   sortOption: SortOption;
@@ -43,6 +65,8 @@ export interface StreamingPreferences {
   tidalUseDesktopApp: boolean;
   appleMusicUseDesktopApp: boolean;
   enabledServices: StreamingServicePreferences;
+  /** Every service once, in the user's order (icons left to right; the listen button opens the first available) */
+  serviceOrder: StreamingServiceKey[];
   country: string; // Two-letter store country for streaming links (Apple storefront, Spotify market, Tidal)
 }
 
@@ -89,6 +113,7 @@ export const DEFAULT_STREAMING_SERVICES: StreamingServicePreferences = {
   soundcloud: true,
   pandora: true,
   bandcamp: true,
+  plex: true,
 };
 
 export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
@@ -106,6 +131,7 @@ export const DEFAULT_STREAMING_PREFERENCES: StreamingPreferences = {
   tidalUseDesktopApp: false,
   appleMusicUseDesktopApp: false,
   enabledServices: DEFAULT_STREAMING_SERVICES,
+  serviceOrder: DEFAULT_STREAMING_ORDER,
   country: 'DE',
 };
 
