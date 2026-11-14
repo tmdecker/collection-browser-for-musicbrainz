@@ -556,7 +556,6 @@ export default function CollectionBrowser({ route, parentCollectionId }: Collect
             musicBrainzUrl={collectionId ? `https://musicbrainz.org/${activeEntityType ?? 'collection'}/${collectionId}` : undefined}
             musicBrainzLabel={`this ${activeEntityType ?? 'collection'}`}
             homepageUrl={seriesHomepage}
-            onNameClick={handleTitleClick}
             onReload={collectionId ? handleRefreshCollection : undefined}
             isReloading={isRefreshing}
           />

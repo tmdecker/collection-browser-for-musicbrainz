@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 - Releases tab in the album details, next to Tracklist (full-width tabs with a violet line under the open one): every release of the album, oldest first, with a small cover, year, format, country, label and catalogue number and track count. A click picks the release the album shows (tracklist, release date, labels, and which barcode the streaming links try first). A check left of the track count marks the shown release; hovering a check explains what picking does. The choice is kept on the server, so every device shows it; on a chosen release the check turns into a reset icon on hover (always shown on touch screens) that goes back to automatic. Format chips for albums with many releases. Choosing needs a login. Albums with a single release show no tabs
-- Toolbars: the album details have a floating toolbar at the bottom right with MusicBrainz and Reload (both were on the cover), level with the grid toolbar; the collection footnote is now the same kind of toolbar with its buttons always visible (homepage, MusicBrainz, Reload)
+- Toolbars: the album details have a floating toolbar at the bottom right with MusicBrainz and Reload (both were on the cover), level with the grid toolbar; the collection footnote is now the same kind of toolbar with the album count and its buttons always visible (homepage, MusicBrainz, Reload); the collection name is only in the header
 
 ### Changed
 - Tracklist: the track count and total time moved from above the tracks to the line below them, left of the release date and labels
