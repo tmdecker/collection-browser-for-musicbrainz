@@ -55,8 +55,11 @@ const ListenButton: React.FC<ListenButtonProps> = ({ albumId, albumTitle }) => {
     };
   }, [albumId, streaming.country]);
 
-  const streamingLinks = links?.key === key ? links.links : null;
-  const first = orderedServiceLinks(streaming.serviceOrder, streaming.enabledServices, streamingLinks, plexUrl).slice(0, 1);
+  // Wait for the streaming links, so a lower-ranked Plex link never shows first and then switches
+  const loaded = links?.key === key;
+  const first = loaded
+    ? orderedServiceLinks(streaming.serviceOrder, streaming.enabledServices, links.links, plexUrl).slice(0, 1)
+    : [];
   const [target] = useServiceOpenUrls(first);
   if (!target) return null;
 
