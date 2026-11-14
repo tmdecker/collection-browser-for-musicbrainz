@@ -98,6 +98,7 @@ export interface Release {
   relations?: Relation[];
   'label-info'?: LabelInfo[];
   barcode?: string | null;   // UPC/EAN as entered on MusicBrainz (may be empty or null)
+  'cover-art-archive'?: { front?: boolean; artwork?: boolean; count?: number };  // what Cover Art Archive has for this release
 }
 
 export interface Relation {
