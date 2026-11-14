@@ -571,7 +571,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
           )}
 
           {hasReleaseTabs && (
-            <div className="mt-2 flex gap-[22px] border-b border-white/[0.12]" role="tablist" aria-label="Album details">
+            <div className="mt-2 grid grid-cols-2 border-b border-background-tertiary" role="tablist" aria-label="Album details">
               {([['tracklist', 'Tracklist'], ['releases', 'Releases']] as const).map(([id, label]) => (
                 <button
                   key={id}
@@ -581,8 +581,8 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                   aria-selected={tab === id}
                   aria-controls={`details-tabpanel-${id}`}
                   onClick={() => setTabState({ albumId: displayAlbum.id, tab: id })}
-                  className={`pb-[9px] -mb-px border-b-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:text-text-primary ${
-                    tab === id ? 'border-text-primary text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-secondary'
+                  className={`h-11 -mb-px border-b-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:bg-white/5 ${
+                    tab === id ? 'border-primary text-text-primary' : 'border-transparent text-text-tertiary hover:text-text-secondary'
                   }`}
                 >
                   {label}
