@@ -5,7 +5,7 @@
  * @ai-features
  * - One row per release, oldest first: small cover (Cover Art Archive, lazy loaded), year, format, country,
  *   edition note, unofficial status, label and catalogue number, track count
- * - A check at the right end marks the release the panel shows (tooltip: what clicking a release does); other
+ * - A check left of the track count marks the release the panel shows (tooltip: what clicking a release does); other
  *   rows show a faint check on hover; "auto" marks the app's own pick
  * - Clicking a release makes it the one shown (kept on the server for every device); "Back to automatic"
  *   undoes a choice; while saving the row shows a spinner, a failure shows why
@@ -161,11 +161,6 @@ const ReleaseList: React.FC<ReleaseListProps> = ({ releases, shownReleaseId, cho
                   </span>
                   {details && <span className="text-xs text-text-tertiary truncate">{details}</span>}
                 </span>
-                {summary.tracks > 0 && (
-                  <span className="text-xs text-text-tertiary tabular-nums flex-shrink-0">
-                    {summary.tracks} track{summary.tracks === 1 ? '' : 's'}
-                  </span>
-                )}
                 <span className="group/check relative w-[18px] flex-shrink-0 grid place-items-center text-lg">
                   {pending === summary.id ? (
                     <BiLoaderAlt className="animate-spin text-text-primary" aria-hidden="true" />
@@ -184,6 +179,9 @@ const ReleaseList: React.FC<ReleaseListProps> = ({ releases, shownReleaseId, cho
                   ) : interactive && !pending ? (
                     <BiCheck className="text-text-primary opacity-0 transition-opacity [@media(hover:hover)]:group-hover/row:opacity-30 group-focus-visible/row:opacity-30" aria-hidden="true" />
                   ) : null}
+                </span>
+                <span className="w-16 text-right text-xs text-text-tertiary tabular-nums flex-shrink-0">
+                  {summary.tracks > 0 && `${summary.tracks} track${summary.tracks === 1 ? '' : 's'}`}
                 </span>
               </button>
             </li>
