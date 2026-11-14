@@ -460,13 +460,13 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
               >
                 <PanelCover key={displayAlbum.id} mbid={displayAlbum.id} title={displayAlbum.title} compact={compact} />
               </a>
-              {/* Larger / smaller cover, top-left (tablet and desktop; phones always show the full-width cover) */}
+              {/* Larger / smaller cover, top-right (tablet and desktop; phones always show the full-width cover) */}
               <button
                 type="button"
                 onClick={toggleCoverExpanded}
                 aria-label={compact ? 'Show large cover' : 'Show small cover'}
                 title={compact ? 'Larger cover' : 'Smaller cover'}
-                className={`hidden md:grid absolute ${inset.tl} ${inset.l} z-10 ${coverIconClass} text-white/80 hover:text-white transition-opacity focus-visible:opacity-100 group-hover/cover:opacity-100 [@media(hover:hover)]:opacity-0`}
+                className={`hidden md:grid absolute ${inset.tl} ${inset.r} z-10 ${coverIconClass} text-white/80 hover:text-white transition-opacity focus-visible:opacity-100 group-hover/cover:opacity-100 [@media(hover:hover)]:opacity-0`}
               >
                 {compact ? <BiExpandAlt className={coverIconSize} /> : <BiCollapseAlt className={coverIconSize} />}
               </button>
