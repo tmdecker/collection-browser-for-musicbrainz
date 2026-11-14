@@ -166,38 +166,3 @@ export const albumMatchesTagFilters = (album: ReleaseGroup, selectedTags: string
     return false;
   });
 };
-
-/**
- * Gets the top N most common tags from the collection
- * @param albums Array of release groups to process
- * @param limit Maximum number of tags to return (default: 20)
- */
-export const getTopTags = (albums: ReleaseGroup[], limit: number = 20): TagStat[] => {
-  const allTags = extractTagStats(albums);
-  return allTags.slice(0, limit);
-};
-
-/**
- * Gets all unique tags from the collection without counting
- * Useful for simpler operations where counts aren't needed
- * @param albums Array of release groups to process
- */
-export const extractUniqueTags = (albums: ReleaseGroup[]): string[] => {
-  const tagSet = new Set<string>();
-
-  albums.forEach(album => {
-    // Use tags field
-    const sourceArray = album.tags;
-
-    if (sourceArray && Array.isArray(sourceArray)) {
-      sourceArray.forEach(item => {
-        const tagName = getTagName(item);
-        if (tagName) {
-          tagSet.add(tagName);
-        }
-      });
-    }
-  });
-
-  return Array.from(tagSet).sort();
-};
