@@ -6,10 +6,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { StreamingServicePreferences, STREAMING_COUNTRIES, STREAMING_SERVICE_NAMES } from '@/types/preferences';
 import { moveService, normalizeServiceOrder } from '@/utils/streaming-service-order';
 import { SERVICE_ICONS } from '@/components/serviceIcons';
-import { BiChevronDown, BiChevronLeft, BiChevronUp, BiGridVertical, BiInfoCircle } from 'react-icons/bi';
+import { BiChevronDown, BiChevronLeft, BiChevronUp, BiGridVertical, BiInfoCircle, BiX } from 'react-icons/bi';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import PageTitle from '@/components/PageTitle';
+import { useReviewLanguages } from '@/hooks/useReviewLinks';
+import { languageNameNative, OFFERED_REVIEW_LANGUAGES } from '@/utils/review-languages';
 
 interface CacheStatsResponse {
   timestamp: string;
@@ -53,6 +55,7 @@ export default function ConfigPage() {
     preferences,
     updateDisplay,
     updateStreaming,
+    updateReviews,
     setUseGenresOnly,
     setEnableLabelFilter,
     setSpotifyUseDesktopApp,
@@ -72,6 +75,18 @@ export default function ConfigPage() {
     updateStreaming({
       enabledServices: Object.fromEntries(serviceOrder.map(service => [service, enabled])) as unknown as StreamingServicePreferences,
     });
+
+  // Review languages: the browser's while "Use my browser's languages" is ticked, else the user's own list
+  const reviewLanguages = useReviewLanguages();
+  const useBrowserReviewLanguages = preferences.reviews.useBrowserLanguages;
+  const addableReviewLanguages = OFFERED_REVIEW_LANGUAGES.filter(code => !reviewLanguages.includes(code));
+  const setReviewLanguages = (languages: string[]) => updateReviews({ languages });
+  const moveReviewLanguage = (from: number, to: number) => {
+    if (to < 0 || to >= reviewLanguages.length) return;
+    const next = [...reviewLanguages];
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    setReviewLanguages(next);
+  };
 
   // Get auth state
   const { isAuthenticated } = useAuth();
@@ -420,6 +435,96 @@ export default function ConfigPage() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Review languages */}
+          <div>
+            <h2 className="text-lg font-medium text-text-primary mb-2">Review Languages</h2>
+            <p className="text-sm text-text-tertiary mb-3">
+              The Reviews tab of an album lists links in these languages first, in this order. Links in other languages are one tap away.
+            </p>
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="review-languages-browser"
+                checked={useBrowserReviewLanguages}
+                onChange={(e) =>
+                  // Unticking starts the own list from the languages in effect now
+                  updateReviews(e.target.checked ? { useBrowserLanguages: true } : { useBrowserLanguages: false, languages: reviewLanguages })
+                }
+                className="h-4 w-4"
+              />
+              <span className="ml-2 block text-sm text-text-secondary">Use my browser&apos;s languages</span>
+            </label>
+            <p className="mt-1 text-sm text-text-tertiary ml-6">
+              {useBrowserReviewLanguages
+                ? 'English is always added, since most reviews are in English. Untick to choose your own.'
+                : 'Use the arrows to change the order and × to remove a language.'}
+            </p>
+
+            <ol
+              className={`mt-3 flex flex-col gap-0.5 max-w-md ${useBrowserReviewLanguages ? 'opacity-50' : ''}`}
+              aria-label="Review languages in order"
+            >
+              {reviewLanguages.map((code, index) => {
+                const name = languageNameNative(code);
+                return (
+                  <li key={code} className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-background-secondary">
+                    <span className="text-sm text-text-secondary">{name}</span>
+                    {index === 0 && (
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-primary-light whitespace-nowrap">
+                        First choice
+                      </span>
+                    )}
+                    {!useBrowserReviewLanguages && (
+                      <span className="ml-auto flex gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => moveReviewLanguage(index, index - 1)}
+                          disabled={index === 0}
+                          aria-label={`Move ${name} up`}
+                          className="w-6 h-6 grid place-items-center rounded text-text-tertiary hover:text-text-primary hover:bg-background-tertiary disabled:opacity-25 disabled:hover:bg-transparent"
+                        >
+                          <BiChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveReviewLanguage(index, index + 1)}
+                          disabled={index === reviewLanguages.length - 1}
+                          aria-label={`Move ${name} down`}
+                          className="w-6 h-6 grid place-items-center rounded text-text-tertiary hover:text-text-primary hover:bg-background-tertiary disabled:opacity-25 disabled:hover:bg-transparent"
+                        >
+                          <BiChevronDown className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReviewLanguages(reviewLanguages.filter(other => other !== code))}
+                          disabled={reviewLanguages.length === 1}
+                          aria-label={`Remove ${name}`}
+                          className="w-6 h-6 grid place-items-center rounded text-text-tertiary hover:text-text-primary hover:bg-background-tertiary disabled:opacity-25 disabled:hover:bg-transparent"
+                        >
+                          <BiX className="w-4 h-4" />
+                        </button>
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+
+            {!useBrowserReviewLanguages && addableReviewLanguages.length > 0 && (
+              <select
+                aria-label="Add a review language"
+                value=""
+                onChange={(e) => e.target.value && setReviewLanguages([...reviewLanguages, e.target.value])}
+                className="mt-3 px-3 py-2 rounded-lg bg-background-tertiary text-sm text-text-primary border border-white/10 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Add a language…</option>
+                {addableReviewLanguages.map(code => (
+                  <option key={code} value={code}>{languageNameNative(code)}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Navigation */}

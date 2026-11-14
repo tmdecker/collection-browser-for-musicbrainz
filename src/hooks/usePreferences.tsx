@@ -42,6 +42,7 @@ interface UsePreferencesReturn {
   // Category-specific updaters
   updateDisplay: (updates: PartialPreferences<'display'>) => void;
   updateStreaming: (updates: PartialPreferences<'streaming'>) => void;
+  updateReviews: (updates: PartialPreferences<'reviews'>) => void;
   updateApi: (updates: PartialPreferences<'api'>) => void;
   updateMetadata: (updates: PartialPreferences<'metadata'>) => void;
   updateAuth: (updates: PartialPreferences<'auth'>) => void;
@@ -139,6 +140,13 @@ const usePreferencesStore = (): UsePreferencesReturn => {
   const updateStreaming = useCallback(
     (updates: PartialPreferences<'streaming'>) => {
       updatePreferenceCategory('streaming', updates);
+    },
+    [updatePreferenceCategory]
+  );
+
+  const updateReviews = useCallback(
+    (updates: PartialPreferences<'reviews'>) => {
+      updatePreferenceCategory('reviews', updates);
     },
     [updatePreferenceCategory]
   );
@@ -294,6 +302,7 @@ const usePreferencesStore = (): UsePreferencesReturn => {
       isInitialized,
       updateDisplay,
       updateStreaming,
+      updateReviews,
       updateApi,
       updateMetadata,
       updateAuth,
@@ -314,7 +323,7 @@ const usePreferencesStore = (): UsePreferencesReturn => {
       importPreferences,
       cleanupLegacyStorage,
     }),
-    [preferences, isInitialized, updateDisplay, updateStreaming, updateApi, updateMetadata, updateAuth, setSortOption, setUseGenresOnly, setEnableLabelFilter, setSpotifyUseDesktopApp, setTidalUseDesktopApp, setAppleMusicUseDesktopApp, setEnabledStreamingServices, setCollectionId, setCollectionName, setShowRatings, setRatingDisplayMode, toggleShowRatings, resetToDefaults, exportPreferences, importPreferences, cleanupLegacyStorage]
+    [preferences, isInitialized, updateDisplay, updateStreaming, updateReviews, updateApi, updateMetadata, updateAuth, setSortOption, setUseGenresOnly, setEnableLabelFilter, setSpotifyUseDesktopApp, setTidalUseDesktopApp, setAppleMusicUseDesktopApp, setEnabledStreamingServices, setCollectionId, setCollectionName, setShowRatings, setRatingDisplayMode, toggleShowRatings, resetToDefaults, exportPreferences, importPreferences, cleanupLegacyStorage]
   );
 };
 

@@ -27,6 +27,7 @@ import { isMbid } from '@/utils/mbid-validation';
 import { releaseGroupFetchInFlight, withReleaseGroupFetch } from '@/lib/cache/release-group-fetches';
 import { queueReleaseGroupRefresh } from '@/lib/prefetch/prefetch-service';
 import { deleteRgStreamingLinks } from '@/lib/cache/streaming-links-cache';
+import { deleteReviewUrls } from '@/lib/review-links';
 import { forgetCachedImage } from '@/lib/image-cache';
 import { isNetworkError } from '@/lib/network-errors';
 import { coverUrlFor, fetchAndStoreReleaseGroup, MusicBrainzResponseError } from '@/lib/release-group-fetch';
@@ -194,8 +195,9 @@ export async function POST(
     }
 
     // Streaming links are resolved again from the new releases on the next request; the cover is
-    // downloaded again (the "no cover" marker is dropped too)
+    // downloaded again (the "no cover" marker is dropped too); review links come from the new url-rels
     deleteRgStreamingLinks(mbid);
+    deleteReviewUrls(mbid);
     forgetCachedImage(`https://coverartarchive.org/release-group/${mbid}/front`);
 
     return response;

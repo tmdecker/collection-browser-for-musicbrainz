@@ -118,6 +118,13 @@ export const loadPreferences = (): UserPreferences => {
             },
             serviceOrder: normalizeServiceOrder(parsed.streaming?.serviceOrder),
           },
+          reviews: {
+            ...DEFAULT_USER_PREFERENCES.reviews,
+            ...parsed.reviews,
+            languages: Array.isArray(parsed.reviews?.languages)
+              ? parsed.reviews.languages.filter(code => typeof code === 'string')
+              : DEFAULT_USER_PREFERENCES.reviews.languages,
+          },
           api: { ...DEFAULT_USER_PREFERENCES.api, ...parsed.api },
           metadata: { ...DEFAULT_USER_PREFERENCES.metadata, ...parsed.metadata },
         };

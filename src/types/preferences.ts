@@ -70,6 +70,13 @@ export interface StreamingPreferences {
   country: string; // Two-letter store country for streaming links (Apple storefront, Spotify market, Tidal)
 }
 
+export interface ReviewPreferences {
+  /** Follow the browser's languages (navigator.languages, English added); false: use `languages` */
+  useBrowserLanguages: boolean;
+  /** The user's own list of language codes, most wanted first (used when useBrowserLanguages is false) */
+  languages: string[];
+}
+
 export interface ApiConfiguration {
   collectionId: string;
 }
@@ -95,6 +102,7 @@ export interface UserPreferences {
   version: number;
   display: DisplayPreferences;
   streaming: StreamingPreferences;
+  reviews: ReviewPreferences;
   api: ApiConfiguration;
   metadata: CollectionMetadata;
   auth: AuthPreferences;
@@ -160,6 +168,11 @@ export const STREAMING_COUNTRIES: { code: string; name: string }[] = [
   { code: 'US', name: 'United States' },
 ];
 
+export const DEFAULT_REVIEW_PREFERENCES: ReviewPreferences = {
+  useBrowserLanguages: true,
+  languages: [],
+};
+
 export const DEFAULT_API_CONFIGURATION: ApiConfiguration = {
   collectionId: '',
 };
@@ -178,6 +191,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   version: 1,
   display: DEFAULT_DISPLAY_PREFERENCES,
   streaming: DEFAULT_STREAMING_PREFERENCES,
+  reviews: DEFAULT_REVIEW_PREFERENCES,
   api: DEFAULT_API_CONFIGURATION,
   metadata: DEFAULT_COLLECTION_METADATA,
   auth: DEFAULT_AUTH_PREFERENCES,

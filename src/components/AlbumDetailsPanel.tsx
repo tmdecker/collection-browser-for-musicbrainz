@@ -13,8 +13,9 @@
  * - Manual refresh of the album from MusicBrainz (after editing it there)
  * - Floating toolbar at the bottom (MusicBrainz, Reload, plus extraActions from the page); the cover keeps
  *   only the larger/smaller toggle and still links to MusicBrainz
- * - Tabs above the tracklist: Tracklist and Releases (pick the release shown, see ReleaseList); no tabs
- *   for albums with a single release. The tab goes back to Tracklist for every other album
+ * - Tabs above the tracklist: Tracklist, Releases (pick the release shown, see ReleaseList) for albums with
+ *   more than one release, and Reviews (review links from MusicBrainz, see ReviewList) for albums that have
+ *   any; no tabs when there is only the tracklist. The tab goes back to Tracklist for every other album
  */
 
 import React, { useState, useEffect } from 'react';
@@ -22,6 +23,7 @@ import { SiMusicbrainz } from 'react-icons/si';
 import { BiChevronLeft, BiCollapseAlt, BiDockRight, BiExpandAlt, BiLock, BiRefresh } from 'react-icons/bi';
 import { Toolbar, ToolbarButton } from './Toolbar';
 import ReleaseList from './ReleaseList';
+import ReviewList from './ReviewList';
 import CoverArtImage from './CoverArtImage';
 import TrackList from './TrackList';
 import StreamingLinksSection from './StreamingLinksSection';
@@ -31,6 +33,7 @@ import { RatingDisplayMode } from '@/types/preferences';
 import { orderedServiceLinks } from '@/utils/streaming-service-order';
 import { usePreferences } from '@/hooks/usePreferences';
 import { recheckPlexLink, usePlexAlbums } from '@/hooks/usePlexAlbums';
+import { useReviewLanguages, useReviewLinks } from '@/hooks/useReviewLinks';
 
 interface AlbumDetailsPanelProps {
   album: ReleaseGroup | null;
@@ -56,7 +59,7 @@ interface AlbumDetailsPanelProps {
   extraActions?: React.ReactNode;
 }
 
-type DetailsTab = 'tracklist' | 'releases';
+type DetailsTab = 'tracklist' | 'releases' | 'reviews';
 
 // Whether the panel shows the full-width cover (true) or the compact header with a small cover (false).
 // Remembered per browser; phones always show the full-width cover.
@@ -148,6 +151,11 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
   useEffect(() => {
     if (detailsLoadedId) recheckPlexLink(detailsLoadedId);
   }, [detailsLoadedId]);
+
+  // Review links: fetched again after a manual refresh (the album's links may have changed on MusicBrainz)
+  const reviewReload = refresh?.albumId === displayAlbum?.id && refresh?.status === 'done' ? 'refreshed' : null;
+  const reviewLinks = useReviewLinks(displayAlbum?.id, reviewReload);
+  const reviewLanguages = useReviewLanguages();
 
   // Tracklist is still on its way when the album has none yet, no details request is running and none failed
   const tracklistLoading = !!displayAlbum && !displayAlbum.tracklist && !loading && !detailsError;
@@ -372,8 +380,12 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   // Tabs only when there is a choice of releases
   const releases = displayAlbum.releases ?? [];
-  const hasReleaseTabs = releases.length > 1;
-  const tab: DetailsTab = tabState?.albumId === displayAlbum.id ? tabState.tab : 'tracklist';
+  const tabs: { id: DetailsTab; label: string; count?: number }[] = [{ id: 'tracklist', label: 'Tracklist' }];
+  if (releases.length > 1) tabs.push({ id: 'releases', label: 'Releases', count: releases.length });
+  if (reviewLinks && reviewLinks.length > 0) tabs.push({ id: 'reviews', label: 'Reviews', count: reviewLinks.length });
+  const hasTabs = tabs.length > 1;
+  const chosenTab = tabState?.albumId === displayAlbum.id ? tabState.tab : 'tracklist';
+  const tab: DetailsTab = tabs.some(({ id }) => id === chosenTab) ? chosenTab : 'tracklist';
 
   // Compact header (tablet/desktop only): small cover with the facts beside it, vertically centred
   const compact = !coverExpanded;
@@ -555,9 +567,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
             </div>
           )}
 
-          {hasReleaseTabs && (
-            <div className="mt-2 grid grid-cols-2 border-b border-background-tertiary" role="tablist" aria-label="Album details">
-              {([['tracklist', 'Tracklist'], ['releases', 'Releases']] as const).map(([id, label]) => (
+          {hasTabs && (
+            <div
+              className="mt-2 grid border-b border-background-tertiary"
+              style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+              role="tablist"
+              aria-label="Album details"
+            >
+              {tabs.map(({ id, label, count }) => (
                 <button
                   key={id}
                   type="button"
@@ -571,13 +588,13 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                   }`}
                 >
                   {label}
-                  {id === 'releases' && <span className="ml-1 text-xs text-text-tertiary tabular-nums">{releases.length}</span>}
+                  {count !== undefined && <span className="ml-1 text-xs text-text-tertiary tabular-nums">{count}</span>}
                 </button>
               ))}
             </div>
           )}
 
-          {tab === 'releases' && hasReleaseTabs ? (
+          {tab === 'releases' ? (
             <div className="min-w-0" role="tabpanel" id="details-tabpanel-releases" aria-labelledby="details-tab-releases">
               <ReleaseList
                 key={displayAlbum.id}
@@ -588,10 +605,14 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
                 onChoose={onChooseRelease ? releaseId => onChooseRelease(displayAlbum.id, releaseId) : undefined}
               />
             </div>
+          ) : tab === 'reviews' && reviewLinks ? (
+            <div className="min-w-0" role="tabpanel" id="details-tabpanel-reviews" aria-labelledby="details-tab-reviews">
+              <ReviewList key={displayAlbum.id} links={reviewLinks} languages={reviewLanguages} />
+            </div>
           ) : (
             <div
-              className={`min-w-0 flex flex-col gap-3 ${hasReleaseTabs ? '' : 'mt-2'}`}
-              {...(hasReleaseTabs ? { role: 'tabpanel', id: 'details-tabpanel-tracklist', 'aria-labelledby': 'details-tab-tracklist' } : {})}
+              className={`min-w-0 flex flex-col gap-3 ${hasTabs ? '' : 'mt-2'}`}
+              {...(hasTabs ? { role: 'tabpanel', id: 'details-tabpanel-tracklist', 'aria-labelledby': 'details-tab-tracklist' } : {})}
             >
               <TrackList
                 tracks={displayAlbum.tracklist}

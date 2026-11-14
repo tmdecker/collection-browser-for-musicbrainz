@@ -4,7 +4,7 @@
  * @ai-dependencies musicbrainz-fetch, browse-releases, release-group-cache, release-store, release-selection
  * @ai-features
  * - Used by clicks (/api/release-groups, 'high' priority) and the prefetch ('low'), so both store the same data
- * - Release group (genres, tags, ratings), every release with url-rels, and the preferred release with its
+ * - Release group (genres, tags, ratings, url-rels for the review links), every release with url-rels, and the preferred release with its
  *   tracklist and labels
  * - The preferred release is the one the user picked in the Releases tab, else the app's own pick
  * - The preferred release's details are optional: without them the album is still stored (no tracklist)
@@ -46,9 +46,9 @@ export const coverUrlFor = (mbid: string): string => `/api/coverart/release-grou
  * Fetch a release group from MusicBrainz and store it (release group, every release, detailed release)
  */
 export async function fetchAndStoreReleaseGroup(mbid: string, priority: RateLimitPriority): Promise<FetchedReleaseGroup> {
-  // Step 1: release group (genres, tags, ratings)
+  // Step 1: release group (genres, tags, ratings, url-rels: the Reviews tab reads its review links)
   const rgResponse = await musicBrainzFetch(
-    `${MB_BASE_URL}/release-group/${mbid}?fmt=json&inc=artist-credits+genres+tags+ratings`,
+    `${MB_BASE_URL}/release-group/${mbid}?fmt=json&inc=artist-credits+genres+tags+ratings+url-rels`,
     { priority }
   );
   if (!rgResponse.ok) {

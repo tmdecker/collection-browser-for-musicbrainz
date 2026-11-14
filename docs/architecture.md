@@ -38,7 +38,7 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 - `/collection/<mbid>` needs the collection's entity type before it renders; it comes from the stored collection list or is looked up once and remembered (`utils/collection-info.ts`). Paths are built in `utils/collection-routes.ts`.
 - The header has the breadcrumb ("Collections / name", on phones a back arrow) and the account button (`UserAvatarButton`: profile, Settings, Log in or Log out).
 - `CollectionFootnote` floats in the bottom-left corner as a toolbar (`Toolbar`, shared with the album details): count, the series homepage (`useSeriesHomepage`, from the series' URL relationships), the MusicBrainz link and Reload.
-- The album details panel has Tracklist and Releases tabs. Picking a release (`ReleaseList`) calls `PUT/DELETE /api/release-groups/[mbid]/release`; the choice lives in the `release_choices` table of the server database (not a cache, never cleared) and `fetchAndStoreReleaseGroup` prefers it over the automatic pick.
+- The album details panel has Tracklist, Releases (albums with more than one release) and Reviews (albums with review links) tabs. Picking a release (`ReleaseList`) calls `PUT/DELETE /api/release-groups/[mbid]/release`; the choice lives in the `release_choices` table of the server database (not a cache, never cleared) and `fetchAndStoreReleaseGroup` prefers it over the automatic pick.
 
 ## Loading a collection
 
@@ -57,6 +57,12 @@ CoverArtImage ─► /api/image ─► Cover Art Archive thumbnails ─► .imag
 - The result is cached per album and country, fresh for 30 days (stale links are served and refreshed in the background), or 1 hour when a barcode provider failed (timeouts and rate limits are retried, real "nothing found" is kept). The prefetch writes the same entry, so prefetched albums open with their links at once
 - All cache access goes through `getRgStreamingLinks` / `setRgStreamingLinks` in `streaming-links-cache.ts`
 
+## Reviews tab
+
+- `/api/reviews?releaseGroup=<mbid>` returns the album's review links (`lib/review-links.ts`): the URL relationships of type "review" of the release group. The release group fetch includes `url-rels`, so they come from the cache; albums cached before that get them with one `inc=url-rels` request, kept 30 days (`review-urls`).
+- Each review page is opened once (`lib/safe-page-fetch.ts`, first 64 KB) for its language (html `lang`, then `og:locale`) and status, cached per URL for 90 days (1 day after a failure, `review-pages`). 404/410 pages are left out; 403 and timeouts keep the link. Without a language from the page: a list of known review sites, then the country domain. web.archive.org links are not opened and take the original site's name.
+- The client sorts by the user's review languages (`utils/review-languages.ts`): Settings, "Use my browser's languages" (default; `navigator.languages` as plain codes, English added at the end) or an own ordered list. Links in other languages wait behind one line in the tab.
+
 ## Server caches (`src/lib/cache/`)
 
 All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/cache.db`), table `cache_entries` (`database.ts`). Every write goes to disk at once (WAL mode), so there is no periodic save and nothing to lose on a crash or deploy. The WAL file is kept small: `journal_size_limit` is 64 MB, and a `wal_checkpoint(TRUNCATE)` runs after the startup import and after each prefetch run.
@@ -67,6 +73,8 @@ All server caches live in one SQLite file, `DATA_DIR/cache.db` (default `.cache/
 | `release-store` | Individual releases (group key: their release group) | 60 days |
 | `streaming-links-cache` | Album streaming links and barcode lookups | 30 days (1 hour after a failed lookup) |
 | `url-checks` (in `streaming-links-cache.ts`) | Whether a streaming URL is alive, per URL | 30 days |
+| `review-urls` (in `review-links-cache.ts`) | Review URLs of albums cached without url-rels | 30 days |
+| `review-pages` (in `review-links-cache.ts`) | Status and language of each review page, per URL | 90 days (1 day after a failure) |
 | `collection-page-cache` | Collection listing pages (100 release groups each), per URL and signed in or not | Served at any age; refreshed by the browser's count check and daily reload |
 
 - Stale-while-revalidate: entries are never deleted for age. Past its fresh time an entry is still served; a stale album is queued for a low-priority refresh (click, or the next collection load), stale album links are refreshed in the background, and stale barcode results and URL checks are looked up again inside that refresh.
@@ -90,6 +98,6 @@ OAuth2 with PKCE against MusicBrainz (`/api/auth/*`). Tokens stay in httpOnly co
 
 ## Security notes
 
-- Every outgoing request from a route checks its target: the MusicBrainz proxy only forwards a few entity lookups, the image route only fetches Cover Art Archive and archive.org, streaming URL checks only contact known streaming hosts, and redirects are followed hop by hop against the same allowlists.
+- Every outgoing request from a route checks its target: the MusicBrainz proxy only forwards a few entity lookups, the image route only fetches Cover Art Archive and archive.org, streaming URL checks only contact known streaming hosts, and redirects are followed hop by hop against the same allowlists. The one exception is the review page check: review links can point to any site, so instead of an allowlist it accepts only http(s) on default ports to hosts that resolve to public addresses (no localhost, LAN, Tailscale or link-local), checked again on every redirect.
 - Inputs (MBIDs, barcodes, URLs, country codes) are validated before they become cache keys or URL paths.
 - Secrets (OAuth, Spotify, Tidal) are server-only environment variables, never `NEXT_PUBLIC_`.
