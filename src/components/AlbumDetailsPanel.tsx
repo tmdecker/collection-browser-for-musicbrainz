@@ -398,7 +398,7 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
 
   return (
     <div
-      className="h-full overflow-y-auto md:w-[var(--dock-width)] p-4 md:p-8 md:pb-6 flex flex-col gap-4"
+      className="h-full overflow-y-auto md:w-[var(--dock-width)] px-4 pt-4 md:px-8 md:pt-8 flex flex-col gap-4"
       role="region"
       aria-label="Album details panel"
       onMouseEnter={() => setIsHovered(true)}
@@ -625,9 +625,9 @@ const AlbumDetailsPanel: React.FC<AlbumDetailsPanelProps> = ({ album, albumDetai
       </div>
 
       {/* Toolbar, right-aligned: floats at the bottom of the panel while it scrolls, rests below the content at the end.
-          Level with the grid toolbar (CollectionFootnote): 24px (phones 16px) above the window bottom both while
-          floating (sticky bottom; the panel's padding does not count) and at rest (the panel's bottom padding) */}
-      <div className="sticky bottom-4 md:bottom-6 z-20 mt-auto pt-2 flex justify-end pointer-events-none">
+          Level with the grid toolbar: the same sticky bottom and bottom margin as CollectionFootnote, and the panel
+          has no bottom padding (a scroll container's padding would add to the sticky offset) */}
+      <div className="sticky bottom-4 md:bottom-6 z-20 mt-auto pt-2 mb-4 md:mb-6 flex justify-end pointer-events-none">
         <Toolbar className="pointer-events-auto" label="Album toolbar" align="end">
           <ToolbarButton
             icon={<SiMusicbrainz />}
