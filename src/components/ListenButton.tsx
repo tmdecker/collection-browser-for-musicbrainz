@@ -1,6 +1,6 @@
 /**
  * @ai-file component
- * @ai-description Round button on a grid cover that opens the album in the user's first service
+ * @ai-description Service logo (white, with a shadow) on a grid cover that opens the album in the user's first service
  * @ai-dependencies usePreferences, usePlexAlbums, useServiceOpenUrls, streaming-links
  * @ai-features
  * - Opens the first service in the Settings order that is switched on and has the album; shows its logo
@@ -76,9 +76,9 @@ const ListenButton: React.FC<ListenButtonProps> = ({ albumId, albumTitle }) => {
       }}
       title={`Listen in ${name}`}
       aria-label={`Listen to ${albumTitle} in ${name}`}
-      className="absolute right-2 bottom-2 z-10 hidden [@media(hover:hover)]:grid place-items-center w-10 h-10 rounded-full bg-white text-background shadow-lg shadow-black/40 opacity-0 translate-y-1 transition duration-150 group-hover/card:opacity-100 group-hover/card:translate-y-0 focus-visible:opacity-100 focus-visible:translate-y-0 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-light motion-reduce:transition-none"
+      className="absolute right-2 bottom-2 z-10 hidden [@media(hover:hover)]:grid place-items-center w-10 h-10 rounded-full text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] opacity-0 translate-y-1 transition duration-150 group-hover/card:opacity-100 group-hover/card:translate-y-0 focus-visible:opacity-100 focus-visible:translate-y-0 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-light motion-reduce:transition-none"
     >
-      <Icon className="w-[22px] h-[22px]" />
+      <Icon className="w-8 h-8" />
     </a>
   );
 };
