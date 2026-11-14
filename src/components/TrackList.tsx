@@ -7,7 +7,7 @@
  * - Shows artist credits when different from album artist
  * - Disc grouping with disc titles
  * - Label display with filter toggle functionality
- * - Shows total track count and duration
+ * - Shows total track count and duration below the list, left of the release date and labels
  */
 
 import React from 'react';
@@ -108,7 +108,6 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
   if (loading) {
     return (
       <div className="animate-pulse">
-        <div className="bg-background-tertiary h-4 rounded-md w-3/4 mb-4"></div>
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="flex justify-between items-center">
@@ -120,6 +119,7 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
             </div>
           ))}
         </div>
+        <div className="bg-background-tertiary h-4 rounded-md w-3/4 mt-4"></div>
       </div>
     );
   }
@@ -176,14 +176,6 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with track count and total duration */}
-      <div className="mb-3 flex-shrink-0">
-        <div className="text-sm text-text-tertiary">
-          {tracks.length} track{tracks.length !== 1 ? 's' : ''}
-          {totalDurationFormatted && ` • ${totalDurationFormatted} min`}
-        </div>
-      </div>
-
       {/* Track listing - scrollable, takes remaining space */}
       <div className="space-y-1 flex-1 overflow-y-auto min-h-0">
         {tracks.map((track, index) => {
@@ -223,10 +215,16 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
         })}
       </div>
 
-      {/* Release information - bottom-aligned */}
-      {releaseDetails && (releaseDetails.date || getAllLabels({ releaseDetails })) && (
-        <div className="mt-3 flex-shrink-0">
-          <div className="text-sm text-text-tertiary flex flex-wrap items-center gap-2">
+      {/* Below the list: track count and total time, then release date and labels */}
+      <div className="mt-3 flex-shrink-0">
+        <div className="text-sm text-text-tertiary flex flex-wrap items-center gap-2">
+          <span>
+            {tracks.length} track{tracks.length !== 1 ? 's' : ''}
+            {totalDurationFormatted && ` • ${totalDurationFormatted} min`}
+          </span>
+          {releaseDetails && (releaseDetails.date || getAllLabels({ releaseDetails })) && (
+            <>
+              <span aria-hidden="true">·</span>
             {releaseDetails.date && (
               <span>{formatReleaseDate(releaseDetails.date)}</span>
             )}
@@ -262,9 +260,10 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, albumArtist, loading = fa
                 </div>
               );
             })()}
-          </div>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
