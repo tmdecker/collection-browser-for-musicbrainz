@@ -6,7 +6,8 @@
  * - Resizes images to one of a fixed set of sizes (w, h params, default 180x180)
  * - Converts images to WebP at a fixed quality (80)
  * - Only fetches allowed hosts, checks every redirect hop, caps the download size
- * - Requests Cover Art Archive thumbnails (250/500/1200) instead of full-size originals
+ * - Requests Cover Art Archive thumbnails (250/500/1200) instead of full-size originals,
+ *   and the original when the thumbnail doesn't exist (yet)
  * - Requests to coverartarchive.org are spaced 250 ms apart (MetaBrainz servers)
  * - Disk-based caching with MD5 hash filenames (lib/image-cache)
  * - Remembers covers that don't exist (7 days), so they are not requested again on every grid load
@@ -249,8 +250,15 @@ export async function GET(request: NextRequest) {
     // Fetch the original image (or the Cover Art Archive thumbnail for this size)
     const requestedSize = Math.max(width, height);
     let result: Download;
+    let usedOriginal = false;
     try {
       result = await download(toCoverArtThumbnail(parsedUrl, requestedSize));
+      // archive.org makes the thumbnails some time after an upload (or never, when that fails), while the
+      // original is there right away: resize the original instead of showing "No cover"
+      if ('status' in result && result.status === 404 && isCoverArtImage(parsedUrl)) {
+        result = await download(parsedUrl);
+        usedOriginal = true;
+      }
     } catch (error) {
       // Check if this is a transient network issue (timeout/unreachable)
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -291,10 +299,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Image too large' }, { status: 413 });
     }
 
-    // Square sizes made from the same Cover Art Archive thumbnail are stored together, so the
-    // details panel (500 px) does not download the cover again after the grid (360 px) did
+    // Square sizes made from the same Cover Art Archive thumbnail (or from the original, all of them) are stored
+    // together, so the details panel (500 px) does not download the cover again after the grid (360 px) did
     const siblingSizes = isCoverArtImage(parsedUrl) && width === height
-      ? ALLOWED_SIZES.filter(size => size !== width && thumbnailSize(size) === thumbnailSize(requestedSize))
+      ? ALLOWED_SIZES.filter(size => size !== width && (usedOriginal || thumbnailSize(size) === thumbnailSize(requestedSize)))
       : [];
 
     // Generate a WebP thumbnail with sharp
